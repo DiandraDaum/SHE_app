@@ -19,7 +19,7 @@ import os
 #@st.cache_data
 def load_main_tree():
     # File paths
-    main_path = './Documents/GitHub/SHE_app/tree/All/'
+    main_path = './Documents/GitHub/SHE_app/data/tree/All/'
     main_tree_file = main_path + 'kingdoms_All_tree.newick'
     main_tree_out= main_path + "main_tree.svg" #png or pdf or svg
     annotation_path = main_path + 'itol_annotation.txt'
