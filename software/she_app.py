@@ -479,7 +479,7 @@ st.write('Close species in the tree share similar protein structures at the prot
 st.write('Start exploring the new structural tree by selecting a kingdom in the sidebar!')
 st.write('You can also choose the tree visualisation style in the sidebar.')
 st.write('Interested in discovering the new strucutural phylogenetics of specific species or taxon? Use the "Extract Taxonomic Group" section in the sidebar.')
-st.write('Interested in discovering the new strucutural phylogenetics of specific protein or set of proteins? Use the "Find Proteins" section in the sidebar.')
+st.write('Interested in discovering in which organisms a certain protein can be found? Use the "Look for a protein" section in the sidebar.')
 
 
 
@@ -552,7 +552,7 @@ proteomes_path = './Documents/GitHub/SHE_app/data/tree/selected_proteomes_above_
 proteomes_df = pd.read_csv(proteomes_path)
 
 
-st.sidebar.subheader('❄️ Extract Taxonomic Group')
+st.sidebar.subheader('Extract Taxonomic Group')
 if st.sidebar.checkbox('Find species'):
     st.title('Species subtree:')
     species = ''
@@ -673,9 +673,9 @@ if st.sidebar.checkbox('Find taxon'): #it does not handle two new taxa in the sa
 
 
 ## Proteins extraction
-st.sidebar.subheader('Find Proteins')
-if st.sidebar.checkbox('Extract Proteins'):
-    st.title('Proteins tree:')
-    proteins = st.sidebar.text_area(
-    'Which protein(s)?', key="proteins")
-    st.write('Selected Proteins: ', proteins)
+st.sidebar.subheader('Look for a protein')
+if st.sidebar.checkbox('Find protein'):
+    st.title('Tree of all organisms sharing a protein:')
+    protein = st.sidebar.text_input(
+    'Which protein?', key="protein")
+    st.write('Selected Protein: ', protein)
