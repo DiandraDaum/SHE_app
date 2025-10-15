@@ -1,0 +1,41 @@
+DATASET_STYLE
+SEPARATOR TAB
+DATASET_LABEL	Evolutionary Rates
+DATA
+unnamed_branch_1	branch	color	#332288	width	5
+unnamed_branch_2	branch	color	#332288	width	5
+unnamed_branch_3	branch	color	#332288	width	5
+unnamed_branch_4	branch	color	#332288	width	5
+Porcisia_hertigi	branch	color	#332288	width	5
+unnamed_branch_6	branch	color	#332288	width	5
+unnamed_branch_7	branch	color	#332288	width	5
+Leishmania_major	branch	color	#117733	width	5
+Leishmania_infantum	branch	color	#117733	width	5
+Leishmania_braziliensis	branch	color	#88CCEE	width	5
+Leptomonas_pyrrhocoris_Firebug_parasite	branch	color	#332288	width	5
+Angomonas_deanei	branch	color	#88CCEE	width	5
+Strigomonas_culicis	branch	color	#332288	width	5
+unnamed_branch_14	branch	color	#332288	width	5
+unnamed_branch_15	branch	color	#332288	width	5
+unnamed_branch_16	branch	color	#332288	width	5
+unnamed_branch_17	branch	color	#332288	width	5
+unnamed_branch_18	branch	color	#332288	width	5
+Trypanosoma_rangeli_SC58	branch	color	#44AA99	width	5
+Trypanosoma_rangeli	branch	color	#44AA99	width	5
+Trypanosoma_conorhini	branch	color	#44AA99	width	5
+unnamed_branch_22	branch	color	#332288	width	5
+unnamed_branch_23	branch	color	#332288	width	5
+Trypanosoma_cruzi_Dm28c	branch	color	#44AA99	width	5
+Trypanosoma_cruzi_marinkellei	branch	color	#44AA99	width	5
+Trypanosoma_cruzi_strain_CL_Brener	branch	color	#44AA99	width	5
+Trypanosoma_theileri	branch	color	#332288	width	5
+Trypanosoma_brucei_brucei_strain_927_4_GUTat10_1	branch	color	#332288	width	5
+Naegleria_fowleri_Brain_eating_amoeba	branch	color	#332288	width	5
+Naegleria_gruberi_Amoeba	branch	color	#332288	width	5
+
+DATASET_LABEL
+SEPARATOR TAB
+LEGEND_TITLE	Evolutionary Rates
+LEGEND_SHAPES	1	1	1	1	1	1	1
+LEGEND_COLORS	#332288	#88CCEE	#44AA99	#117733	#DDCC77	#CC6677	#882255
+LEGEND_LABELS	0-100	100-300	300-600	600-1000	1000-1400	1400-1700	>1700

@@ -1,0 +1,6 @@
+Rate Statistics:
+Number of branches analyzed: 30
+Maximum rate: 669.080
+Minimum rate: 0.049
+Mean rate: 152.331
+Median rate: 10.242

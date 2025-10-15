@@ -1,0 +1,17 @@
+DATASET_STYLE
+SEPARATOR TAB
+DATASET_LABEL	Evolutionary Rates
+DATA
+Heterostelium_pallidum_strain_ATCC_26659_Pp_5_PN500_Cellular_slime_mold_Polysphondylium_pallidum	branch	color	#3E3890	width	5
+unnamed_branch_2	branch	color	#30123B	width	5
+Dictyostelium_purpureum_Slime_mold	branch	color	#32c5f6	width	5
+Dictyostelium_discoideum_Social_amoeba	branch	color	#32AFF6	width	5
+Acanthamoeba_castellanii_str_Neff	branch	color	#ea410d	width	5
+Planoprotostelium_fungivorum	branch	color	#EA500D	width	5
+
+DATASET_LABEL
+SEPARATOR TAB
+LEGEND_TITLE,Evolutionary Rate
+LEGEND_SHAPES,1,1,1,1,1,1,1
+LEGEND_COLORS,#30123B,#3E3890,#32AFF6,#5BFB71,#FEA933,#EA500D,#7A0403
+LEGEND_LABELS,0,20,30,50,100,200,>300

@@ -1,0 +1,13 @@
+DATASET_STYLE
+SEPARATOR TAB
+DATASET_LABEL	Evolutionary Rates
+DATA
+Porphyridium_purpureum_Red_alga_Porphyridium_cruentum	branch	color	#FEA933	width	5
+Gracilariopsis_chorda	branch	color	#FEA933	width	5
+
+DATASET_LABEL
+SEPARATOR TAB
+LEGEND_TITLE	Evolutionary Rates
+LEGEND_SHAPES	1	1	1	1	1	1	1
+LEGEND_COLORS	##30123B ##3E3890 #32AFF6 ##5BFB71 #FEA933 ##EA500D ##7A0403
+LEGEND_LABELS	0-10	10-20	20-30 30-50 50-60 60-100 >100
