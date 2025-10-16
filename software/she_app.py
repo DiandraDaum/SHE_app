@@ -14,7 +14,7 @@ import os
 
 #source .venv/bin/activate
 #streamlit run ./Documents/GitHub/SHE_app/software/she_app.py
-
+github_path = '/Users/diandra/Documents/GitHub/' #change to your path
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
 #@st.cache_data
 
@@ -30,7 +30,7 @@ def extract_subtree(csv_file, newick_file, taxonomic_group): #taxon
                                This is case-sensitive.
     """
     # Step 1: Find all organisms belonging to the specified taxonomic group from the CSV.
-    output_file = './Documents/GitHub/SHE_app/results/extracted_trees/' + taxonomic_group +'_subtree.newick' #Path to save the resulting subtree in Newick format.
+    output_file = github_path + 'SHE_app/results/extracted_trees/' + taxonomic_group +'_subtree.newick' #Path to save the resulting subtree in Newick format.
     organisms_to_keep = set()
     print(f"Searching for organisms in the '{taxonomic_group}' group...")
     try:
@@ -103,7 +103,7 @@ def load_extracted_tree(taxon, layout, taxon_out):
 # File paths
     taxon = taxon
     #taxon_tree_path = tree
-    taxon_tree_path = './Documents/GitHub/SHE_app/results/extracted_trees/' + taxon +'_subtree.newick'
+    taxon_tree_path = github_path + 'SHE_app/results/extracted_trees/' + taxon +'_subtree.newick'
     taxon_tree_out = taxon_out
 
     # Load the Tree: i.e. tree = Tree(main_tree_file)
@@ -159,7 +159,7 @@ def extract_closest_species(newick_file, input_species, num_neighbors): #species
         output_file (str): Path to save the resulting subtree in Newick format.
     """
     # Step 1: Load the main tree.
-    newick_file = './Documents/GitHub/SHE_app/data/tree/All/kingdoms_All_tree.newick'
+    newick_file = github_path + 'SHE_app/data/tree/All/kingdoms_All_tree.newick'
     print(f"Loading tree from '{newick_file}'...")
     try:
         main_tree = Tree(newick_file, format=1)
@@ -197,7 +197,7 @@ def extract_closest_species(newick_file, input_species, num_neighbors): #species
         #load df
         #proteomes_df = pd.DataFrame()
         # Load the mapping DataFrame
-        proteomes_df = pd.read_csv('./Documents/GitHub/SHE_app/data/tree/selected_proteomes_above_25_formatted_organisms.csv')
+        proteomes_df = pd.read_csv(github_path + 'SHE_app/data/tree/selected_proteomes_above_25_formatted_organisms.csv')
         proteomes_df.columns = proteomes_df.columns.str.strip().str.replace(' ', '_')
         
         # Determine the column to search based on the suspected ID type
@@ -279,7 +279,7 @@ def extract_closest_species(newick_file, input_species, num_neighbors): #species
     main_tree.prune(leaves_to_keep, preserve_branch_length=True)
         # Step 3: Save the new, smaller subtree.
     if len(main_tree) > 0:
-        output_path = './Documents/GitHub/SHE_app/results/species_trees/'+ target_species +'_subtree.newick'
+        output_path = github_path + 'SHE_app/results/species_trees/'+ target_species +'_subtree.newick'
         main_tree.write(outfile=output_path, format=1)
         print(f"\nSuccess! Extracted subtree with {len(leaves_to_keep)} species saved to '{output_path}'")
     else:
@@ -289,10 +289,10 @@ def extract_closest_species(newick_file, input_species, num_neighbors): #species
 
 def load_species_tree(species, layout, species_out):
 # File paths
-    #species_out = './SHE/species_trees/' + species +'_subtree.newick'
+    #species_out = github_path + 'SHE/species_trees/' + species +'_subtree.newick'
     # Load the Tree: i.e. tree = Tree(main_tree_file)
     species_tree = Tree(species_out, format=1) #format=0
-    svg_path = './Documents/GitHub/SHE_app/results/species_trees/'+ species +'_subtree.svg' 
+    svg_path = github_path + 'SHE_app/results/species_trees/'+ species +'_subtree.svg' 
 
     # Configure the TreeStyle
     if layout == 'Circular':
@@ -355,7 +355,7 @@ st.subheader('Strucutral Phylogenetic Tree')
 #, main_tree_out = load_main_tree()
 # Display the main_tree image
 st.image(
-    './Documents/GitHub/SHE_app/data/tree/All/Figure1.png', #main_tree_out
+    github_path + 'SHE_app/data/tree/All/Figure1.png',
     caption='Strucutral Phylogenetic Tree of Eukarya'
 )
 
@@ -444,9 +444,9 @@ if st.session_state.show_tree:
         'Labels: OFF'
     #kingdom_tree, kingdom_tree_out = load_tree_1000(kingdom, layout)
     if labels == True:
-        kingdom_tree_out= './Documents/GitHub/SHE_app/data/tree/' + kingdom + '/kingdoms_' + kingdom + "_" + layout + "_tree1000_labels.svg"
+        kingdom_tree_out= github_path + 'SHE_app/data/tree/' + kingdom + '/kingdoms_' + kingdom + "_" + layout + "_tree1000_labels.svg"
     else:
-        kingdom_tree_out= './Documents/GitHub/SHE_app/data/tree/' + kingdom + '/kingdoms_' + kingdom + "_" + layout + "_tree1000.svg"
+        kingdom_tree_out= github_path + 'SHE_app/data/tree/' + kingdom + '/kingdoms_' + kingdom + "_" + layout + "_tree1000.svg"
     if kingdom == "Sar":
         what = kingdom + "_supergroup"
         st.page_link("https://en.wikipedia.org/wiki/" + what, label="Wiki", icon="🌎")
@@ -461,7 +461,7 @@ if st.session_state.show_tree:
         width='stretch'
     )
 if st.sidebar.toggle('Show species branch rate in kingdom'):
-    kingdom_csv = './Documents/GitHub/SHE_app/data/tree/' + kingdom + '/kingdoms_' + kingdom + "_branch_rates.csv" #i.e kingdoms_amoebozoa_branch_rates.csv
+    kingdom_csv = github_path + 'SHE_app/data/tree/' + kingdom + '/kingdoms_' + kingdom + "_branch_rates.csv" #i.e kingdoms_amoebozoa_branch_rates.csv
     kingdom_csv = pd.read_csv(kingdom_csv)
     kingdom_csv
     #chart_data = df
@@ -469,8 +469,8 @@ if st.sidebar.toggle('Show species branch rate in kingdom'):
 
 
 #Extract taxonomic group ------------------------------------------------
-main_tree_path = './Documents/GitHub/SHE_app/data/tree/All/kingdoms_All_tree.newick'
-proteomes_path = './Documents/GitHub/SHE_app/data/tree/selected_proteomes_above_25_formatted_organisms.csv'
+main_tree_path = github_path + 'SHE_app/data/tree/All/kingdoms_All_tree.newick'
+proteomes_path = github_path + 'SHE_app/data/tree/selected_proteomes_above_25_formatted_organisms.csv'
 proteomes_df = pd.read_csv(proteomes_path)
 
 
@@ -483,7 +483,7 @@ if st.sidebar.checkbox('Find species'):
     'Which species (Proteome ID - i.e. UP000005640 or Taxon ID - i.e. 9606 or name - Homo_sapiens)?', key="species").strip() #strip against whitespace
     st.write('Selected Species: ', species)
     st.write('Close species in the tree share similar protein structures at the proteome level.')
-    species_svg = pathlib.Path('./Documents/GitHub/SHE_app/results/species_trees/' + species +'_subtree.svg')
+    species_svg = pathlib.Path(github_path + 'SHE_app/results/species_trees/' + species +'_subtree.svg')
     if species == '':
         st.warning('Please enter species (i.e. Proteome ID - i.e. UP000005640 or Taxon ID - i.e. 9606 or name - Homo_sapiens) to extract a subtree.' \
             'Find all species names in "Show species branch rate in Kindom All"')
@@ -512,10 +512,10 @@ if st.sidebar.checkbox('Find species'):
             what= what[:2]
             what= ' '.join(what)
             st.page_link("https://en.wikipedia.org/wiki/" + what, label="Wiki", icon="🌎")
-            species_svg2 = pathlib.Path('./SHE/species_trees/' + renamed_species +'_subtree.svg')
+            species_svg2 = pathlib.Path(github_path + 'SHE_app/results/species_trees/' + renamed_species +'_subtree.svg')
             if species_svg2.exists():
                 st.image(
-                    './Documents/GitHub/SHE_app/results/species_trees/'+ renamed_species +'_subtree.svg', #extracted tree svg path
+                    github_path + 'SHE_app/results/species_trees/'+ renamed_species +'_subtree.svg', #extracted tree svg path
                     caption= renamed_species + ' Phylogenetic Tree',
                     width='stretch')
                 species = ''
@@ -525,7 +525,7 @@ if st.sidebar.checkbox('Find species'):
                 #species = renamed_species
                 if species_out != '':
                     layout = 'Linear' #default
-                    svg_path = load_species_tree(renamed_species, layout, species_out) #svg_path = './SHE/species_trees/'+ species +'_subtree.svg' 
+                    svg_path = load_species_tree(renamed_species, layout, species_out) #svg_path = './results/species_trees/'+ species +'_subtree.svg' 
                     # Wait up to 30 seconds for the file to be non-empty (adjust as needed)
                     timeout = 30
                     start_time = time.time()
@@ -558,7 +558,7 @@ if st.sidebar.checkbox('Find taxon'): #it does not handle two new taxa in the sa
     'Which taxon?', key="taxon")
     st.write('Selected Taxon: ', taxon)
     st.write('Close species in the tree share similar protein structures at the proteome level.')
-    taxon_path = pathlib.Path('./Documents/GitHub/SHE_app/results/extracted_trees/' + taxon +'_subtree.svg')
+    taxon_path = pathlib.Path(github_path + 'SHE_app/results/extracted_trees/' + taxon +'_subtree.svg')
     if taxon == '':
         st.warning('Please enter a taxon (i.e. Primates) to extract a subtree')
     elif taxon_path.exists():
@@ -566,7 +566,7 @@ if st.sidebar.checkbox('Find taxon'): #it does not handle two new taxa in the sa
         what = taxon
         st.page_link("https://en.wikipedia.org/wiki/" + what, label="Wiki", icon="🌎")
         st.image(
-            './Documents/GitHub/SHE_app/results/extracted_trees/'+ taxon +'_subtree.svg', #extracted tree svg path
+            github_path + 'SHE_app/results/extracted_trees/'+ taxon +'_subtree.svg', #extracted tree svg path
             caption= taxon + ' Phylogenetic Tree',
             width='stretch')
     else:
@@ -576,9 +576,9 @@ if st.sidebar.checkbox('Find taxon'): #it does not handle two new taxa in the sa
             extract_subtree(proteomes_path, main_tree_path, taxon)
             #data_load_state = st.text('Retrieving Tree...')
             layout = 'Linear' #default
-            taxon_out = './Documents/GitHub/SHE_app/results/extracted_trees/' + taxon +'_subtree.svg'
+            taxon_out = github_path + 'SHE_app/results/extracted_trees/' + taxon +'_subtree.svg'
             taxon_out = load_extracted_tree(taxon, layout, taxon_out)
-            svg_path = './Documents/GitHub/SHE_app/results/extracted_trees/'+ taxon +'_subtree.svg' 
+            svg_path = github_path + 'SHE_app/results/extracted_trees/'+ taxon +'_subtree.svg' 
             # Wait up to 30 seconds for the file to be non-empty (adjust as needed)
             timeout = 60
             start_time = time.time()
