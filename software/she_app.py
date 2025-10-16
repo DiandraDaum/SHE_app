@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import time
 import csv
-from ete3 import Tree, TreeStyle
+from ete3 import Tree, TreeStyle, NodeStyle
 #from phytreeviz import TreeViz
 import sys
 import pathlib
@@ -12,7 +12,7 @@ import textwrap
 import time
 import os
 
-#source .venv/bin/activate
+#source ./venv/bin/activate
 #streamlit run ./Documents/GitHub/SHE_app/software/she_app.py
 github_path = '/Users/diandra/Documents/GitHub/' #change to your path
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
@@ -348,6 +348,148 @@ def kingdom_color(kingdom):
         return "#ffffff" #default white
 
 
+
+
+
+
+#for protein tree color
+def get_species_id(protein_name):
+    """Robustly parses a protein name to find a UniProt proteome ID."""
+    if isinstance(protein_name, str) and protein_name.startswith("UP"):
+        return protein_name.split('-')[0].split('_')[0]
+    return None
+
+def protein_in_family(protein, families_csv_path):
+    """
+    Find the homologous family of a protein uniprot ID.
+    """
+    families_df = pd.read_csv(families_csv_path)
+    #new uniport id column
+    #families_df['uniprot_id'] = families_df['protein'].split('-')[2].split('-')[0] #if UP000054538_930991-AF-A0A0D0DNZ3-F1-model_v4, keep A0A0D0DNZ3
+    families_df['uniprot_id'] = families_df['protein'].astype(str).str.split('-').str[2] #if UP000054538_930991-AF-A0A0D0DNZ3-F1-model_v4, keep A0A0D0DNZ3
+    #print(families_df['uniprot_id'].head())
+    # Look for a direct match in the identified column
+    match_protein = families_df[families_df['uniprot_id'] == protein]
+    if not match_protein.empty:
+        family = match_protein['family_id'].iloc[0].strip()
+        print(f"Mapped Protein Uniprot ID '{protein}' to family: {family}")
+        return family, families_df
+    else:
+        print(f"Warning: Protein ID '{protein}' not found in mapping data.")
+        return None
+    
+def protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree):
+    """
+    Given a protein uniprot ID, find its family and color the tree of all organisms sharing that protein.
+    Input: 
+    protein: uniprot ID (i.e. P12345)
+    families_csv_path: path to the protein families csv file (i.e. ./data/core/protein_families_238.csv)
+    new_proteomes_path: path to the updated proteomes csv file (i.e. ./ data/core/merged_evo_rate.csv)
+    main_tree: path to the main tree newick file (i.e. ./data/tree/All/kingdoms_All_tree.newick)
+
+    Output:
+    presence_tree_svg: path to the svg file of the tree with colored leaves
+    """
+
+    # 1 Load the names file and create the name map
+    print(f"--- Step 1: Loading Name Map from '{new_proteomes_path}' ---")
+    try:
+        new_proteomes_csv = pd.read_csv(new_proteomes_path)
+    except FileNotFoundError:
+        print(f"FATAL ERROR: The names file '{new_proteomes_path}' was not found.")
+        sys.exit(1)
+    if 'ID' not in new_proteomes_csv.columns or 'Organism_formatted' not in new_proteomes_csv.columns:
+        print(f"FATAL ERROR: The required columns 'ID' and/or 'Organism_formatted' were not found in '{new_proteomes_csv}'.")
+        sys.exit(1)
+    mapping_df = new_proteomes_csv[['ID', 'Organism_formatted']].drop_duplicates().set_index('ID')
+    id_to_name_map = mapping_df['Organism_formatted'].to_dict()
+    print(f"Successfully created a name map for {len(id_to_name_map)} unique IDs.")
+    
+    # 2 from input protein find family
+    family, family_df = protein_in_family(protein, families_csv_path)
+    if family is None:
+        st.warning(f"Protein uniprot ID '{protein}' not found in mapping data.")
+        return
+    if len(family_df) == 0:
+        print("FATAL ERROR: No proteins with 'UP...' IDs were found in the data file.")
+        sys.exit(1)
+    
+    print(f"--- Step 2: Preparing data for '{family}' from '{families_csv_path}' ---")
+
+    family_df['species_id'] = family_df['protein'].apply(get_species_id)
+    family_df.dropna(subset=['species_id'], inplace=True)
+
+    presence_absence = pd.crosstab(family_df['family_id'], family_df['species_id']) > 0
+    if family not in presence_absence.index:
+        print(f"FATAL ERROR: Family '{family}' not found in the filtered dataset.")
+        sys.exit(1)
+    family_pattern = presence_absence.loc[family]
+
+     # 3. Load the tree to get all leaf names
+    print(f"--- Step 3: Loading Tree from '{main_tree}' ---")
+    try:
+        t = Tree(main_tree)
+    except FileNotFoundError:
+        print(f"FATAL ERROR: The tree file '{main_tree}' was not found.")
+        sys.exit(1)
+    #all_leaf_ids = t.get_leaf_names()
+    #species = [leaf.name for leaf in t]
+    #print(f"Found {len(all_leaf_ids)} leaves in the tree.")
+
+    # 4. Render tree with colored leaves
+    print(f"--- Step 4: Rendering Tree with Colored Leaves ---")
+    # Set dashed blue lines in all leaves
+    nst1 = NodeStyle()
+    nst1["bgcolor"] = "#fb370c" #Present
+    nst2 = NodeStyle()
+    nst2["bgcolor"] = "#6f74f3" #Not present
+
+    #set colors for each leaf
+    #for leaf_id in all_leaf_ids:
+    for leaf in t:
+        output_name = id_to_name_map.get(leaf, leaf)
+        species_id = leaf.split('_')[0].strip()
+        is_present = family_pattern.get(species_id, False) #output True or False?
+        if is_present:
+            leaf.set_style(nst1)
+        else:
+            leaf.set_style(nst2)
+
+    layout= 'Linear' #default
+    presence_tree_svg = github_path + 'SHE_app/results/protein_trees/'+ protein +'_presence_tree_' + layout + '.svg'
+    # Configure the TreeStyle
+    if layout == 'Circular':
+        ts = TreeStyle()
+        ts.mode = "c"          # Draw tree in circular mode otherwise "p"
+        ts.rotation=210
+        ts.show_leaf_name = True #true or false
+        ts.show_branch_length = True
+        ts.scale = None #big circles with dotted lines
+        ts.optimal_scale_level = "full" #mid or full
+        ts.force_topology = True #not bad
+        # Render tree
+        t.render(
+        presence_tree_svg,
+        tree_style=ts,
+        w=1000,
+        units="px" 
+        )
+    elif layout == 'Linear':
+        ts = TreeStyle()
+        ts.mode = "r"   
+        ts.show_leaf_name = True #true or false
+        ts.show_branch_length = False
+        ts.force_topology = True #not bad
+        # Render tree
+        t.render(
+        presence_tree_svg,
+        tree_style=ts,
+        #w=183,
+        units="px"  
+        )
+    return presence_tree_svg
+
+
 #### intro -----------------------------------------------------------------------------------------------------------------------------------
 st.title('SHE: Structural History of Eukarya')
 
@@ -467,10 +609,10 @@ if st.sidebar.toggle('Show species branch rate in kingdom'):
     #chart_data = df
     #chart_data
 
-
 #Extract taxonomic group ------------------------------------------------
 main_tree_path = github_path + 'SHE_app/data/tree/All/kingdoms_All_tree.newick'
 proteomes_path = github_path + 'SHE_app/data/tree/selected_proteomes_above_25_formatted_organisms.csv'
+new_proteomes_path = github_path + 'SHE_app/data/core/merged_evo_rate.csv'
 proteomes_df = pd.read_csv(proteomes_path)
 
 
@@ -600,4 +742,15 @@ if st.sidebar.checkbox('Find protein'):
     st.title('Tree of all organisms sharing a protein:')
     protein = st.sidebar.text_input(
     'Which protein?', key="protein")
-    st.write('Selected Protein: ', protein)
+    if protein == '':
+        st.warning('Please enter protein uniprot ID i.e. W1PLW2')
+    else:
+        st.write('Selected Protein: ', protein)
+        families_csv_path = github_path + 'SHE_app/data/core/protein_families_238.csv' #i.e. ./data/core/protein_families_238.csv
+        presence_tree_svg = protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree_path)
+        st.image(
+            presence_tree_svg, #svg file
+            caption= protein + ' Phylogenetic Tree; red if present, blue if absent in species proteome',
+            width='stretch')
+
+    
