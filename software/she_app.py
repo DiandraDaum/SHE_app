@@ -379,7 +379,7 @@ def protein_in_family(protein, families_csv_path):
         st.warning(f"Sorry, your Protein uniprot ID '{protein}' was not found. Try another one please")
 
     
-def protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree, layout):
+def protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree):
     """
     Given a protein uniprot ID, find its family and color the tree of all organisms sharing that protein.
     Input: 
@@ -470,38 +470,44 @@ def protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree
                 else:
                     leaf.set_style(nst2)
         
-    presence_tree_svg = github_path + 'SHE_app/results/protein_trees/'+ protein +'_presence_tree_' + layout + '.svg'
-    # Configure the TreeStyle
-    if layout == 'Circular':
-        ts = TreeStyle()
-        ts.mode = "c"          # Draw tree in circular mode otherwise "p"
-        ts.rotation=210
-        ts.show_leaf_name = True #true or false
-        ts.show_branch_length = False
-        ts.scale = None #big circles with dotted lines
-        ts.optimal_scale_level = "full" #mid or full
-        ts.force_topology = True #not bad
-        # Render tree
-        t.render(
-        presence_tree_svg,
-        tree_style=ts,
+    #Define the output paths for both layouts
+    circular_path = github_path + 'SHE_app/results/protein_trees/' + protein + '_presence_tree_Circular.svg'
+    linear_path = github_path + 'SHE_app/results/protein_trees/' + protein + '_presence_tree_Linear.svg'
+
+    # --- Render Circular Tree ---
+    # Configure the TreeStyle for Circular layout
+    ts_circular = TreeStyle()
+    ts_circular.mode = "c"          # Draw tree in circular mode
+    ts_circular.rotation = 210
+    ts_circular.show_leaf_name = True
+    ts_circular.show_branch_length = False
+    ts_circular.scale = None
+    ts_circular.optimal_scale_level = "full"
+    ts_circular.force_topology = True
+    # Render Circular tree
+    t.render(
+        circular_path,
+        tree_style=ts_circular,
         w=1000,
         units="px" 
-        )
-    elif layout == 'Linear':
-        ts = TreeStyle()
-        ts.mode = "r"   
-        ts.show_leaf_name = True #true or false
-        ts.show_branch_length = False
-        ts.force_topology = True #not bad
-        # Render tree
-        t.render(
-        presence_tree_svg,
-        tree_style=ts,
+    )
+
+    # --- Render Rectangular (Linear) Tree ---
+    # Configure the TreeStyle for Rectangular (Linear) layout
+    ts_linear = TreeStyle()
+    ts_linear.mode = "r"          # Draw tree in rectangular mode
+    ts_linear.show_leaf_name = True
+    ts_linear.show_branch_length = False
+    ts_linear.force_topology = True
+    # Render Rectangular (Linear) tree
+    t.render(
+        linear_path,
+        tree_style=ts_linear,
         w=500,
         units="px"  
-        )
-    return presence_tree_svg
+    )
+    
+    return circular_path, linear_path
 
 
 #### intro -----------------------------------------------------------------------------------------------------------------------------------
@@ -770,11 +776,18 @@ if st.sidebar.checkbox('Find protein'):
             protein = ''
         else:
             families_csv_path = github_path + 'SHE_app/data/core/protein_families_238.csv' #i.e. ./data/core/protein_families_238.csv
-            presence_tree_svg = protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree_path, layout)
-            st.image(
-                presence_tree_svg, #svg file
-                caption= protein + ' Phylogenetic Tree; green if present, grey if absent in species proteome',
-                width='stretch')
-            protein = ''
+            circular_svg, linear_svg = protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree_path)
+            if layout == 'Circular':
+                st.image(
+                    circular_svg, #svg file
+                    caption= protein + ' Phylogenetic Tree; green if present, grey if absent in species proteome',
+                    width='stretch')
+                protein = ''
+            elif layout == 'Linear':
+                st.image(
+                    linear_svg, #svg file
+                    caption= protein + ' Phylogenetic Tree; green if present, grey if absent in species proteome',
+                    width='stretch')
+                protein = ''
 
     

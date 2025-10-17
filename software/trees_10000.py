@@ -304,7 +304,36 @@ load_main_tree_color()
 
 
 
-
+# Configure the TreeStyle
+    if layout == 'Circular':
+        ts = TreeStyle()
+        ts.mode = "c"          # Draw tree in circular mode otherwise "p"
+        ts.rotation=210
+        ts.show_leaf_name = True #true or false
+        ts.show_branch_length = False
+        ts.scale = None #big circles with dotted lines
+        ts.optimal_scale_level = "full" #mid or full
+        ts.force_topology = True #not bad
+        # Render tree
+        t.render(
+        presence_tree_svg,
+        tree_style=ts,
+        w=1000,
+        units="px" 
+        )
+    elif layout == 'Linear':
+        ts = TreeStyle()
+        ts.mode = "r"   
+        ts.show_leaf_name = True #true or false
+        ts.show_branch_length = False
+        ts.force_topology = True #not bad
+        # Render tree
+        t.render(
+        presence_tree_svg,
+        tree_style=ts,
+        w=500,
+        units="px"  
+        )
 
 
 
