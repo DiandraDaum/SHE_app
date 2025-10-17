@@ -12,8 +12,8 @@ import textwrap
 import time
 import os
 
-#source ./venv/bin/activate
-#streamlit run ./Documents/GitHub/SHE_app/software/she_app.py
+# source ~/.venv/bin/activate 
+# streamlit run ~/Documents/GitHub/SHE_app/software/she_app.py
 github_path = '/Users/diandra/Documents/GitHub/' #change to your path
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
 #@st.cache_data
@@ -598,7 +598,7 @@ if st.session_state.show_tree:
         what = kingdom
         st.page_link("https://en.wikipedia.org/wiki/" + what, label="Wiki", icon="🌎")
     st.image(
-        kingdom_tree_out, #main_tree_out
+        kingdom_tree_out, # main_tree_out
         caption= kingdom + ' Phylogenetic Tree',
         width='stretch'
     )
@@ -739,13 +739,20 @@ if st.sidebar.checkbox('Find taxon'): #it does not handle two new taxa in the sa
 ## Proteins extraction
 st.sidebar.subheader('Look for a protein')
 if st.sidebar.checkbox('Find protein'):
+    protein = ''
     st.title('Tree of all organisms sharing a protein:')
     protein = st.sidebar.text_input(
     'Which protein?', key="protein")
+    st.write('Selected Protein: ', protein)
+    protein_svg = pathlib.Path(github_path + 'SHE_app/results/protein_trees/' + protein +'_presence_tree_*.svg')
     if protein == '':
         st.warning('Please enter protein uniprot ID i.e. W1PLW2')
+    elif protein_svg.exists():
+        st.image(
+            protein_svg, #svg file
+            caption= protein + ' Phylogenetic Tree; red if present, blue if absent in species proteome',
+            width='stretch')
     else:
-        st.write('Selected Protein: ', protein)
         families_csv_path = github_path + 'SHE_app/data/core/protein_families_238.csv' #i.e. ./data/core/protein_families_238.csv
         presence_tree_svg = protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree_path)
         st.image(
