@@ -623,11 +623,6 @@ st.image(
 )
 
 
-intro == '''Close species in the tree share similar protein structures at the proteome level. Start exploring the new structural tree by selecting a kingdom in the sidebar! 
-You can also choose the tree visualisation style in the sidebar. 
-Interested in discovering the new strucutural phylogenetics of specific species or taxon? Use the "Extract Taxonomic Group" section in the sidebar.
-Interested in discovering in which organisms a certain protein can be found? Use the "Look for a protein" section in the sidebar.'''
-st.markdown(intro)
 
 
 
