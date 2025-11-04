@@ -22,7 +22,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy all files that the app needs
 COPY app/app.py $HOME/app/app.py
-RUN streamlit run ~/Documents/GitHub/SHE_app/app/app.py
 COPY app/ $HOME/app/data/
 COPY app/ $HOME/app/results/
 
