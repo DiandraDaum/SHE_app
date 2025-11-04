@@ -350,10 +350,7 @@ def kingdom_color(kingdom):
 
 
 
-
-
-
-#for protein tree color
+# color tree if a protein is present in species
 def get_species_id(protein_name):
     """Robustly parses a protein name to find a UniProt proteome ID."""
     if isinstance(protein_name, str) and protein_name.startswith("UP"):
@@ -378,7 +375,6 @@ def protein_in_family(protein, families_csv_path):
     else:
         st.warning(f"Sorry, your Protein uniprot ID '{protein}' was not found. Try another one please")
 
-    
 def protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree):
     """
     Given a protein uniprot ID, find its family and color the tree of all organisms sharing that protein.
@@ -509,6 +505,120 @@ def protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree
     
     return circular_path, linear_path
 
+# color tree based on evorate
+def load_evotree(kingdom): 
+    # File paths
+    evo_rate = github_path + 'SHE_app/data/core/merged_evo_rate.csv'
+    evorate_df = pd.read_csv(evo_rate)
+    evorate_df.columns = evorate_df.columns.str.strip().str.replace(' ', '_')
+    tree_path = github_path + 'SHE_app/data/tree/'  # i.e. ./SHE/tree/Amoebozoa
+    tree_file = tree_path + kingdom + '/kingdoms_' + kingdom+ '_tree.newick' # i.e. ./SHE/tree/Amoebozoa/kingdoms_Amoebozoa_tree.newick
+    tree = Tree(tree_file) #format=0
+
+
+    # define color per kingdom
+    nst1 = NodeStyle()
+    nst1["bgcolor"] = "#0d0887"
+    nst2 = NodeStyle()
+    nst2["bgcolor"] = "#4b0091" 
+    nst3 = NodeStyle()
+    nst3["bgcolor"] = "#7901a1" 
+    nst4 = NodeStyle()
+    nst4["bgcolor"] = "#a52a9e" 
+    nst5 = NodeStyle()
+    nst5["bgcolor"] = "#cb4786" 
+    nst6 = NodeStyle()
+    nst6["bgcolor"] = "#e4715f" 
+    nst7 = NodeStyle()
+    nst7["bgcolor"] = "#f69c3a" 
+    nst8 = NodeStyle()
+    nst8["bgcolor"] = "#feca1c" 
+    nst9 = NodeStyle()
+    nst9["bgcolor"] = "#f5f829" 
+    nst10 = NodeStyle()
+    nst10["bgcolor"] = "#f0f921" 
+
+
+    #extract kingdom leaves only
+    tree_leaf_names = {leaf.name for leaf in tree.iter_leaves()}
+    evorate_kingdom_df = evorate_df[
+    evorate_df['Organism_formatted'].isin(tree_leaf_names)
+    ].copy() # work on a separate DataFrame for kingdom only
+
+    # Ensure 'Rate' is numeric 
+    evorate_kingdom_df['Rate'] = pd.to_numeric(evorate_kingdom_df['Rate'], errors='coerce')
+    evorate_kingdom_df.dropna(subset=['Rate'], inplace=True)
+
+    #split df into 10 groups based on evorate
+    evorate_kingdom_df['Rate_Group'] = pd.qcut(
+        evorate_kingdom_df['Rate'],
+        q=10,
+        labels=False,
+        duplicates='drop' # Handles identical rate values
+    ) + 1
+
+    # Convert to a Series mapping organism name to its rate group for quick lookup
+    evo_group_map = evorate_kingdom_df.set_index('Organism_formatted')['Rate_Group']
+
+    #select color styles
+    styles = [nst1, nst2, nst3, nst4, nst5, nst6, nst7, nst8, nst9, nst10]
+
+    #loop through each leaf to color it based on evorate
+    for leaf in tree:
+        organism_name = leaf.name
+        # Use the map to get the group number directly
+        group_num = evo_group_map.get(organism_name)
+        if group_num is not None:
+            # group_num will be an integer from 1 to 10.
+            # Use it to index the styles list (group_num - 1)
+            if 1 <= group_num <= 10:
+                style_to_apply = styles[group_num - 1]
+                leaf.set_style(style_to_apply)
+            else:
+                print(f"Warning: Unexpected group number {group_num} for leaf '{organism_name}'")
+        else:
+            # organisms not found in the evorate_df
+            print(f"Warning: No matching evorate found for leaf '{organism_name}'")
+
+    # Render circular layout
+    tree_out_c= tree_path + kingdom+  '/kingdoms_' + kingdom + "_Circular_tree_evorate.svg" #png or pdf or svg
+    ts_c = TreeStyle()
+    ts_c.mode = "c"          # Draw tree in circular mode otherwise "p"
+    ts_c.rotation=210
+    ts_c.show_leaf_name = False #true or false
+    ts_c.show_branch_length = False
+    ts_c.scale = None #big circles with dotted lines
+    ts_c.optimal_scale_level = "full" #mid or full
+    ts_c.force_topology = True #not bad
+    ts_c.root_opening_factor = 100 #new
+    #ts_c.layout_fn = labels
+    # Render tree
+    tree.render(
+    tree_out_c,
+    tree_style=ts_c,
+    w=1000,
+    units="px" 
+    )
+
+    #linear layout
+    tree_out_r= tree_path + kingdom +  '/kingdoms_' + kingdom + "_Linear_tree_evorate.svg" #png or pdf or svg
+    ts_r = TreeStyle()
+    ts_r.mode = "r"   
+    ts_r.show_leaf_name = True #true or false
+    ts_r.show_branch_length = False
+    ts_r.force_topology = True #not bad
+    ts_r.root_opening_factor = 1 #new
+    #ts_r.layout_fn = labels
+    # Render tree
+    tree.render(
+    tree_out_r,
+    tree_style=ts_r,
+    w=500,
+    units="px" 
+    )
+    
+    return tree_out_c, tree_out_r
+
 
 #### intro -----------------------------------------------------------------------------------------------------------------------------------
 st.title('SHE: Structural History of Eukarya')
@@ -626,8 +736,41 @@ if st.sidebar.toggle('Show species branch rate in kingdom'):
     kingdom_csv = github_path + 'SHE_app/data/tree/' + kingdom + '/kingdoms_' + kingdom + "_branch_rates.csv" #i.e kingdoms_amoebozoa_branch_rates.csv
     kingdom_csv = pd.read_csv(kingdom_csv)
     kingdom_csv
-    #chart_data = df
-    #chart_data
+
+
+
+# evorate
+if st.sidebar.toggle('See evolutionary rate'):
+    st.title('Evolutionary rate:')
+    'Selected Kingdom: ', kingdom
+    'Selected layout: ', layout
+    tree_svg = pathlib.Path(github_path + 'SHE_app/data/tree/' + kingdom +  '/kingdoms_' + kingdom + "_Linear_tree_evorate.svg")
+    if tree_svg.exists():
+        if layout == 'Circular':
+            tree_c=github_path + 'SHE_app/data/tree/' + kingdom +  '/kingdoms_' + kingdom + "_Circular_tree_evorate.svg"
+            st.image(
+                tree_c,
+                caption= 'Circular Tree with evolutionary rate',
+                width='stretch')
+        else:
+            tree_r = github_path + 'SHE_app/data/tree/' + kingdom +  '/kingdoms_' + kingdom + "_Linear_tree_evorate.svg"
+            st.image(
+                tree_r,
+                caption= 'Linear Tree with evolutionary rate',
+                width='stretch')
+    else:
+        tree_c, tree_r = load_evotree(kingdom)
+        if layout == 'Circular':
+            st.image(
+                tree_c,
+                caption= 'Circular Tree with evolutionary rate',
+                width='stretch')
+        else:
+            st.image(
+                tree_r,
+                caption= 'Linear Tree with evolutionary rate',
+                width='stretch')
+
 
 #Extract taxonomic group ------------------------------------------------
 main_tree_path = github_path + 'SHE_app/data/tree/All/kingdoms_All_tree.newick'
@@ -771,7 +914,7 @@ if st.sidebar.checkbox('Find protein'):
         elif protein_svg.exists():
             st.image(
                 protein_svg, #svg file
-                caption= protein + ' Phylogenetic Tree; red if present, blue if absent in species proteome',
+                caption= protein + ' Phylogenetic Tree; green if present, grey if absent in species proteome',
                 width='stretch')
             protein = ''
         else:
