@@ -12,9 +12,7 @@ import textwrap
 import time
 import os
 
-# environment: source ~/.venv/bin/activate 
-# run: streamlit run ~/Documents/GitHub/SHE_app/app/app.py
-github_path = '/Users/diandra/Documents/GitHub/SHE_app/app/' #change to your path
+github_path = 'SHE_app/app/' #change to your path
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
 @st.cache_data
 # for coloring the selectbox
