@@ -31,8 +31,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy all files that the app needs
 COPY app/app.py $HOME/app/app.py
-COPY app/ $HOME/app/data/
-COPY app/ $HOME/app/results/
+COPY app/data/ $HOME/app/data/
+COPY app/results/ $HOME/app/results/
 
 USER $USER
 EXPOSE 8501
