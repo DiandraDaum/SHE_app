@@ -623,6 +623,14 @@ st.image(
 )
 
 
+intro == '''Close species in the tree share similar protein structures at the proteome level. Start exploring the new structural tree by selecting a kingdom in the sidebar! 
+You can also choose the tree visualisation style in the sidebar. 
+Interested in discovering the new strucutural phylogenetics of specific species or taxon? Use the "Extract Taxonomic Group" section in the sidebar.
+Interested in discovering in which organisms a certain protein can be found? Use the "Look for a protein" section in the sidebar.'''
+st.markdown(intro)
+
+
+
 #data
 df = pd.DataFrame({
     'kingdom': ["All", "Opisthokonta", "Amoebozoa", "Sar", "Viridiplantae", "Discoba", "Rhodophyta"],
@@ -889,6 +897,10 @@ if st.sidebar.checkbox('Find protein'):
     protein = st.sidebar.text_input(
     'Which protein?', key="protein")
     st.write('Selected Protein: ', protein)
+    # uniprot link
+    st.page_link("https://www.uniprot.org/uniprotkb/" + protein + "/entry", label="UniProt", icon="🌎")
+    #AFDB link
+    st.page_link("https://alphafold.ebi.ac.uk/search/text/" + protein, label="AFDB", icon="🌎")
     protein_svg = pathlib.Path(github_path + 'SHE_app/results/protein_trees/' + protein +'_presence_tree_' + layout +'.svg')
     for protein in [protein]:
         if protein == '':
@@ -914,5 +926,6 @@ if st.sidebar.checkbox('Find protein'):
                     caption= protein + ' Phylogenetic Tree; green if present, grey if absent in species proteome',
                     width='stretch')
                 protein = ''
+
 
     
