@@ -16,6 +16,15 @@ RUN apt-get update && apt-get install --no-install-recommends -y \
     build-essential \
     software-properties-common
 
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    pkg-config \
+    libcairo2-dev \
+    qtbase5-dev \
+    build-essential \
+    python3-dev && \
+    rm -rf /var/lib/apt/lists/*
+
 # Copy requirements.txt and install packages listed there with pip (this will place the files in home/username/)
 COPY app/requirements.txt $HOME/app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
