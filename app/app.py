@@ -12,7 +12,7 @@ import textwrap
 import time
 import os
 
-github_path = '/' #change to your path
+#github_path = '/' #change to your path
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
 @st.cache_data
 # for coloring the selectbox
@@ -50,7 +50,7 @@ def extract_closest_species(newick_file, input_species, num_neighbors): #species
         output_file (str): Path to save the resulting subtree in Newick format.
     """
     # Step 1: Load the main tree.
-    newick_file = github_path + 'data/tree/All/kingdoms_All_tree.newick'
+    newick_file = 'data/tree/All/kingdoms_All_tree.newick'
     print(f"Loading tree from '{newick_file}'...")
     try:
         main_tree = Tree(newick_file, format=1)
@@ -88,7 +88,7 @@ def extract_closest_species(newick_file, input_species, num_neighbors): #species
         #load df
         #proteomes_df = pd.DataFrame()
         # Load the mapping DataFrame
-        proteomes_df = pd.read_csv(github_path + 'data/tree/selected_proteomes_above_25_formatted_organisms.csv')
+        proteomes_df = pd.read_csv('data/tree/selected_proteomes_above_25_formatted_organisms.csv')
         proteomes_df.columns = proteomes_df.columns.str.strip().str.replace(' ', '_')
         
         # Determine the column to search based on the suspected ID type
@@ -171,7 +171,7 @@ def extract_closest_species(newick_file, input_species, num_neighbors): #species
     main_tree.prune(leaves_to_keep, preserve_branch_length=True)
         # Step 3: Save the new, smaller subtree.
     if len(main_tree) > 0:
-        output_path = github_path + 'results/species_trees/'+ target_species +'_subtree.newick'
+        output_path = 'results/species_trees/'+ target_species +'_subtree.newick'
         main_tree.write(outfile=output_path, format=1)
         print(f"\nSuccess! Extracted subtree with {len(leaves_to_keep)} species saved to '{output_path}'")
     else:
@@ -180,10 +180,10 @@ def extract_closest_species(newick_file, input_species, num_neighbors): #species
     return output_path, target_species
 def load_species_tree(species, layout, species_out):
 # File paths
-    #species_out = github_path + 'SHE/species_trees/' + species +'_subtree.newick'
+    #species_out =  'SHE/species_trees/' + species +'_subtree.newick'
     # Load the Tree: i.e. tree = Tree(main_tree_file)
     species_tree = Tree(species_out, format=1) #format=0
-    svg_path = github_path + 'results/species_trees/'+ species +'_subtree.svg' 
+    svg_path =  'results/species_trees/'+ species +'_subtree.svg' 
 
     # Configure the TreeStyle
     if layout == 'Circular':
@@ -231,7 +231,7 @@ def extract_subtree(csv_file, newick_file, taxonomic_group): #taxon
                                This is case-sensitive.
     """
     # Step 1: Find all organisms belonging to the specified taxonomic group from the CSV.
-    output_file = github_path + 'results/extracted_trees/' + taxonomic_group +'_subtree.newick' #Path to save the resulting subtree in Newick format.
+    output_file = 'results/extracted_trees/' + taxonomic_group +'_subtree.newick' #Path to save the resulting subtree in Newick format.
     organisms_to_keep = set()
     print(f"Searching for organisms in the '{taxonomic_group}' group...")
     try:
@@ -302,7 +302,7 @@ def load_extracted_tree(taxon, layout, taxon_out):
 # File paths
     taxon = taxon
     #taxon_tree_path = tree
-    taxon_tree_path = github_path + 'results/extracted_trees/' + taxon +'_subtree.newick'
+    taxon_tree_path = 'results/extracted_trees/' + taxon +'_subtree.newick'
     taxon_tree_out = taxon_out
 
     # Load the Tree: i.e. tree = Tree(main_tree_file)
@@ -456,8 +456,8 @@ def protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree
                     leaf.set_style(nst2)
         
     #Define the output paths for both layouts
-    circular_path = github_path + 'results/protein_trees/' + protein + '_presence_tree_Circular.svg'
-    linear_path = github_path + 'results/protein_trees/' + protein + '_presence_tree_Linear.svg'
+    circular_path = 'results/protein_trees/' + protein + '_presence_tree_Circular.svg'
+    linear_path = 'results/protein_trees/' + protein + '_presence_tree_Linear.svg'
 
     # --- Render Circular Tree ---
     # Configure the TreeStyle for Circular layout
@@ -497,10 +497,10 @@ def protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree
 # color tree based on evorate
 def load_evotree(kingdom): 
     # File paths
-    evo_rate = github_path + 'data/core/merged_evo_rate.csv'
+    evo_rate =  'data/core/merged_evo_rate.csv'
     evorate_df = pd.read_csv(evo_rate)
     evorate_df.columns = evorate_df.columns.str.strip().str.replace(' ', '_')
-    tree_path = github_path + 'data/tree/'  # i.e. ./SHE/tree/Amoebozoa
+    tree_path = 'data/tree/'  # i.e. ./SHE/tree/Amoebozoa
     tree_file = tree_path + kingdom + '/kingdoms_' + kingdom+ '_tree.newick' # i.e. ./SHE/tree/Amoebozoa/kingdoms_Amoebozoa_tree.newick
     tree = Tree(tree_file) #format=0
 
@@ -616,7 +616,7 @@ st.subheader('Strucutral Phylogenetic Tree')
 #, main_tree_out = load_main_tree()
 # Display the main_tree image
 st.image(
-    github_path + 'data/tree/All/Figure1.png',
+    'data/tree/All/Figure1.png',
     caption='Strucutral Phylogenetic Tree of Eukarya'
 )
 
@@ -700,9 +700,9 @@ if st.session_state.show_tree:
         'Labels: OFF'
     #kingdom_tree, kingdom_tree_out = load_tree_1000(kingdom, layout)
     if labels == True:
-        kingdom_tree_out= github_path + 'data/tree/' + kingdom + '/kingdoms_' + kingdom + "_" + layout + "_tree1000_labels.svg"
+        kingdom_tree_out= 'data/tree/' + kingdom + '/kingdoms_' + kingdom + "_" + layout + "_tree1000_labels.svg"
     else:
-        kingdom_tree_out= github_path + 'data/tree/' + kingdom + '/kingdoms_' + kingdom + "_" + layout + "_tree1000.svg"
+        kingdom_tree_out= 'data/tree/' + kingdom + '/kingdoms_' + kingdom + "_" + layout + "_tree1000.svg"
     if kingdom == "Sar":
         what = kingdom + "_supergroup"
         st.page_link("https://en.wikipedia.org/wiki/" + what, label="Wiki", icon="🌎")
@@ -717,7 +717,7 @@ if st.session_state.show_tree:
         width='stretch'
     )
 if st.sidebar.toggle('Show species branch rate in kingdom'):
-    kingdom_csv = github_path + 'data/tree/' + kingdom + '/kingdoms_' + kingdom + "_branch_rates.csv" #i.e kingdoms_amoebozoa_branch_rates.csv
+    kingdom_csv = 'data/tree/' + kingdom + '/kingdoms_' + kingdom + "_branch_rates.csv" #i.e kingdoms_amoebozoa_branch_rates.csv
     kingdom_csv = pd.read_csv(kingdom_csv)
     kingdom_csv
 
@@ -726,16 +726,16 @@ if st.sidebar.toggle('See evolutionary rate'):
     st.title('Evolutionary rate:')
     'Selected Kingdom: ', kingdom
     'Selected layout: ', layout
-    tree_svg = pathlib.Path(github_path + 'data/tree/' + kingdom +  '/kingdoms_' + kingdom + "_Linear_tree_evorate.svg")
+    tree_svg = pathlib.Path('data/tree/' + kingdom +  '/kingdoms_' + kingdom + "_Linear_tree_evorate.svg")
     if tree_svg.exists():
         if layout == 'Circular':
-            tree_c=github_path + 'data/tree/' + kingdom +  '/kingdoms_' + kingdom + "_Circular_tree_evorate.svg"
+            tree_c='data/tree/' + kingdom +  '/kingdoms_' + kingdom + "_Circular_tree_evorate.svg"
             st.image(
                 tree_c,
                 caption= 'Circular Tree with evolutionary rate',
                 width='stretch')
         else:
-            tree_r = github_path + 'data/tree/' + kingdom +  '/kingdoms_' + kingdom + "_Linear_tree_evorate.svg"
+            tree_r = 'data/tree/' + kingdom +  '/kingdoms_' + kingdom + "_Linear_tree_evorate.svg"
             st.image(
                 tree_r,
                 caption= 'Linear Tree with evolutionary rate',
@@ -755,9 +755,9 @@ if st.sidebar.toggle('See evolutionary rate'):
 
 
 ##############Extract taxonomic group ------------------------------------------------
-main_tree_path = github_path + 'data/tree/All/kingdoms_All_tree.newick'
-proteomes_path = github_path + 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
-new_proteomes_path = github_path + 'data/core/merged_evo_rate.csv'
+main_tree_path = 'data/tree/All/kingdoms_All_tree.newick'
+proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
+new_proteomes_path =  'data/core/merged_evo_rate.csv'
 proteomes_df = pd.read_csv(proteomes_path)
 
 # find species ------------------------------------------------------------------------------------------------------
@@ -770,7 +770,7 @@ if st.sidebar.checkbox('Find species'):
     'Which species (Proteome ID - i.e. UP000005640 or Taxon ID - i.e. 9606 or name - Homo_sapiens)?', key="species").strip() #strip against whitespace
     st.write('Selected Species: ', species)
     st.write('Close species in the tree share similar protein structures at the proteome level.')
-    species_svg = pathlib.Path(github_path + 'results/species_trees/' + species +'_subtree.svg')
+    species_svg = pathlib.Path('results/species_trees/' + species +'_subtree.svg')
     if species == '':
         st.warning('Please enter species (i.e. Proteome ID - i.e. UP000005640 or Taxon ID - i.e. 9606 or name - Homo_sapiens) to extract a subtree.' \
             'Find all species names in "Show species branch rate in Kindom All"')
@@ -799,10 +799,10 @@ if st.sidebar.checkbox('Find species'):
             what= what[:2]
             what= ' '.join(what)
             st.page_link("https://en.wikipedia.org/wiki/" + what, label="Wiki", icon="🌎")
-            species_svg2 = pathlib.Path(github_path + 'results/species_trees/' + renamed_species +'_subtree.svg')
+            species_svg2 = pathlib.Path('results/species_trees/' + renamed_species +'_subtree.svg')
             if species_svg2.exists():
                 st.image(
-                    github_path + 'results/species_trees/'+ renamed_species +'_subtree.svg', #extracted tree svg path
+                    'results/species_trees/'+ renamed_species +'_subtree.svg', #extracted tree svg path
                     caption= renamed_species + ' Phylogenetic Tree',
                     width='stretch')
                 species = ''
@@ -845,7 +845,7 @@ if st.sidebar.checkbox('Find taxon'): #it does not handle two new taxa in the sa
     'Which taxon?', key="taxon")
     st.write('Selected Taxon: ', taxon)
     st.write('Close species in the tree share similar protein structures at the proteome level.')
-    taxon_path = pathlib.Path(github_path + 'results/extracted_trees/' + taxon +'_subtree.svg')
+    taxon_path = pathlib.Path('results/extracted_trees/' + taxon +'_subtree.svg')
     if taxon == '':
         st.warning('Please enter a taxon (i.e. Primates) to extract a subtree')
     elif taxon_path.exists():
@@ -853,7 +853,7 @@ if st.sidebar.checkbox('Find taxon'): #it does not handle two new taxa in the sa
         what = taxon
         st.page_link("https://en.wikipedia.org/wiki/" + what, label="Wiki", icon="🌎")
         st.image(
-            github_path + 'results/extracted_trees/'+ taxon +'_subtree.svg', #extracted tree svg path
+            'results/extracted_trees/'+ taxon +'_subtree.svg', #extracted tree svg path
             caption= taxon + ' Phylogenetic Tree',
             width='stretch')
     else:
@@ -863,9 +863,9 @@ if st.sidebar.checkbox('Find taxon'): #it does not handle two new taxa in the sa
             extract_subtree(proteomes_path, main_tree_path, taxon)
             #data_load_state = st.text('Retrieving Tree...')
             layout = 'Linear' #default
-            taxon_out = github_path + 'results/extracted_trees/' + taxon +'_subtree.svg'
+            taxon_out = 'results/extracted_trees/' + taxon +'_subtree.svg'
             taxon_out = load_extracted_tree(taxon, layout, taxon_out)
-            svg_path = github_path + 'results/extracted_trees/'+ taxon +'_subtree.svg' 
+            svg_path = 'results/extracted_trees/'+ taxon +'_subtree.svg' 
             # Wait up to 30 seconds for the file to be non-empty (adjust as needed)
             timeout = 60
             start_time = time.time()
@@ -893,7 +893,7 @@ if st.sidebar.checkbox('Find protein'):
     st.page_link("https://www.uniprot.org/uniprotkb/" + protein + "/entry", label="UniProt", icon="🌎")
     #AFDB link
     st.page_link("https://alphafold.ebi.ac.uk/search/text/" + protein, label="AFDB", icon="🌎")
-    protein_svg = pathlib.Path(github_path + 'results/protein_trees/' + protein +'_presence_tree_' + layout +'.svg')
+    protein_svg = pathlib.Path('results/protein_trees/' + protein +'_presence_tree_' + layout +'.svg')
     for protein in [protein]:
         if protein == '':
             st.warning('Please enter protein uniprot ID i.e. P05023 or A0A0P8ZLX7')
@@ -904,7 +904,7 @@ if st.sidebar.checkbox('Find protein'):
                 width='stretch')
             protein = ''
         else:
-            families_csv_path = github_path + 'data/core/protein_families_238.csv' #i.e. ./data/core/protein_families_238.csv
+            families_csv_path = 'data/core/protein_families_238.csv' #i.e. ./data/core/protein_families_238.csv
             circular_svg, linear_svg = protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree_path)
             if layout == 'Circular':
                 st.image(
