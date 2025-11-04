@@ -12,7 +12,7 @@ import textwrap
 import time
 import os
 
-github_path = 'SHE_app/app/' #change to your path
+github_path = '/app/' #change to your path
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
 @st.cache_data
 # for coloring the selectbox
