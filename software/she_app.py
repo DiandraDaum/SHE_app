@@ -12,8 +12,8 @@ import textwrap
 import time
 import os
 
-# source ~/.venv/bin/activate 
-# streamlit run ~/Documents/GitHub/SHE_app/software/she_app.py
+# environment: source ~/.venv/bin/activate 
+# run: streamlit run ~/Documents/GitHub/SHE_app/software/she_app.py
 github_path = '/Users/diandra/Documents/GitHub/' #change to your path
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
 @st.cache_data
@@ -639,13 +639,9 @@ kingdom = st.sidebar.selectbox(
     df['kingdom'],
     key = 'kingdom_selector')
 
-# 1. Get the color for the currently selected kingdom
+# color for the currently selected kingdom
 color = kingdom_color(kingdom)
-
-# 2. Inject CSS to style the selectbox based on the current selection.
-#    This targets the Streamlit element that displays the *currently selected value*.
-#    The ID/class names might change slightly with Streamlit updates.
-#    '.stSelectbox div[data-baseweb="select"]' is a common target for the selectbox input area.
+# CSS to style the selectbox based on the current selection.
 st.markdown(
     f"""
     <style>
@@ -658,7 +654,6 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-#st.write(f"You selected **{kingdom}**. The box is now colored: `{color}`")
 
 st.write('Close species in the tree share similar protein structures at the proteome level.')
 st.write('Start exploring the new structural tree by selecting a kingdom in the sidebar!')
@@ -667,23 +662,21 @@ st.write('Interested in discovering the new strucutural phylogenetics of specifi
 st.write('Interested in discovering in which organisms a certain protein can be found? Use the "Look for a protein" section in the sidebar.')
 
 
-
-#Visualization options
+############################Visualization options --------------------------------------------------------
 st.sidebar.subheader('Visualization Options')
 layout = st.sidebar.selectbox(
     'Tree Layout',
     ['Circular', 'Linear']
 )
 
-
+#add labels
 if st.sidebar.toggle('Labels'):
     labels = True
 else:
     labels = False
 
 
-
-#show trees
+#show kingdom trees
 # 1. Initialize session state for visibility
 if 'show_tree' not in st.session_state:
     st.session_state.show_tree = True
@@ -696,7 +689,7 @@ if st.button(button_label):
     st.session_state.show_tree = not st.session_state.show_tree
 
 
-# Display the main_tree image
+# Display the kingdom tree image --------------------------------------------------------------
 if st.session_state.show_tree:
     st.title('Kingdom tree: ' + kingdom)
     'Selected Kingdom: ', kingdom
@@ -728,9 +721,7 @@ if st.sidebar.toggle('Show species branch rate in kingdom'):
     kingdom_csv = pd.read_csv(kingdom_csv)
     kingdom_csv
 
-
-
-# evorate
+# show evorate tree color ------------------------------------------------------------------------
 if st.sidebar.toggle('See evolutionary rate'):
     st.title('Evolutionary rate:')
     'Selected Kingdom: ', kingdom
@@ -763,13 +754,13 @@ if st.sidebar.toggle('See evolutionary rate'):
                 width='stretch')
 
 
-#Extract taxonomic group ------------------------------------------------
+##############Extract taxonomic group ------------------------------------------------
 main_tree_path = github_path + 'SHE_app/data/tree/All/kingdoms_All_tree.newick'
 proteomes_path = github_path + 'SHE_app/data/tree/selected_proteomes_above_25_formatted_organisms.csv'
 new_proteomes_path = github_path + 'SHE_app/data/core/merged_evo_rate.csv'
 proteomes_df = pd.read_csv(proteomes_path)
 
-
+# find species ------------------------------------------------------------------------------------------------------
 st.sidebar.subheader('Zoom on Taxonomic Group')
 if st.sidebar.checkbox('Find species'):
     st.title('Species subtree:')
@@ -847,7 +838,7 @@ if st.sidebar.checkbox('Find species'):
                             renamed_species = ''
                             species_out = ''
 
-
+# find taxon --------------------------------------------------------------------------------------------------
 if st.sidebar.checkbox('Find taxon'): #it does not handle two new taxa in the same session
     st.title('Taxa subtree:')
     taxon = st.sidebar.text_input(
@@ -890,7 +881,7 @@ if st.sidebar.checkbox('Find taxon'): #it does not handle two new taxa in the sa
                         width='stretch')
 
 
-## Proteins extraction
+############### Protein tree extraction -----------------------------------------------------------------------------------------
 st.sidebar.subheader('Look for a protein')
 if st.sidebar.checkbox('Find protein'):
     protein = ''
