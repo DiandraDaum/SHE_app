@@ -288,6 +288,8 @@ def extract_closest_species(newick_file, input_species, num_neighbors): #species
     
     return output_path, target_species
 
+
+# tree for find species
 def load_species_tree(species, layout, species_out):
 # File paths
     #species_out = github_path + 'SHE/species_trees/' + species +'_subtree.newick'
@@ -327,28 +329,6 @@ def load_species_tree(species, layout, species_out):
         )
     
     return svg_path
-
-def kingdom_color(kingdom):
-    if kingdom == 'Opisthokonta':
-        return "#bfdbfe" #Opisthokonta
-    elif kingdom == 'Viridiplantae':
-        return "#bbf7d0" #Viridiplantae
-    elif kingdom == 'Amoebozoa':
-        return "#fecdd3" #Amoebozoa
-    elif kingdom == 'Sar':
-        return "#f3f4f6" #Sar
-    elif kingdom == 'Discoba':
-        return "#e9d5ff" #Discoba
-    elif kingdom == 'Rhodophyta':
-        return "#c3f8f1" #Rhodophyta
-    elif kingdom == 'Cryptophyceae':
-        return "#f6fad5" #Cryptophyceae
-    elif kingdom == 'Apusozoa':
-        return "#ddd6fe" #Apusozoa
-    else:
-        return "#ffffff" #default white
-
-
 
 # color tree if a protein is present in species
 def get_species_id(protein_name):
@@ -590,7 +570,7 @@ def load_evotree(kingdom):
     ts_c.scale = None #big circles with dotted lines
     ts_c.optimal_scale_level = "full" #mid or full
     ts_c.force_topology = True #not bad
-    ts_c.root_opening_factor = 100 #new
+    ts_c.root_opening_factor = 1 #new
     #ts_c.layout_fn = labels
     # Render tree
     tree.render(
