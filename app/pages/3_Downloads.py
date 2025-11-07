@@ -12,10 +12,17 @@ import textwrap
 import time
 import os
 
-#Code to analyse:
-# model organism search
-#gene set search --> tree build
+# Make download button for all comparisons
+# Traffic analysis code
+
 
 
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
 #@st.cache_data
+
+
+#-----------
+sentiment_mapping = [":material/thumb_down:", ":material/thumb_up:"]
+selected = st.feedback("thumbs")
+if selected is not None:
+    st.markdown(f"You selected: {sentiment_mapping[selected]}")

@@ -12,10 +12,16 @@ import textwrap
 import time
 import os
 
-# Make download button for all comparisons
-# Traffic analysis code
-
+#Code to analyse:
+# model organism search
+#gene set search --> tree build
 
 
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
 #@st.cache_data
+
+
+
+###------
+#user sign up for updates and analysis results
+
