@@ -34,6 +34,7 @@ COPY app/Start_page.py $HOME/app/Start_page.py
 COPY app/data/ $HOME/app/data/
 COPY app/results/ $HOME/app/results/
 COPY app/pages $HOME/app/pages/
+COPY app/.streamlit $HOME/app/.streamlit/
 
 USER $USER
 EXPOSE 8501
