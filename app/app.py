@@ -610,7 +610,15 @@ def load_evotree(kingdom):
 
 
 #### intro -----------------------------------------------------------------------------------------------------------------------------------
+st.set_page_config(
+    page_title="SHE",
+    page_icon= "data/tree/logo_tree.png", 
+)
+
 st.title('SHE: Structural History of Eukarya')
+
+st.sidebar.success("Find more analysis options in the panels above.")
+
 
 st.subheader('Strucutral Phylogenetic Tree')
 #, main_tree_out = load_main_tree()
