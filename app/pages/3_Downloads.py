@@ -22,6 +22,7 @@ import os
 
 
 #-----------
+st.write("Do you like it?")
 sentiment_mapping = [":material/thumb_down:", ":material/thumb_up:"]
 selected = st.feedback("thumbs")
 if selected is not None:

@@ -16,12 +16,16 @@ import os
 # model organism search
 #gene set search --> tree build
 
-
+EMAIL_FILE = 'data/emails_results.csv'
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
-@st.cache_data
+#@st.cache_data
 def save_email(email):
-    """Saves the email and current timestamp to the CSV file."""
+    """Saves the email and current timestamp to the CSV file. 
+    It ensures the directory exists before attempting to write."""
     try:
+        # Ensure the directory exists (necessary for 'data/emails_results.csv')
+        os.makedirs(os.path.dirname(EMAIL_FILE), exist_ok=True)
+        
         # Check if the file exists to determine if we need to write headers
         file_exists = os.path.exists(EMAIL_FILE)
         
@@ -41,35 +45,29 @@ def save_email(email):
         st.error(f"An error occurred while saving: {e}")
         return False
 
-
 ###------
 #user sign up for updates and analysis results
 st.subheader('Results')
 st.write('Sign up to receive your results by email')
-email = st.sidebar.text_input('Your email', key="email") #strip against whitespace
+st.sidebar.text_input('Your email', key="email") #strip against whitespace
 
-EMAIL_FILE = 'data/emails_results.csv'
+
 # Submission Button in the main content area
-if st.button('Subscribe'):
-    # Retrieve the value from session state using the key "user"
+if st.button('Receive Results'):
+    # Retrieve the value from session state using the key "email" (updated from "user")
     user_email = st.session_state.email.strip()
     
     if not user_email:
-        st.error("Please enter an email address ")
-    elif not is_valid_email(user_email):
-        st.error("Please enter a valid email format (e.g., name.surname@example.com).")
+        # Only check remaining: must not be empty
+        st.error("Please enter an email address.")
     else:
-        # Check if email is already in the CSV (optional, but good practice)
-        try:
-            with open(EMAIL_FILE, 'r', newline='', encoding='utf-8') as f:
-                reader = csv.reader(f)
-                # Skip header row if present
-                next(reader, None) 
-
-        # If we reach here, the email is new and valid
+        # No email format validation is performed here.
+        
+        # If we reach here, the email is non-empty and we save it.
         if save_email(user_email):
+            # Updated success message
             st.success(f"Thank you! **{user_email}** is where you will receive your results.")
-            # Clear the input field after successful submission
-            st.session_state.user = ""
+            # Clear the input field after successful submission (updated key)
+            st.session_state.email = ""
 
 
