@@ -30,7 +30,7 @@ COPY app/requirements.txt $HOME/app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy all files that the app needs
-COPY app/Start_page.py $HOME/app/app.py
+COPY app/Start_page.py $HOME/app/Start_page.py
 COPY app/data/ $HOME/app/data/
 COPY app/results/ $HOME/app/results/
 COPY app/pages $HOME/app/pages/
