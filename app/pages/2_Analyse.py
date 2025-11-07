@@ -16,7 +16,7 @@ import os
 # model organism search
 #gene set search --> tree build
 
-EMAIL_FILE = 'data/emails_results.csv'
+EMAIL_FILE = 'data/email_results.csv'
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
 #@st.cache_data
 def save_email(email):

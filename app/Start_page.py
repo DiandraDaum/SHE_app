@@ -84,7 +84,7 @@ st.subheader('Updates')
 st.write('Sign up for updates!')
 email = st.sidebar.text_input('Your email', key="email") #strip against whitespace
 
-EMAIL_FILE = 'data/emails_updates.csv'
+EMAIL_FILE = 'data/email_updates.csv'
 # Submission Button in the main content area
 # Submission Button in the main content area
 if st.button('Subscribe'):
