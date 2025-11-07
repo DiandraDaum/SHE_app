@@ -107,9 +107,6 @@ if st.button('Subscribe'):
 
 st.subheader('Demo')
 st.write('Check up our demo to start explorying SHE')
-try: 
-    video_intro = open("data/tree/app_demo.mp4", "rb")
-    video_bytes = video_intro.read()
-    st.video(video_bytes)
-except FileNotFoundError:
-    st.error('Cannot open video')
+#video_intro = open("data/tree/app_demo.mp4", "rb")
+#video_bytes = video_intro.read()
+#st.video(video_bytes)
