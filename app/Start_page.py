@@ -14,6 +14,7 @@ import os
 
 #github_path = '/' #change to your path
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
+EMAIL_FILE = 'data/email_updates.csv'
 def save_email(email):
     """Saves the email and current timestamp to the CSV file. 
     It ensures the directory exists before attempting to write."""
@@ -83,8 +84,6 @@ st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: The structur
 st.subheader('Updates')
 st.write('Sign up for updates!')
 email = st.text_input('Your email', key="email") #strip against whitespace
-
-EMAIL_FILE = 'data/email_updates.csv'
 # Submission Button in the main content area
 # Submission Button in the main content area
 if st.button('Subscribe'):

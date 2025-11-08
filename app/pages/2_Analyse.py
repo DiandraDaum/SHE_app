@@ -18,7 +18,7 @@ import os
 
 EMAIL_FILE = 'data/email_results.csv'
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
-#@st.cache_data
+@st.cache_data
 def save_email(email):
     """Saves the email and current timestamp to the CSV file. 
     It ensures the directory exists before attempting to write."""
