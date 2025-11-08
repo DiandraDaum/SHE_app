@@ -950,31 +950,33 @@ if st.sidebar.checkbox('Find protein'):
     # uniprot link
     st.page_link("https://www.uniprot.org/uniprotkb/" + protein + "/entry", label="UniProt", icon="🌎")
     #AFDB link
-    #st.page_link("https://alphafold.ebi.ac.uk/search/text/" + protein, label="AFDB", icon="🌎")
+    st.page_link("https://alphafold.ebi.ac.uk/search/text/" + protein, label="AFDB", icon="🌎")
     # --- Configuration AFDB  ---
     # The protein structure can be identified by its UniProt Accession ID (e.g., HRAS)
     UNIPROT_ID = protein 
     # The AlphaFold DB ID format is typically AF-{UNIPROT_ID}-F1 (Fragment 1)
-    AFDB_ID = f"AF-{UNIPROT_ID}-F1-v6" 
+    #AFDB_ID = f"AF-{UNIPROT_ID}-F1-v6" 
 
     # The official EMBL-EBI download URL for the mmCIF file
+    #AFDB_DOWNLOAD_URL = (
+        #"https://alphafold.ebi.ac.uk/entry/"
+        #f"{AFDB_ID}.cif")
+
     AFDB_DOWNLOAD_URL = (
-        "https://alphafold.ebi.ac.uk/files/"
-        f"{AFDB_ID}.cif"
-    )
-    st.markdown(f"Loading predicted structure **{AFDB_ID}** from AlphaFold DB...")
+        "https://alphafold.ebi.ac.uk/api/prediction/"
+        f"{protein?}") #https://alphafold.ebi.ac.uk/api/prediction/Q5VSL9
+    st.markdown(f"Loading predicted structure **{protein}** from AlphaFold DB...")
 
     response = requests.head(AFDB_DOWNLOAD_URL, allow_redirects=True, timeout=10)
     if response.status_code == 200:
-        molstar_html = get_molstar_html(AFDB_ID, AFDB_DOWNLOAD_URL)
+        molstar_html = get_molstar_html(protein, AFDB_DOWNLOAD_URL)
         
         # Embed the HTML component in Streamlit
         st.components.v1.html(molstar_html, height=550)
-        
         st.success(f"Structure loaded successfully.")
-        st.caption(f"Source: [AlphaFold DB - {AFDB_ID}]({AFDB_DOWNLOAD_URL})")
+        st.caption(f"Source: [AlphaFold DB - {protein}]({AFDB_DOWNLOAD_URL})")
     elif response.status_code == 404:
-        st.error(f"Error: Structure {AFDB_ID} was **not found** in AlphaFold DB.")
+        st.error(f"Error: Structure {protein} was **not found** in AlphaFold DB.")
     else:
         st.error(f"Error checking AFDB link: HTTP Status {response.status_code}")
 
