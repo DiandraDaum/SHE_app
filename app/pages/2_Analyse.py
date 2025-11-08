@@ -85,8 +85,8 @@ if st.sidebar. button('Receive Results'):
 
 ################analysis
 st.sidebar.subheader('Best model organism')
-    if st.sidebar.checkbox('Model organism'):
-        st.title('Find the best model organism for your study according to the structural phylogenetic tree!')
+if st.sidebar.checkbox('Model organism'):
+    st.title('Find the best model organism for your study according to the structural phylogenetic tree!')
     protein = st.sidebar.text_input(
     'Which protein are you studying?', key="protein")
     st.write('Selected Protein: ', protein)
@@ -94,8 +94,8 @@ st.sidebar.subheader('Best model organism')
 
 
 st.sidebar.subheader('Structural evolution of a set of protein')
-    if st.sidebar.checkbox('Model organism'):
-        st.title('Build the structural phylogenetic tree from your input proteins!')
+if st.sidebar.checkbox('Protein evolution'):
+    st.title('Build the structural phylogenetic tree from your input proteins!')
     prots = st.sidebar.text_input(
     'Which protein are you studying?', key="prots")
     st.write('Selected Proteins: ', prots)
