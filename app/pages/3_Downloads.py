@@ -20,10 +20,17 @@ import os
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
 #@st.cache_data
 
+st.title('SHE: Structural History of Eukarya')
+
+st.subheader('Downloads')
+
+st.write('Here it is possible to download the Foldseek proteome-proteome comparisons by organism')
+
+
 
 #-----------
-st.write("Do you like it?")
+st.sidebar write("Do you like it?")
 sentiment_mapping = [":material/thumb_down:", ":material/thumb_up:"]
-selected = st.feedback("thumbs")
+selected = st.sidebar.feedback("thumbs")
 if selected is not None:
     st.markdown(f"You selected: {sentiment_mapping[selected]}")

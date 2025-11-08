@@ -23,7 +23,7 @@ def save_email(email):
     """Saves the email and current timestamp to the CSV file. 
     It ensures the directory exists before attempting to write."""
     try:
-        # Ensure the directory exists (necessary for 'data/emails_results.csv')
+        # Ensure the directory exists (necessary for 'data/email_results.csv')
         os.makedirs(os.path.dirname(EMAIL_FILE), exist_ok=True)
         
         # Check if the file exists to determine if we need to write headers
@@ -45,7 +45,21 @@ def save_email(email):
         st.error(f"An error occurred while saving: {e}")
         return False
 
-###------
+#---------------------------------------
+
+##MAIN##
+st.title('SHE: Structural History of Eukarya')
+st.subheader('Strucutral Phylogenetic Tree')
+st.image(
+    'data/tree/All/Intro.png',
+    caption='Strucutral Phylogenetic Tree of Eukarya'
+)
+
+
+
+
+
+###------sidebar sign up--------------------
 #user sign up for updates and analysis results
 st.sidebar.subheader('Results')
 st.sidebar.write('Sign up to receive your results by email')
@@ -60,8 +74,6 @@ if st.sidebar. button('Receive Results'):
     if not user_email:
         # Only check remaining: must not be empty
         st.error("Please enter an email address.")
-    else:
-        # No email format validation is performed here.
         
         # If we reach here, the email is non-empty and we save it.
         if save_email(user_email):
@@ -71,3 +83,19 @@ if st.sidebar. button('Receive Results'):
             st.session_state.email = ""
 
 
+################analysis
+st.sidebar.subheader('Best model organism')
+    if st.sidebar.checkbox('Model organism'):
+        st.title('Find the best model organism for your study according to the structural phylogenetic tree!')
+    protein = st.sidebar.text_input(
+    'Which protein are you studying?', key="protein")
+    st.write('Selected Protein: ', protein)
+
+
+
+st.sidebar.subheader('Structural evolution of a set of protein')
+    if st.sidebar.checkbox('Model organism'):
+        st.title('Build the structural phylogenetic tree from your input proteins!')
+    prots = st.sidebar.text_input(
+    'Which protein are you studying?', key="prots")
+    st.write('Selected Proteins: ', prots)
