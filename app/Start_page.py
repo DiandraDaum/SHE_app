@@ -107,7 +107,7 @@ if st.button('Subscribe'):
 
 st.subheader('Demo')
 st.write('Check up our demo to start explorying SHE')
-video_path = open("data/tree/app_demo.mp4", "rb")
+video_path = "data/tree/app_demo.mp4"
 
 try:
     # 1. Check if the file exists using os.path.exists
