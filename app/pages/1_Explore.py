@@ -615,6 +615,9 @@ def get_molstar_html(afdb_id: str, download_url: str) -> str:
     """Generates the HTML/JavaScript code to embed the Mol* viewer 
     and load the AlphaFold structure directly from the EBI URL."""
     
+    # Ensure this script URL is correct and accessible.
+    MOLSTAR_SCRIPT = "https://www.ebi.ac.uk/pdbe/pdb-component-library/js/pdbe-molstar-plugin-3.2.0.js"
+    
     # We use Mol*'s simple Viewer component, setting the molecule ID and its URL
     return f"""
     <!DOCTYPE html>
@@ -628,7 +631,7 @@ def get_molstar_html(afdb_id: str, download_url: str) -> str:
                 height: 500px; /* Adjust height as needed */
             }}
         </style>
-        <script src="https://www.ebi.ac.uk/pdbe/pdb-component-library/js/pdbe-molstar-plugin-3.2.0.js"></script>
+        <script src="{MOLSTAR_SCRIPT}"></script>
     </head>
     <body>
         <div id="molstar"></div>
@@ -639,16 +642,18 @@ def get_molstar_html(afdb_id: str, download_url: str) -> str:
             // Configuration for the viewer
             var options = {{
                 customData: {{
-                    url: '{download_url}', // The CIF file URL
-                    format: 'mmcif',      // The format of the file
-                    binary: false         // File is plain text, not binary
+                    // Check the download URL insertion
+                    url: '{download_url}', 
+                    format: 'mmcif',      
+                    binary: false         
                 }},
+                // Check the ID insertion
                 moleculeId: '{afdb_id}',
+                
                 // Display options
                 hideControls: true, 
-                bgColor: {{ r: 255, g: 255, b: 255 }}, // White background
+                bgColor: {{ r: 255, g: 255, b: 255 }}, 
                 
-                # AlphaFold structures are best visualized colored by pLDDT confidence
                 customPreset: {{
                     name: 'AlphaFold View',
                     residuePred: true
@@ -967,22 +972,19 @@ if st.sidebar.checkbox('Find protein'):
         f"{protein}?") #https://alphafold.ebi.ac.uk/api/prediction/Q5VSL9
     st.markdown(f"Loading predicted structure **{protein}** from AlphaFold DB...")
 
-    # 1. Use requests.get() to query the API and retrieve the JSON metadata
+    # Use requests.get() to query the API and retrieve the JSON metadata
     response = requests.get(AFDB_API_URL, timeout=10)
-    
     # Check for general request errors (e.g., 404, 500)
     response.raise_for_status() 
-
-    # 2. Parse the JSON response
+    # Parse the JSON response
     data = response.json()
-    
     # The API returns a list of prediction objects (usually one)
     if data and isinstance(data, list) and data[0].get('cifUrl'):
         
-        # 3. Extract the direct download link from the JSON response
+        # Extract the direct download link from the JSON response
         AFDB_DOWNLOAD_URL = data[0]['cifUrl']
         
-        # 4. Extract the AFDB ID (e.g., AF-P05023-F1-v4) for the Mol* viewer
+        # Extract the AFDB ID (e.g., AF-P05023-F1-v4) for the Mol* viewer
         # We can extract the ID from the download URL's path
         # URL looks like: https://alphafold.ebi.ac.uk/files/AF-P05023-F1-v4.cif
         import os 
@@ -992,7 +994,7 @@ if st.sidebar.checkbox('Find protein'):
         # Gets 'AF-P05023-F1-v4.cif' and removes the extension
         AFDB_ID = os.path.splitext(os.path.basename(parsed_url.path))[0]
         
-        # 5. Render the Mol* viewer
+        # Render the Mol* viewer
         molstar_html = get_molstar_html(AFDB_ID, AFDB_DOWNLOAD_URL)
         
         st.components.v1.html(molstar_html, height=550)
