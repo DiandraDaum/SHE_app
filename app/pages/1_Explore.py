@@ -609,6 +609,61 @@ def load_evotree(kingdom):
     return tree_out_c, tree_out_r
 
 
+# --- Function to generate the Mol* HTML viewer ---
+def get_molstar_html(afdb_id: str, download_url: str) -> str:
+    """Generates the HTML/JavaScript code to embed the Mol* viewer 
+    and load the AlphaFold structure directly from the EBI URL."""
+    
+    # We use Mol*'s simple Viewer component, setting the molecule ID and its URL
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <title>Mol* Viewer</title>
+        <style>
+            #molstar {{
+                width: 100%;
+                height: 500px; /* Adjust height as needed */
+            }}
+        </style>
+        <script src="https://www.ebi.ac.uk/pdbe/pdb-component-library/js/pdbe-molstar-plugin-3.2.0.js"></script>
+    </head>
+    <body>
+        <div id="molstar"></div>
+        <script>
+            // Initialize the Mol* plugin
+            var viewerInstance = new PDBeMolstarPlugin();
+
+            // Configuration for the viewer
+            var options = {{
+                customData: {{
+                    url: '{download_url}', // The CIF file URL
+                    format: 'mmcif',      // The format of the file
+                    binary: false         // File is plain text, not binary
+                }},
+                moleculeId: '{afdb_id}',
+                // Display options
+                hideControls: true, 
+                bgColor: {{ r: 255, g: 255, b: 255 }}, // White background
+                
+                # AlphaFold structures are best visualized colored by pLDDT confidence
+                customPreset: {{
+                    name: 'AlphaFold View',
+                    residuePred: true
+                }}
+            }};
+
+            // Render the viewer into the 'molstar' div
+            viewerInstance.render('molstar', options);
+        </script>
+    </body>
+    </html>
+    """
+
+
+
+
 #### intro -----------------------------------------------------------------------------------------------------------------------------------
 
 st.title('SHE: Structural History of Eukarya')
@@ -894,7 +949,35 @@ if st.sidebar.checkbox('Find protein'):
     # uniprot link
     st.page_link("https://www.uniprot.org/uniprotkb/" + protein + "/entry", label="UniProt", icon="🌎")
     #AFDB link
-    st.page_link("https://alphafold.ebi.ac.uk/search/text/" + protein, label="AFDB", icon="🌎")
+    #st.page_link("https://alphafold.ebi.ac.uk/search/text/" + protein, label="AFDB", icon="🌎")
+    # --- Configuration AFDB  ---
+    # The protein structure can be identified by its UniProt Accession ID (e.g., HRAS)
+    UNIPROT_ID = protein 
+    # The AlphaFold DB ID format is typically AF-{UNIPROT_ID}-F1 (Fragment 1)
+    AFDB_ID = f"AF-{UNIPROT_ID}-F1" 
+
+    # The official EMBL-EBI download URL for the mmCIF file
+    AFDB_DOWNLOAD_URL = (
+        "https://alphafold.ebi.ac.uk/files/"
+        f"{AFDB_ID}.cif"
+    )
+    st.markdown(f"Loading predicted structure **{AFDB_ID}** from AlphaFold DB...")
+
+    response = requests.head(AFDB_DOWNLOAD_URL, allow_redirects=True, timeout=10)
+    if response.status_code == 200:
+        molstar_html = get_molstar_html(AFDB_ID, AFDB_DOWNLOAD_URL)
+        
+        # Embed the HTML component in Streamlit
+        st.components.v1.html(molstar_html, height=550)
+        
+        st.success(f"Structure loaded successfully.")
+        st.caption(f"Source: [AlphaFold DB - {AFDB_ID}]({AFDB_DOWNLOAD_URL})")
+    elif response.status_code == 404:
+        st.error(f"Error: Structure {AFDB_ID} was **not found** in AlphaFold DB.")
+    else:
+        st.error(f"Error checking AFDB link: HTTP Status {response.status_code}")
+
+    # get tree
     protein_svg = pathlib.Path('results/protein_trees/' + protein +'_presence_tree_' + layout +'.svg')
     for protein in [protein]:
         if protein == '':
