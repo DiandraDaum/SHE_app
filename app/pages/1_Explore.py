@@ -13,6 +13,9 @@ import time
 import os
 import requests
 from urllib.parse import urlparse
+import py3Dmol
+import glob
+
 
 #github_path = '/' #change to your path
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
@@ -612,11 +615,11 @@ def load_evotree(kingdom):
 
 
 # --- Function to generate the Mol* HTML viewer ---
-def get_molstar_html(uniprot_id: str) -> str:
+def get_molstar_html(afdb_accession_id: str) -> str:
     """Generates the HTML/JavaScript code to embed the Mol* viewer 
-    and load the AlphaFold structure using the UniProt ID."""
+    and load the AlphaFold structure using the specific AFDB Accession ID."""
     
-    # Use the AlphaFold-specific plugin
+    # Use the dedicated AlphaFold PDBe-Molstar plugin
     MOLSTAR_SCRIPT = "https://www.ebi.ac.uk/pdbe/pdb-component-library/js/pdbe-af-plugin-0.2.0.js"
     
     return f"""
@@ -628,7 +631,7 @@ def get_molstar_html(uniprot_id: str) -> str:
         <style>
             #molstar {{
                 width: 100%;
-                height: 500px; /* Adjust height as needed */
+                height: 500px;
             }}
         </style>
         <script src="{MOLSTAR_SCRIPT}"></script>
@@ -636,27 +639,55 @@ def get_molstar_html(uniprot_id: str) -> str:
     <body>
         <div id="molstar"></div>
         <script>
-            // Initialize the Mol* plugin
             var viewerInstance = new PDBeMolstarPlugin();
 
-            // Configuration for the viewer, using the UniProt ID directly
             var options = {{
-                // Use moleculeId as the UniProt ID
-                moleculeId: '{uniprot_id}', 
+                // Use the full accession ID (e.g., AF-Q5VSL9-F1-v4)
+                moleculeId: '{afdb_accession_id}', 
                 
-                // Display options
-                hideControls: false, // You might want controls to debug
+                // Set the background color to white
                 bgColor: {{ r: 255, g: 255, b: 255 }}, 
             }};
 
-            // Render the viewer into the 'molstar' div
             viewerInstance.render('molstar', options);
         </script>
     </body>
     </html>
     """
 
+def render_3dmol(afdb_download_url: str, color="lDDT"):
+    """
+    Fetches the CIF data from the URL and renders it using py3Dmol.
+    """
+    
+    # 1. Fetch the CIF data from the AlphaFold URL
+    st.info("Fetching CIF file content...")
+    try:
+        cif_response = requests.get(afdb_download_url, timeout=30)
+        cif_response.raise_for_status() # Check for request errors
+        cif_data = cif_response.text
+    except Exception as e:
+        st.error(f"Failed to retrieve CIF data from AlphaFold DB: {e}")
+        return None
 
+    # 2. Initialize the py3Dmol viewer
+    # Use 'enablejs=True' for better compatibility in Streamlit
+    view = py3Dmol.view(width=800, height=500, js='https://3dmol.org/build/3Dmol.js')
+
+    # 3. Add the model using the fetched string data
+    # The 'cif' format is correct for AlphaFold predictions
+    view.addModel(cif_data, 'cif')
+
+    # 4. Set the coloring scheme (lDDT for AlphaFold)
+    if color == "lDDT":
+        # 'b' property in CIF files corresponds to pLDDT in AlphaFold
+        # Min 50 (bad), Max 90 (good). Colors: Red -> Yellow -> Green -> Blue
+        view.setStyle({'cartoon': {'colorscheme': {'prop':'b','gradient': 'roygb','min':50,'max':90}}})
+
+    view.zoomTo()
+    #return view
+    # Render the view using Streamlit components
+    st.components.v1.html(view.render(), height=510, scrolling=False)
 
 
 #### intro -----------------------------------------------------------------------------------------------------------------------------------
@@ -944,7 +975,7 @@ if st.sidebar.checkbox('Find protein'):
     # uniprot link
     st.page_link("https://www.uniprot.org/uniprotkb/" + protein + "/entry", label="UniProt", icon="🌎")
     #AFDB link
-    st.page_link("https://alphafold.ebi.ac.uk/search/text/" + protein, label="AFDB", icon="🌎")
+    #st.page_link("https://alphafold.ebi.ac.uk/search/text/" + protein, label="AFDB", icon="🌎")
     # --- Configuration AFDB  ---
     UNIPROT_ID = protein 
     AFDB_API_URL = (
@@ -963,16 +994,16 @@ if st.sidebar.checkbox('Find protein'):
         
         # Extract the direct download link from the JSON response
         AFDB_DOWNLOAD_URL = data[0]['cifUrl']
-        
-        parsed_url = urlparse(AFDB_DOWNLOAD_URL)
+        #parsed_url = urlparse(AFDB_DOWNLOAD_URL)
+        #AFDB_ACCESSION_ID = os.path.splitext(os.path.basename(parsed_url.path))[0]
         # Gets 'AF-P05023-F1-v4.cif' and removes the extension
-        AFDB_ID = os.path.splitext(os.path.basename(parsed_url.path))[0]
+        #AFDB_ID = os.path.splitext(os.path.basename(parsed_url.path))[0]
         
         # Render the Mol* viewer
-        #molstar_html = get_molstar_html(AFDB_ID, AFDB_DOWNLOAD_URL)
-        molstar_html = get_molstar_html(UNIPROT_ID)
-        
-        st.components.v1.html(molstar_html, height=550)
+        render_3dmol(AFDB_DOWNLOAD_URL)
+        #molstar_html = get_molstar_html(AFDB_ACCESSION_ID)
+        #molstar_html = get_molstar_html(UNIPROT_ID)
+        #st.components.v1.html(molstar_html, height=550)
         
         #st.success(f"Structure loaded successfully (AFDB ID: **{AFDB_ID}**).")
         st.caption(f"Source: [AlphaFold DB - {UNIPROT_ID}]({AFDB_DOWNLOAD_URL})")
