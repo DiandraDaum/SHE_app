@@ -47,13 +47,13 @@ def save_email(email):
 
 ###------
 #user sign up for updates and analysis results
-st.subheader('Results')
-st.write('Sign up to receive your results by email')
+st.sidebar.subheader('Results')
+st.sidebar.write('Sign up to receive your results by email')
 st.sidebar.text_input('Your email', key="email") #strip against whitespace
 
 
 # Submission Button in the main content area
-if st.button('Receive Results'):
+if st.sidebar. button('Receive Results'):
     # Retrieve the value from session state using the key "email" (updated from "user")
     user_email = st.session_state.email.strip()
     

@@ -82,7 +82,7 @@ st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: The structur
 
 st.subheader('Updates')
 st.write('Sign up for updates!')
-email = st.sidebar.text_input('Your email', key="email") #strip against whitespace
+email = st.text_input('Your email', key="email") #strip against whitespace
 
 EMAIL_FILE = 'data/email_updates.csv'
 # Submission Button in the main content area
