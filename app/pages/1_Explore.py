@@ -11,6 +11,7 @@ import base64
 import textwrap
 import time
 import os
+import requests
 
 #github_path = '/' #change to your path
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
