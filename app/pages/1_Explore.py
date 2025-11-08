@@ -964,7 +964,7 @@ if st.sidebar.checkbox('Find protein'):
 
     AFDB_DOWNLOAD_URL = (
         "https://alphafold.ebi.ac.uk/api/prediction/"
-        f"{protein?}") #https://alphafold.ebi.ac.uk/api/prediction/Q5VSL9
+        f"{protein}?") #https://alphafold.ebi.ac.uk/api/prediction/Q5VSL9
     st.markdown(f"Loading predicted structure **{protein}** from AlphaFold DB...")
 
     response = requests.head(AFDB_DOWNLOAD_URL, allow_redirects=True, timeout=10)
