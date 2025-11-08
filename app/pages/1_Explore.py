@@ -12,6 +12,7 @@ import textwrap
 import time
 import os
 import requests
+from urllib.parse import urlparse
 
 #github_path = '/' #change to your path
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
@@ -611,14 +612,13 @@ def load_evotree(kingdom):
 
 
 # --- Function to generate the Mol* HTML viewer ---
-def get_molstar_html(afdb_id: str, download_url: str) -> str:
+def get_molstar_html(uniprot_id: str) -> str:
     """Generates the HTML/JavaScript code to embed the Mol* viewer 
-    and load the AlphaFold structure directly from the EBI URL."""
+    and load the AlphaFold structure using the UniProt ID."""
     
-    # Ensure this script URL is correct and accessible.
-    MOLSTAR_SCRIPT = "https://www.ebi.ac.uk/pdbe/pdb-component-library/js/pdbe-molstar-plugin-3.2.0.js"
+    # Use the AlphaFold-specific plugin
+    MOLSTAR_SCRIPT = "https://www.ebi.ac.uk/pdbe/pdb-component-library/js/pdbe-af-plugin-0.2.0.js"
     
-    # We use Mol*'s simple Viewer component, setting the molecule ID and its URL
     return f"""
     <!DOCTYPE html>
     <html>
@@ -639,25 +639,14 @@ def get_molstar_html(afdb_id: str, download_url: str) -> str:
             // Initialize the Mol* plugin
             var viewerInstance = new PDBeMolstarPlugin();
 
-            // Configuration for the viewer
+            // Configuration for the viewer, using the UniProt ID directly
             var options = {{
-                customData: {{
-                    // Check the download URL insertion
-                    url: '{download_url}', 
-                    format: 'mmcif',      
-                    binary: false         
-                }},
-                // Check the ID insertion
-                moleculeId: '{afdb_id}',
+                // Use moleculeId as the UniProt ID
+                moleculeId: '{uniprot_id}', 
                 
                 // Display options
-                hideControls: true, 
+                hideControls: false, // You might want controls to debug
                 bgColor: {{ r: 255, g: 255, b: 255 }}, 
-                
-                customPreset: {{
-                    name: 'AlphaFold View',
-                    residuePred: true
-                }}
             }};
 
             // Render the viewer into the 'molstar' div
@@ -957,20 +946,11 @@ if st.sidebar.checkbox('Find protein'):
     #AFDB link
     st.page_link("https://alphafold.ebi.ac.uk/search/text/" + protein, label="AFDB", icon="🌎")
     # --- Configuration AFDB  ---
-    # The protein structure can be identified by its UniProt Accession ID (e.g., HRAS)
     UNIPROT_ID = protein 
-    # The AlphaFold DB ID format is typically AF-{UNIPROT_ID}-F1 (Fragment 1)
-    #AFDB_ID = f"AF-{UNIPROT_ID}-F1-v6" 
-
-    # The official EMBL-EBI download URL for the mmCIF file
-    #AFDB_DOWNLOAD_URL = (
-        #"https://alphafold.ebi.ac.uk/entry/"
-        #f"{AFDB_ID}.cif")
-
     AFDB_API_URL = (
-        "https://alphafold.ebi.ac.uk/api/prediction/"
-        f"{protein}?") #https://alphafold.ebi.ac.uk/api/prediction/Q5VSL9
-    st.markdown(f"Loading predicted structure **{protein}** from AlphaFold DB...")
+        "https://alphafold.ebi.ac.uk/api/prediction/" + UNIPROT_ID + "?")
+        #f"{protein}?") #https://alphafold.ebi.ac.uk/api/prediction/Q5VSL9
+    st.markdown(f"Loading predicted structure **{UNIPROT_ID}** from AlphaFold DB...")
 
     # Use requests.get() to query the API and retrieve the JSON metadata
     response = requests.get(AFDB_API_URL, timeout=10)
@@ -984,27 +964,21 @@ if st.sidebar.checkbox('Find protein'):
         # Extract the direct download link from the JSON response
         AFDB_DOWNLOAD_URL = data[0]['cifUrl']
         
-        # Extract the AFDB ID (e.g., AF-P05023-F1-v4) for the Mol* viewer
-        # We can extract the ID from the download URL's path
-        # URL looks like: https://alphafold.ebi.ac.uk/files/AF-P05023-F1-v4.cif
-        import os 
-        from urllib.parse import urlparse
-        
         parsed_url = urlparse(AFDB_DOWNLOAD_URL)
         # Gets 'AF-P05023-F1-v4.cif' and removes the extension
         AFDB_ID = os.path.splitext(os.path.basename(parsed_url.path))[0]
         
         # Render the Mol* viewer
-        molstar_html = get_molstar_html(AFDB_ID, AFDB_DOWNLOAD_URL)
+        #molstar_html = get_molstar_html(AFDB_ID, AFDB_DOWNLOAD_URL)
+        molstar_html = get_molstar_html(UNIPROT_ID)
         
         st.components.v1.html(molstar_html, height=550)
         
-        st.success(f"Structure loaded successfully (AFDB ID: **{AFDB_ID}**).")
+        #st.success(f"Structure loaded successfully (AFDB ID: **{AFDB_ID}**).")
         st.caption(f"Source: [AlphaFold DB - {UNIPROT_ID}]({AFDB_DOWNLOAD_URL})")
-
     else:
         # Handle cases where the API returns a valid response but no structure data
-        st.error(f"Error: Structure data for {UNIPROT_ID} was **not found** in the API response.")
+        st.warning(f"Error: Structure data for {UNIPROT_ID} was **not found** in the API response. Please make sure to input a protein Uniprot ID.")
         
 
     # get tree
