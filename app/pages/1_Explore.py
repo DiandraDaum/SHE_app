@@ -955,7 +955,7 @@ if st.sidebar.checkbox('Find protein'):
     # The protein structure can be identified by its UniProt Accession ID (e.g., HRAS)
     UNIPROT_ID = protein 
     # The AlphaFold DB ID format is typically AF-{UNIPROT_ID}-F1 (Fragment 1)
-    AFDB_ID = f"AF-{UNIPROT_ID}-F1" 
+    AFDB_ID = f"AF-{UNIPROT_ID}-F1-v6" 
 
     # The official EMBL-EBI download URL for the mmCIF file
     AFDB_DOWNLOAD_URL = (
