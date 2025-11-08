@@ -967,18 +967,43 @@ if st.sidebar.checkbox('Find protein'):
         f"{protein}?") #https://alphafold.ebi.ac.uk/api/prediction/Q5VSL9
     st.markdown(f"Loading predicted structure **{protein}** from AlphaFold DB...")
 
-    response = requests.head(AFDB_DOWNLOAD_URL, allow_redirects=True, timeout=10)
-    if response.status_code == 200:
-        molstar_html = get_molstar_html(protein, AFDB_DOWNLOAD_URL)
+    # 1. Use requests.get() to query the API and retrieve the JSON metadata
+    response = requests.get(AFDB_API_URL, timeout=10)
+    
+    # Check for general request errors (e.g., 404, 500)
+    response.raise_for_status() 
+
+    # 2. Parse the JSON response
+    data = response.json()
+    
+    # The API returns a list of prediction objects (usually one)
+    if data and isinstance(data, list) and data[0].get('cifUrl'):
         
-        # Embed the HTML component in Streamlit
+        # 3. Extract the direct download link from the JSON response
+        AFDB_DOWNLOAD_URL = data[0]['cifUrl']
+        
+        # 4. Extract the AFDB ID (e.g., AF-P05023-F1-v4) for the Mol* viewer
+        # We can extract the ID from the download URL's path
+        # URL looks like: https://alphafold.ebi.ac.uk/files/AF-P05023-F1-v4.cif
+        import os 
+        from urllib.parse import urlparse
+        
+        parsed_url = urlparse(AFDB_DOWNLOAD_URL)
+        # Gets 'AF-P05023-F1-v4.cif' and removes the extension
+        AFDB_ID = os.path.splitext(os.path.basename(parsed_url.path))[0]
+        
+        # 5. Render the Mol* viewer
+        molstar_html = get_molstar_html(AFDB_ID, AFDB_DOWNLOAD_URL)
+        
         st.components.v1.html(molstar_html, height=550)
-        st.success(f"Structure loaded successfully.")
-        st.caption(f"Source: [AlphaFold DB - {protein}]({AFDB_DOWNLOAD_URL})")
-    elif response.status_code == 404:
-        st.error(f"Error: Structure {protein} was **not found** in AlphaFold DB.")
+        
+        st.success(f"Structure loaded successfully (AFDB ID: **{AFDB_ID}**).")
+        st.caption(f"Source: [AlphaFold DB - {UNIPROT_ID}]({AFDB_DOWNLOAD_URL})")
+
     else:
-        st.error(f"Error checking AFDB link: HTTP Status {response.status_code}")
+        # Handle cases where the API returns a valid response but no structure data
+        st.error(f"Error: Structure data for {UNIPROT_ID} was **not found** in the API response.")
+        
 
     # get tree
     protein_svg = pathlib.Path('results/protein_trees/' + protein +'_presence_tree_' + layout +'.svg')
