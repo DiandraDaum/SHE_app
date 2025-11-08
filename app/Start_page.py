@@ -107,6 +107,22 @@ if st.button('Subscribe'):
 
 st.subheader('Demo')
 st.write('Check up our demo to start explorying SHE')
-#video_intro = open("data/tree/app_demo.mp4", "rb")
-#video_bytes = video_intro.read()
-#st.video(video_bytes)
+video_path = open("data/tree/app_demo.mp4", "rb")
+
+try:
+    # 1. Check if the file exists using os.path.exists
+    if not os.path.exists(video_path):
+        # Raise an exception if the file doesn't exist
+        raise FileNotFoundError(f"The file '{video_path}' was not found.")
+
+    # 2. If the file exists, open and read the bytes
+    with open(video_path, "rb") as video_intro:
+        video_bytes = video_intro.read()
+    
+    # 3. Display the video in Streamlit
+    st.video(video_bytes)
+    
+except FileNotFoundError as e:
+    # Handle the case where the file is not found
+    st.warning(f"Demo video could not be loaded: {e}")
+    st.info("The application will run without the video.")
