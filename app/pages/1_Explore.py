@@ -14,7 +14,7 @@ import os
 import requests
 from urllib.parse import urlparse
 import py3Dmol
-import glob
+#import glob
 
 
 #github_path = '/' #change to your path
@@ -655,23 +655,31 @@ def get_molstar_html(afdb_accession_id: str) -> str:
     </html>
     """
 
-def render_3dmol(afdb_download_url: str, color="lDDT"):
+def render_3dmol(afdb_download_url: str):
     """
-    Fetches the CIF data from the URL and renders it using py3Dmol.
+    Fetches the CIF data from the URL and renders it using py3Dmol,
+    with robust error checking.
     """
     
-    # 1. Fetch the CIF data from the AlphaFold URL
     st.info("Fetching CIF file content...")
+    cif_data = None
+    
     try:
+        # 1. Fetch the CIF data
         cif_response = requests.get(afdb_download_url, timeout=30)
-        cif_response.raise_for_status() # Check for request errors
+        cif_response.raise_for_status() 
         cif_data = cif_response.text
-    except Exception as e:
-        st.error(f"Failed to retrieve CIF data from AlphaFold DB: {e}")
-        return None
+        
+        # CRITICAL CHECK: Ensure the data is a non-empty string
+        if not cif_data or not isinstance(cif_data, str):
+             st.error("Fetched data is empty or not a string. Cannot render structure.")
+             return # Function returns None implicitly
+             
+    except requests.exceptions.RequestException as e:
+        st.error(f"Network error during CIF download: {e}")
+        return # Function returns None implicitly
 
     # 2. Initialize the py3Dmol viewer
-    # Use 'enablejs=True' for better compatibility in Streamlit
     view = py3Dmol.view(width=800, height=500, js='https://3dmol.org/build/3Dmol.js')
 
     # 3. Add the model using the fetched string data
@@ -679,16 +687,20 @@ def render_3dmol(afdb_download_url: str, color="lDDT"):
     view.addModel(cif_data, 'cif')
 
     # 4. Set the coloring scheme (lDDT for AlphaFold)
-    if color == "lDDT":
-        # 'b' property in CIF files corresponds to pLDDT in AlphaFold
-        # Min 50 (bad), Max 90 (good). Colors: Red -> Yellow -> Green -> Blue
-        view.setStyle({'cartoon': {'colorscheme': {'prop':'b','gradient': 'roygb','min':50,'max':90}}})
-
+    # Set the coloring scheme (lDDT for AlphaFold)
+    view.setStyle({'cartoon': {'colorscheme': {'prop':'b','gradient': 'roygb','min':50,'max':90}}})
+    
     view.zoomTo()
-    #return view
-    # Render the view using Streamlit components
-    st.components.v1.html(view.render(), height=510, scrolling=False)
-
+    
+    # 5. Render the view using Streamlit components
+    # We explicitly check the output of render() before passing it to Streamlit
+    html_output = view.render()
+    
+    if isinstance(html_output, str):
+        st.components.v1.html(html_output, height=510, scrolling=False)
+    else:
+        # This catches the case where view.render() returns a non-string (like None)
+        st.error("py3Dmol failed to generate the required HTML content (viewer initialization failed).")
 
 #### intro -----------------------------------------------------------------------------------------------------------------------------------
 
