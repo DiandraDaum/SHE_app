@@ -14,6 +14,8 @@ import os
 import requests
 from urllib.parse import urlparse
 import py3Dmol
+from stmol import showmol
+from stmol import *
 #import glob
 
 
@@ -615,53 +617,12 @@ def load_evotree(kingdom):
 
 
 # --- Function to generate the Mol* HTML viewer ---
-def get_molstar_html(afdb_accession_id: str) -> str:
-    """Generates the HTML/JavaScript code to embed the Mol* viewer 
-    and load the AlphaFold structure using the specific AFDB Accession ID."""
-    
-    # Use the dedicated AlphaFold PDBe-Molstar plugin
-    MOLSTAR_SCRIPT = "https://www.ebi.ac.uk/pdbe/pdb-component-library/js/pdbe-af-plugin-0.2.0.js"
-    
-    return f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="utf-8">
-        <title>Mol* Viewer</title>
-        <style>
-            #molstar {{
-                width: 100%;
-                height: 500px;
-            }}
-        </style>
-        <script src="{MOLSTAR_SCRIPT}"></script>
-    </head>
-    <body>
-        <div id="molstar"></div>
-        <script>
-            var viewerInstance = new PDBeMolstarPlugin();
-
-            var options = {{
-                // Use the full accession ID (e.g., AF-Q5VSL9-F1-v4)
-                moleculeId: '{afdb_accession_id}', 
-                
-                // Set the background color to white
-                bgColor: {{ r: 255, g: 255, b: 255 }}, 
-            }};
-
-            viewerInstance.render('molstar', options);
-        </script>
-    </body>
-    </html>
-    """
 
 def render_3dmol(afdb_download_url: str):
     """
-    Fetches the CIF data from the URL and renders it using py3Dmol,
-    with robust error checking.
+    Fetches the CIF data and renders it using py3Dmol via stmol.
     """
-    
-    st.info("Fetching CIF file content...")
+    st.info("Fetching protein structure from AlphaFold database...")
     cif_data = None
     
     try:
@@ -670,37 +631,37 @@ def render_3dmol(afdb_download_url: str):
         cif_response.raise_for_status() 
         cif_data = cif_response.text
         
-        # CRITICAL CHECK: Ensure the data is a non-empty string
         if not cif_data or not isinstance(cif_data, str):
              st.error("Fetched data is empty or not a string. Cannot render structure.")
-             return # Function returns None implicitly
+             return
              
     except requests.exceptions.RequestException as e:
         st.error(f"Network error during CIF download: {e}")
-        return # Function returns None implicitly
+        return
 
-    # 2. Initialize the py3Dmol viewer
+    # 2. Initialize the py3Dmol viewer object
+    # DO NOT call .render()
     view = py3Dmol.view(width=800, height=500, js='https://3dmol.org/build/3Dmol.js')
 
-    # 3. Add the model using the fetched string data
-    # The 'cif' format is correct for AlphaFold predictions
+    # 3. Add the model
     view.addModel(cif_data, 'cif')
 
     # 4. Set the coloring scheme (lDDT for AlphaFold)
-    # Set the coloring scheme (lDDT for AlphaFold)
+    # Official Hex Codes (approximate):
+    # Very High (>90): Dark Blue (#0053D6)
+    # High (70-90): Light Blue/Cyan (#64CCEB)
+    # Low (50-70): Yellow (#FFDB00)
+    # Very Low (<50): Red/Orange (#FF7D45)
     view.setStyle({'cartoon': {'colorscheme': {'prop':'b','gradient': 'roygb','min':50,'max':90}}})
     
     view.zoomTo()
     
-    # 5. Render the view using Streamlit components
-    # We explicitly check the output of render() before passing it to Streamlit
-    html_output = view.render()
-    
-    if isinstance(html_output, str):
-        st.components.v1.html(html_output, height=510, scrolling=False)
-    else:
-        # This catches the case where view.render() returns a non-string (like None)
-        st.error("py3Dmol failed to generate the required HTML content (viewer initialization failed).")
+    # 5. Render the view using the stmol component
+    # The showmol function handles the Streamlit component embedding correctly.
+    try:
+        showmol(view, height=510, width=800)
+    except Exception as e:
+         st.error(f"Error rendering 3Dmol viewer with stmol: {e}")
 
 #### intro -----------------------------------------------------------------------------------------------------------------------------------
 st.set_page_config(
@@ -986,57 +947,60 @@ if st.sidebar.checkbox('Find protein'):
     protein = ''
     st.title('Tree of all organisms sharing a protein:')
     protein = st.sidebar.text_input(
-    'Which protein?', key="protein")
+    'Which protein (Uniprot ID)?', key="protein")
     st.write('Selected Protein: ', protein)
-    # uniprot link
-    st.page_link("https://www.uniprot.org/uniprotkb/" + protein + "/entry", label="UniProt", icon="🌎")
-    #AFDB link
-    #st.page_link("https://alphafold.ebi.ac.uk/search/text/" + protein, label="AFDB", icon="🌎")
-    # --- Configuration AFDB  ---
-    UNIPROT_ID = protein 
-    AFDB_API_URL = (
-        "https://alphafold.ebi.ac.uk/api/prediction/" + UNIPROT_ID + "?")
-        #f"{protein}?") #https://alphafold.ebi.ac.uk/api/prediction/Q5VSL9
-    st.markdown(f"Loading predicted structure **{UNIPROT_ID}** from AlphaFold DB...")
-
-    # Use requests.get() to query the API and retrieve the JSON metadata
-    response = requests.get(AFDB_API_URL, timeout=10)
-    # Check for general request errors (e.g., 404, 500)
-    response.raise_for_status() 
-    # Parse the JSON response
-    data = response.json()
-    # The API returns a list of prediction objects (usually one)
-    if data and isinstance(data, list) and data[0].get('cifUrl'):
-        
-        # Extract the direct download link from the JSON response
-        AFDB_DOWNLOAD_URL = data[0]['cifUrl']
-        #parsed_url = urlparse(AFDB_DOWNLOAD_URL)
-        #AFDB_ACCESSION_ID = os.path.splitext(os.path.basename(parsed_url.path))[0]
-        # Gets 'AF-P05023-F1-v4.cif' and removes the extension
-        #AFDB_ID = os.path.splitext(os.path.basename(parsed_url.path))[0]
-        
-        # Render the Mol* viewer
-        render_3dmol(AFDB_DOWNLOAD_URL)
-        #molstar_html = get_molstar_html(AFDB_ACCESSION_ID)
-        #molstar_html = get_molstar_html(UNIPROT_ID)
-        #st.components.v1.html(molstar_html, height=550)
-        
-        #st.success(f"Structure loaded successfully (AFDB ID: **{AFDB_ID}**).")
-        st.caption(f"Source: [AlphaFold DB - {UNIPROT_ID}]({AFDB_DOWNLOAD_URL})")
+    if protein == '':
+            st.warning('Please enter protein uniprot ID i.e. P05023 or A0A0P8ZLX7')
     else:
-        # Handle cases where the API returns a valid response but no structure data
-        st.warning(f"Error: Structure data for {UNIPROT_ID} was **not found** in the API response. Please make sure to input a protein Uniprot ID.")
-        
+        # uniprot link
+        st.page_link("https://www.uniprot.org/uniprotkb/" + protein + "/entry", label="UniProt", icon="🌎")
+        #AFDB link
+        #st.page_link("https://alphafold.ebi.ac.uk/search/text/" + protein, label="AFDB", icon="🌎")
+        # --- Configuration AFDB  ---
+        UNIPROT_ID = protein 
+        AFDB_API_URL = (
+            "https://alphafold.ebi.ac.uk/api/prediction/" + UNIPROT_ID + "?")
+            #f"{protein}?") #https://alphafold.ebi.ac.uk/api/prediction/Q5VSL9
+        st.markdown(f"Loading predicted structure **{UNIPROT_ID}** from AlphaFold DB...")
 
+        # Use requests.get() to query the API and retrieve the JSON metadata
+        response = requests.get(AFDB_API_URL, timeout=10)
+        # Check for general request errors (e.g., 404, 500)
+        response.raise_for_status() 
+        # Parse the JSON response
+        data = response.json()
+        # The API returns a list of prediction objects (usually one)
+        if data and isinstance(data, list) and data[0].get('cifUrl'):
+            
+            # Extract the direct download link from the JSON response
+            AFDB_DOWNLOAD_URL = data[0]['cifUrl']
+            #parsed_url = urlparse(AFDB_DOWNLOAD_URL)
+            #AFDB_ACCESSION_ID = os.path.splitext(os.path.basename(parsed_url.path))[0]
+            # Gets 'AF-P05023-F1-v4.cif' and removes the extension
+            #AFDB_ID = os.path.splitext(os.path.basename(parsed_url.path))[0]
+            
+            # Render the Mol* viewer
+            render_3dmol(AFDB_DOWNLOAD_URL)
+            #molstar_html = get_molstar_html(AFDB_ACCESSION_ID)
+            #molstar_html = get_molstar_html(UNIPROT_ID)
+            #st.components.v1.html(molstar_html, height=550)
+            
+            #st.success(f"Structure loaded successfully (AFDB ID: **{AFDB_ID}**).")
+            st.caption(f"Source: [AlphaFold DB - {UNIPROT_ID}]({AFDB_DOWNLOAD_URL})")
+        else:
+            # Handle cases where the API returns a valid response but no structure data
+            st.warning(f"Error: Structure data for {UNIPROT_ID} was **not found** in the API response. Please make sure to input a protein Uniprot ID.")
+        
     # get tree
     protein_svg = pathlib.Path('results/protein_trees/' + protein +'_presence_tree_' + layout +'.svg')
     for protein in [protein]:
-        if protein == '':
-            st.warning('Please enter protein uniprot ID i.e. P05023 or A0A0P8ZLX7')
-        elif protein_svg.exists():
+        #if protein == '':
+            #st.warning('Please enter protein uniprot ID.')
+        #elif protein_svg.exists():
+        if protein_svg.exists():
             st.image(
                 protein_svg, #svg file
-                caption= protein + ' Phylogenetic Tree; green if present, grey if absent in species proteome',
+                caption= protein + ' Phylogenetic Tree: green if protein homologous structures are present in species proteome, grey if absent',
                 width='stretch')
             protein = ''
         else:

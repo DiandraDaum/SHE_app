@@ -50,3 +50,7 @@ urllib3==2.5.0
 watchdog==6.0.0
 py3Dmol
 tqdm
+stmol
+ipyspeck(==0.6.1)
+ipywidgets(==7.6.3)
+ipython_genutils

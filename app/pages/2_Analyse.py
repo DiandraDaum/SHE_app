@@ -226,7 +226,7 @@ st.image(
 
 st.write("Here, you can look for the best model organism to use for your study based on the proteins involved in your pathway. Click on 'Find best Model Organism' in the sidebar to start you analysis!")
 st.write("What about studying the evolution of your proteins of interest? Click on 'Study Protein Evolution' in the sidebar and start building your tree!")
-st.write("Please note that building the tree might require some time. It is possible to leave your email in the sidebar, so that your results will be sent to you as soon as they are ready!")
+st.write("Please note that these analysis might require some time. It is possible to register your email in the sidebar, so that your results will be sent to you as soon as they are ready!")
 
 
 ###------sidebar sign up--------------------
@@ -338,7 +338,7 @@ st.sidebar.subheader('Structural evolution of a set of protein')
 if st.sidebar.checkbox('Study Protein evolution'):
     st.title('Build the structural phylogenetic tree from your input proteins!')
     prots = st.sidebar.text_input(
-    'Which protein are you studying?', key="prots")
+    'Which proteins are you studying?', key="prots")
     st.write('Selected Proteins: ', prots)
     if (prots == ''):
         st.warning('Please input the Uniprot ID of the protein(s) you want to build the structural evolutionary tree from.')
