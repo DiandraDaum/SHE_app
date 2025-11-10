@@ -209,6 +209,14 @@ def find_best_hit_in_organism(target_protein_id, target_family_id, compare_prote
 #---------------------------------------
 
 ##MAIN##
+st.set_page_config(
+    page_title="SHE: Analyse",
+    page_icon= "data/tree/logo_tree.png", 
+    layout="centered"
+)
+
+
+
 st.title('SHE: Structural History of Eukarya')
 st.subheader('Strucutral Phylogenetic Tree')
 st.image(
@@ -216,8 +224,9 @@ st.image(
     caption='Strucutral Phylogenetic Tree of Eukarya'
 )
 
-
-
+st.write("Here, you can look for the best model organism to use for your study based on the proteins involved in your pathway. Click on 'Find best Model Organism' in the sidebar to start you analysis!")
+st.write("What about studying the evolution of your proteins of interest? Click on 'Study Protein Evolution' in the sidebar and start building your tree!")
+st.write("Please note that building the tree might require some time. It is possible to leave your email in the sidebar, so that your results will be sent to you as soon as they are ready!")
 
 
 ###------sidebar sign up--------------------
@@ -246,9 +255,9 @@ if st.sidebar. button('Receive Results'):
 
 ################analysis -------------------------------------------
 st.sidebar.subheader('Best model organism')
-if st.sidebar.checkbox('Model organism'):
+if st.sidebar.checkbox('Find best Model organism'):
     st.title('Find the best model organism for your study according to the structural phylogenetic tree!')
-    protein = st.sidebar.text_input(
+    protein_list = st.sidebar.text_input(
     'Which proteins are you studying? (each Uniprot ID separated by a space, i.e: Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616)', key="protein")
     target = st.sidebar.text_input(
     'Which organism would you like to study (Default: Homo_sapiens_Human)', key="target")
@@ -258,13 +267,13 @@ if st.sidebar.checkbox('Model organism'):
     st.write('Selected Target Organism: ', target) #"Homo_sapiens_Human"
     st.write('Selected Model Organism(s): ', model) # 'Danio_rerio_Zebrafish_Brachydanio_rerio Caenorhabditis_elegans Mus_musculus_Mouse'
     if (protein_list == '') | (model == ''):
-        st.warning('Please the Uniprot ID of the protein(s) to study and the model organisms you can to choose from, to find the best model organism for you study.')
+        st.warning('Please input the Uniprot ID of the protein(s) to study, the organism to study (Defaul to Human), and the model organisms you can to choose from, to find the best model organism for you study.')
     else:
         if target == '':
             target_species='Homo_sapiens_Human'
         else:
             target_species = target
-        
+        """
         uniprot_ids=protein_list # "Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616"
         families=   #Path to the protein_families.csv file: protein_families_173_without0_DSU_OUTPUT.csv
         mapping='data/core/model/extracted_and_renamed.csv'    #Path to CSV file with 'proteome_id' and 'species_name' columns
@@ -322,12 +331,16 @@ if st.sidebar.checkbox('Model organism'):
         
         st.success("\n--- Model Organism Ranking ---")
         st.write(f"Based on structural similarity for UniProt IDs: {', '.join(uniprot_ids)}")
-        st.write(scores_df.to_string(formatters={'Normalized_Score': '{:,.2f}'.format}))
+        st.write(scores_df.to_string(formatters={'Normalized_Score': '{:,.2f}'.format}))"""
 
 
 st.sidebar.subheader('Structural evolution of a set of protein')
-if st.sidebar.checkbox('Protein evolution'):
+if st.sidebar.checkbox('Study Protein evolution'):
     st.title('Build the structural phylogenetic tree from your input proteins!')
     prots = st.sidebar.text_input(
     'Which protein are you studying?', key="prots")
     st.write('Selected Proteins: ', prots)
+    if (prots == ''):
+        st.warning('Please input the Uniprot ID of the protein(s) you want to build the structural evolutionary tree from.')
+    else:
+        pass

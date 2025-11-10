@@ -20,6 +20,12 @@ import os
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
 #@st.cache_data
 
+st.set_page_config(
+    page_title="SHE: Downloads",
+    page_icon= "data/tree/logo_tree.png", 
+    layout="centered"
+)
+
 st.title('SHE: Structural History of Eukarya')
 
 st.subheader('Downloads')

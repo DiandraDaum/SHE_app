@@ -703,7 +703,11 @@ def render_3dmol(afdb_download_url: str):
         st.error("py3Dmol failed to generate the required HTML content (viewer initialization failed).")
 
 #### intro -----------------------------------------------------------------------------------------------------------------------------------
-
+st.set_page_config(
+    page_title="SHE: Explore",
+    page_icon= "data/tree/logo_tree.png", 
+    layout="centered"
+)
 st.title('SHE: Structural History of Eukarya')
 
 st.subheader('Strucutral Phylogenetic Tree')

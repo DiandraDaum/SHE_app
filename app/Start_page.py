@@ -42,7 +42,7 @@ def save_email(email):
         return False
 #### intro -----------------------------------------------------------------------------------------------------------------------------------
 st.set_page_config(
-    page_title="SHE",
+    page_title="SHE: Start page",
     page_icon= "data/tree/logo_tree.png", 
     layout="centered"
 )
