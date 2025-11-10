@@ -27,12 +27,6 @@ st.set_page_config(
 )
 
 st.title('SHE: Structural History of Eukarya')
-
-st.subheader('Downloads')
-
-st.write('Here it is possible to download the Foldseek proteome-proteome comparisons by organism')
-
-st.write('Here it is possible to download the structural tree svg for each kigdom')
 #-----------
 st.sidebar.write("Do you like it?")
 sentiment_mapping = [":material/thumb_down:", ":material/thumb_up:"]
@@ -40,7 +34,14 @@ selected = st.sidebar.feedback("thumbs")
 if selected is not None:
     st.sidebar.markdown(f"You selected: {sentiment_mapping[selected]}")
 
+st.subheader('Downloads')
 
+st.subheader('Download by Organism')
+st.write('Here it is possible to download the Foldseek proteome-proteome comparisons by organism')
+
+
+st.subheader('Download Tree by Kingdom')
+st.write('Here it is possible to download the structural newick tree for each kigdom. To open it, try uploading it on iTOL (https://itol.embl.de/upload.cgi)!')
 df = pd.DataFrame({
     'kingdom': ["All", "Opisthokonta", "Amoebozoa", "Sar", "Viridiplantae", "Discoba", "Rhodophyta"],
     'number_species': [10, 20, 30, 40, 50, 70, 80] # change to actual number of species
@@ -49,11 +50,28 @@ df = pd.DataFrame({
 for kingdom in df['kingdom']:
     file = "data/tree/" + kingdom + "/" + "kingdoms_" + kingdom + "_tree.newick"
     file_name= kingdom + "_tree.newick"
-    print(f"Downloading file: {file}")
-    with open(file, "rb") as file:
-        st.download_button(
-            label="Download Tree",
+    label1="Download Tree " + kingdom
+    label2="Download Tree Eukarya"
+    if kingdom == "All":
+        with open(file, "rb") as file:
+            st.download_button(
+            label=label2,
             data=file,
             file_name=file_name,
             mime="image/png",
+            icon=":material/download:",
         )
+    else:
+        #print(f"Downloading file: {file}")
+        with open(file, "rb") as file:
+            st.download_button(
+                label=label1,
+                data=file,
+                file_name=file_name,
+                mime="image/png",
+                icon=":material/download:",
+            )
+
+
+
+
