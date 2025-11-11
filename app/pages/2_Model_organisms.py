@@ -3,15 +3,12 @@ import pandas as pd
 import numpy as np
 import time
 import csv
-from ete3 import Tree, TreeStyle, NodeStyle
-#from phytreeviz import TreeViz
 import sys
 import pathlib
 import base64
 import textwrap
 import time
 import os
-
 from collections import defaultdict
 from tqdm import tqdm
 from datetime import datetime
@@ -20,9 +17,7 @@ from datetime import datetime
 # model organism search
 #gene set search --> tree build
 
-
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
-@st.cache_data
 # save user email
 EMAIL_FILE = 'data/email_results.csv'
 def save_email(email):
@@ -254,6 +249,7 @@ if st.sidebar. button('Receive Results'):
 
 
 ################analysis -------------------------------------------
+@st.cache_data
 st.sidebar.subheader('Model Organism Search')
 if st.sidebar.checkbox('Find best Model organism'):
     st.title('Find the best model organism for your study according to the structural phylogenetic tree!')
@@ -275,14 +271,14 @@ if st.sidebar.checkbox('Find best Model organism'):
             target_species = target
         """
         uniprot_ids=protein_list # "Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616"
-        families=   #Path to the protein_families.csv file: protein_families_173_without0_DSU_OUTPUT.csv
+        families='data/core/model/protein_families_173_without0_DSU_OUTPUT.csv'   #Path to the protein_families.csv file: protein_families_173_without0_DSU_OUTPUT.csv
         mapping='data/core/model/extracted_and_renamed.csv'    #Path to CSV file with 'proteome_id' and 'species_name' columns
         
         families_df, species_to_proteome = load_data(families, mapping)
         target_proteins = find_target_proteins_by_uniprot(uniprot_ids, target_species, species_to_proteome, families_df)
         if not target_proteins:
             st.warning("No target proteins were found in the selected model organisms")
-        hits=   #Path to the all_hits.csv file (raw homologous pairs): all_homologous_173_without0_pairs_from_decompressed_files.csv
+        hits='data/core/model/all_homologous_173_without0_pairs_from_decompressed_files.csv'   #Path to the all_hits.csv file (raw homologous pairs): all_homologous_173_without0_pairs_from_decompressed_files.csv
         hits_df = load_relevant_hits(hits, target_proteins)
         
         ####print score
