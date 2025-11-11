@@ -105,7 +105,7 @@ if st.button('Subscribe'):
 
 
 st.subheader('Demo')
-st.write('Check up our demo to start explorying SHE')
+st.write('Check up our demo to start exploring SHE')
 video_path1 = "data/tree/app_demo.mp4"
 video_path2="Start_page/app_demo.mp4"
 
@@ -123,4 +123,4 @@ try:
     st.video(video_bytes)
 except:
     # in case the file is not found
-    st.warning(f"Demo video could not be loaded: {e}")
+    st.warning(f"Demo video could not be loaded")
