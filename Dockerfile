@@ -29,8 +29,9 @@ RUN apt-get update && \
 COPY app/requirements.txt $HOME/app/requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
+
 # Copy all files that the app needs
-COPY app/Start_page.py $HOME/app/Start_page.py
+COPY app/app.py $HOME/app/app.py
 COPY app/data/ $HOME/app/data/
 COPY app/results/ $HOME/app/results/
 COPY app/pages $HOME/app/pages/
@@ -41,4 +42,4 @@ EXPOSE 8501
 
 HEALTHCHECK CMD curl --fail http://localhost:8501/_stcore/health
 
-ENTRYPOINT ["streamlit", "run", "Start_page.py", "--server.port=8501", "--server.address=0.0.0.0", "--browser.gatherUsageStats=false"]
+ENTRYPOINT ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0", "--browser.gatherUsageStats=false"]

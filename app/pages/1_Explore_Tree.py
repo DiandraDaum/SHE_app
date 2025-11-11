@@ -11,12 +11,12 @@ import base64
 import textwrap
 import time
 import os
+os.environ['QT_QPA_PLATFORM'] = 'offscreen'
 import requests
 from urllib.parse import urlparse
 import py3Dmol
 from stmol import showmol
 from stmol import *
-#import glob
 
 
 #github_path = '/' #change to your path
