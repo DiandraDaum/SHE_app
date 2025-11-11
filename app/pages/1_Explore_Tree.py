@@ -17,6 +17,7 @@ from urllib.parse import urlparse
 import py3Dmol
 from stmol import showmol
 from stmol import *
+from IPython.display import HTML
 
 
 #github_path = '/' #change to your path
@@ -385,6 +386,7 @@ def protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree
     """
 
     # 1 Load the names file and create the name map
+    st.info("Generating tree: this might require some seconds, please wait")
     print(f"--- Step 1: Loading Name Map from '{new_proteomes_path}' ---")
     try:
         new_proteomes_csv = pd.read_csv(new_proteomes_path)
@@ -653,9 +655,8 @@ def render_3dmol(afdb_download_url: str):
     # Low (50-70): Yellow (#FFDB00)
     # Very Low (<50): Red/Orange (#FF7D45)
     view.setStyle({'cartoon': {'colorscheme': {'prop':'b','gradient': 'roygb','min':50,'max':90}}})
-    
-    view.zoomTo()
     #view.render()
+    #view.show()
     
     # 5. Render the view using the stmol component
     # The showmol function handles the Streamlit component embedding correctly.
@@ -947,7 +948,7 @@ if st.sidebar.checkbox('Find taxon'): #it does not handle two new taxa in the sa
 st.sidebar.subheader('Protein Evolution')
 if st.sidebar.checkbox('Find protein'):
     protein = ''
-    st.title('Tree of all organisms sharing a protein:')
+    st.title('Tree of all organisms sharing a protein structure:')
     protein = st.sidebar.text_input(
     'Which protein (Uniprot ID)?', key="protein")
     st.write('Selected Protein: ', protein)
@@ -1006,7 +1007,6 @@ if st.sidebar.checkbox('Find protein'):
                     width='stretch')
                 protein = ''
             else:
-                st.info("Generating tree: this might require some seconds, please wait")
                 families_csv_path = 'data/core/protein_families_238.csv' #i.e. ./data/core/protein_families_238.csv
                 circular_svg, linear_svg = protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree_path)
                 if layout == 'Circular':

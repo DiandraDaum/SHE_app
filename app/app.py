@@ -90,14 +90,11 @@ email = st.text_input('Your email', key="email") #strip against whitespace
 if st.button('Subscribe'):
     # Retrieve the value from session state using the key "email" (updated from "user")
     user_email = st.session_state.email.strip()
-    
     if not user_email:
         # Only check remaining: must not be empty
         st.error("Please enter an email address.")
     else:
-        # No email format validation is performed here.
-        
-        # If we reach here, the email is non-empty and we save it.
+        # email is non-empty and we save it.
         if save_email(user_email):
             # Updated success message
             st.success(f"Thank you! **{user_email}** is where you will receive updates about SHE.")
