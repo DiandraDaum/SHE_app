@@ -5,8 +5,7 @@ import pandas as pd
 import numpy as np
 import time
 import csv
-from ete3 import Tree, TreeStyle, NodeStyle
-#from phytreeviz import TreeViz
+from ete3 import Tree, TreeStyle, NodeStyle, Config
 import sys
 import pathlib
 import base64
@@ -372,6 +371,7 @@ def protein_in_family(protein, families_csv_path):
         return family, families_df
     else:
         st.warning(f"This protein does not seem to have a structural homologous...")
+
 def protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree):
     """
     Given a protein uniprot ID, find its family and color the tree of all organisms sharing that protein.
@@ -478,6 +478,14 @@ def protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree
     ts_circular.scale = None
     ts_circular.optimal_scale_level = "full"
     ts_circular.force_topology = True
+    #clean Qapplication before rendering
+    # to force ete3 to re-evaluate the headless environment on every run.
+    try:
+        # Check and remove any lingering Qt configuration
+        if 'qt' in Config.get_conf_item('render', 'backend'):
+            Config.set_conf_item('render', 'backend', '') # Clear it
+    except Exception:
+        pass
     # Render Circular tree
     t.render(
         circular_path,
@@ -1023,7 +1031,7 @@ if st.sidebar.checkbox('Find protein'):
                             width='stretch')
                         protein = ''
                 else:
-                    st.warning("QApplication is creating an empty svg")
+                    st.warning("QApplication is creating an empty svg. Restart the app")
 
 if st.sidebar.checkbox('Study the structural evolution set of proteins'):
     proteins = ''
