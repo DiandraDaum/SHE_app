@@ -370,7 +370,7 @@ def protein_in_family(protein, families_csv_path):
         print(f"Mapped Protein Uniprot ID '{protein}' to family: {family}")
         return family, families_df
     else:
-        st.warning(f"Please input a Uniprot ID")
+        st.warning(f"This protein does not seem to have a structural homologous...")
 def protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree):
     """
     Given a protein uniprot ID, find its family and color the tree of all organisms sharing that protein.
@@ -966,7 +966,7 @@ if st.sidebar.checkbox('Find protein'):
         st.markdown(f"Loading predicted structure **{UNIPROT_ID}** from AlphaFold DB...")
 
         # Use requests.get() to query the API and retrieve the JSON metadata
-        response = requests.get(AFDB_API_URL, timeout=10)
+        response = requests.get(AFDB_API_URL, timeout=59)
         # Check for general request errors (e.g., 404, 500)
         response.raise_for_status() 
         # Parse the JSON response
@@ -1006,6 +1006,7 @@ if st.sidebar.checkbox('Find protein'):
                     width='stretch')
                 protein = ''
             else:
+                st.info("Generating tree: this might require some seconds...")
                 families_csv_path = 'data/core/protein_families_238.csv' #i.e. ./data/core/protein_families_238.csv
                 circular_svg, linear_svg = protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree_path)
                 if layout == 'Circular':

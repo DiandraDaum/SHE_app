@@ -107,17 +107,12 @@ if st.button('Subscribe'):
 st.subheader('Demo')
 st.write('Check up our demo to start exploring SHE')
 video_path1 = "data/tree/app_demo.mp4"
-video_path2="Start_page/app_demo.mp4"
 
 try:
     # Check if the file exists using os.path.exists
     if os.path.exists(video_path1): # local path
         # If the file exists, open and read the bytes
         with open(video_path1, "rb") as video_intro:
-            video_bytes = video_intro.read()
-    elif os.path.exists(video_path2): # home/project-vol/
-        # If the file exists, open and read the bytes
-        with open(video_path2, "rb") as video_intro:
             video_bytes = video_intro.read()
     
     st.video(video_bytes)
