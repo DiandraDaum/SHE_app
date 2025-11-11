@@ -217,7 +217,7 @@ st.set_page_config(
 st.title('SHE: Structural History of Eukarya')
 st.subheader('Strucutral Phylogenetic Tree')
 st.image(
-    'data/tree/All/Intro.png',
+    'data/tree/model.png',
     caption='Strucutral Phylogenetic Tree of Eukarya'
 )
 

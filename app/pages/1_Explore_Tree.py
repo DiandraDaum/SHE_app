@@ -677,7 +677,7 @@ st.subheader('Strucutral Phylogenetic Tree')
 #, main_tree_out = load_main_tree()
 # Display the main_tree image
 st.image(
-    'data/tree/All/Intro.png',
+    'data/tree/precomputed.png',
     caption='Strucutral Phylogenetic Tree of Eukarya'
 )
 
