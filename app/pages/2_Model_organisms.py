@@ -249,7 +249,7 @@ if st.sidebar. button('Receive Results'):
 
 
 ################analysis -------------------------------------------
-@st.cache_data
+#@st.cache_data
 st.sidebar.subheader('Model Organism Search')
 if st.sidebar.checkbox('Find best Model organism'):
     st.title('Find the best model organism for your study according to the structural phylogenetic tree!')
