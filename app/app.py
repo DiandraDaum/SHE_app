@@ -72,8 +72,8 @@ st.write('This provides a comprehensive and detailed picture of proteome structu
 
 
 st.write('Start exploring the new structural tree by selecting the panels in at top of the sidebar!')
-st.write('1. Explore: check the structrual phylogenetic tree for all Eukarya, a kingdom, a taxon or a species.')
-st.write('2. Analyse: find the best model organism for your study or track the structural evolution of a set of proteins.')
+st.write('1. Explore Tree: check the structrual phylogenetic tree for all Eukarya, a kingdom, a taxon, a species or a set of proteins.')
+st.write('2. Model Organisms: find the best model organism for your study based on the evolutionary structural information of the protein(s) in your pathway of interest.')
 st.write('3. Download: retrieve all the alignments and tree data.')
 st.write('You will be able to change the tree visualisation style in the sidebar.')
 
@@ -106,23 +106,21 @@ if st.button('Subscribe'):
 
 st.subheader('Demo')
 st.write('Check up our demo to start explorying SHE')
-video_path = "data/tree/app_demo.mp4"
-#video_path="https://rd0b3c972.serve.scilifelab.se/files/project-vol/Start_page/app_demo.mp4"
+video_path1 = "data/tree/app_demo.mp4"
+video_path2="Start_page/app_demo.mp4"
 
 try:
-    # 1. Check if the file exists using os.path.exists
-    if not os.path.exists(video_path):
-        # Raise an exception if the file doesn't exist
-        raise FileNotFoundError(f"The file '{video_path}' was not found.")
-
-    # 2. If the file exists, open and read the bytes
-    with open(video_path, "rb") as video_intro:
-        video_bytes = video_intro.read()
+    # Check if the file exists using os.path.exists
+    if os.path.exists(video_path1): # local path
+        # If the file exists, open and read the bytes
+        with open(video_path1, "rb") as video_intro:
+            video_bytes = video_intro.read()
+    elif os.path.exists(video_path2): # home/project-vol/
+        # If the file exists, open and read the bytes
+        with open(video_path2, "rb") as video_intro:
+            video_bytes = video_intro.read()
     
-    # 3. Display the video in Streamlit
     st.video(video_bytes)
-    
-except FileNotFoundError as e:
-    # Handle the case where the file is not found
+except:
+    # in case the file is not found
     st.warning(f"Demo video could not be loaded: {e}")
-    st.info("The application will run without the video.")
