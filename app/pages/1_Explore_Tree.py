@@ -1009,18 +1009,21 @@ if st.sidebar.checkbox('Find protein'):
             else:
                 families_csv_path = 'data/core/protein_families_238.csv' #i.e. ./data/core/protein_families_238.csv
                 circular_svg, linear_svg = protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree_path)
-                if layout == 'Circular':
-                    st.image(
-                        circular_svg, #svg file
-                        caption= protein + ' Structural Tree: green if protein homologous structures are present in species proteome, grey if absent',
-                        width='stretch')
-                    protein = ''
-                elif layout == 'Linear':
-                    st.image(
-                        linear_svg, #svg file
-                        caption= protein + ' Structural Tree: green if protein homologous structures are present in species proteome, grey if absent',
-                        width='stretch')
-                    protein = ''
+                if os.path.exists(circular_svg) and os.path.getsize(linear_svg) > 1000:
+                    if layout == 'Circular':
+                        st.image(
+                            circular_svg, #svg file
+                            caption= protein + ' Structural Tree: green if protein homologous structures are present in species proteome, grey if absent',
+                            width='stretch')
+                        protein = ''
+                    elif layout == 'Linear':
+                        st.image(
+                            linear_svg, #svg file
+                            caption= protein + ' Structural Tree: green if protein homologous structures are present in species proteome, grey if absent',
+                            width='stretch')
+                        protein = ''
+                else:
+                    st.warning("QApplication is creating an empty svg")
 
 if st.sidebar.checkbox('Study the structural evolution set of proteins'):
     proteins = ''
