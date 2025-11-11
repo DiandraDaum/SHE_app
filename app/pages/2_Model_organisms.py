@@ -14,6 +14,7 @@ import os
 
 from collections import defaultdict
 from tqdm import tqdm
+from datetime import datetime
 
 #Code to analyse:
 # model organism search
@@ -42,7 +43,7 @@ def save_email(email):
                 writer.writerow(['email', 'timestamp'])
             
             # Write the new email entry
-            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            timestamp = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
             writer.writerow([email, timestamp])
         return True
     except Exception as e:
