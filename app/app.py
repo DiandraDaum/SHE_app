@@ -11,6 +11,7 @@ import base64
 import textwrap
 import time
 import os
+from datetime import datetime
 
 #github_path = '/' #change to your path
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
@@ -34,7 +35,7 @@ def save_email(email):
                 writer.writerow(['email', 'timestamp'])
             
             # Write the new email entry
-            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            timestamp = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
             writer.writerow([email, timestamp])
         return True
     except Exception as e:
