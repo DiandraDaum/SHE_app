@@ -99,7 +99,7 @@ if st.button('Subscribe'):
             # Updated success message
             st.success(f"Thank you! **{user_email}** is where you will receive updates about SHE.")
             # Clear the input field after successful submission (updated key)
-            st.session_state.email = ""
+            #st.session_state.email = ""
 
 
 st.subheader('Demo')

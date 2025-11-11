@@ -20,15 +20,16 @@ from datetime import datetime
 # model organism search
 #gene set search --> tree build
 
-EMAIL_FILE = 'data/email_results.csv'
+
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
 @st.cache_data
 # save user email
+EMAIL_FILE = 'data/email_results.csv'
 def save_email(email):
     """Saves the email and current timestamp to the CSV file. 
     It ensures the directory exists before attempting to write."""
     try:
-        # Ensure the directory exists (necessary for 'data/email_results.csv')
+        # Ensure the directory exists (necessary for 'data/emails_results.csv')
         os.makedirs(os.path.dirname(EMAIL_FILE), exist_ok=True)
         
         # Check if the file exists to determine if we need to write headers
@@ -240,17 +241,16 @@ st.sidebar.text_input('Your email', key="email") #strip against whitespace
 if st.sidebar. button('Receive Results'):
     # Retrieve the value from session state using the key "email" (updated from "user")
     user_email = st.session_state.email.strip()
-    
     if not user_email:
         # Only check remaining: must not be empty
         st.error("Please enter an email address.")
-        
+    else:
         # If we reach here, the email is non-empty and we save it.
         if save_email(user_email):
             # Updated success message
             st.success(f"Thank you! **{user_email}** is where you will receive your results.")
             # Clear the input field after successful submission (updated key)
-            st.session_state.email = ""
+            #st.session_state.email = ""
 
 
 ################analysis -------------------------------------------
