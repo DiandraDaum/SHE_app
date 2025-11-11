@@ -258,7 +258,7 @@ if st.sidebar.checkbox('Find best Model organism'):
     target = st.sidebar.text_input(
     'Which organism would you like to study (Default: Homo_sapiens_Human)', key="target")
     model = st.sidebar.text_input(
-    'Which model organisms do you have available?', key="model")
+    'Which model organisms do you have available (i.e: Danio_rerio_Zebrafish_Brachydanio_rerio Caenorhabditis_elegans Mus_musculus_Mouse)?', key="model")
     st.write('Selected Protein(s) to study: ', protein_list)
     st.write('Selected Target Organism: ', target) #"Homo_sapiens_Human"
     st.write('Selected Model Organism(s): ', model) # 'Danio_rerio_Zebrafish_Brachydanio_rerio Caenorhabditis_elegans Mus_musculus_Mouse'

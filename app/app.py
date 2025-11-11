@@ -56,10 +56,10 @@ st.sidebar.success("Find more analysis options in the panels above.")
 st.subheader('Strucutral Phylogenetic Tree')
 #, main_tree_out = load_main_tree()
 # Display the main_tree image
-st.image(
-    'data/tree/All/Intro.png',
-    caption='Strucutral Phylogenetic Tree of Eukarya'
-)
+video_tree = open("data/tree/final_tree.mp4", "rb")
+tree_bytes = video_tree.read()
+st.video(tree_bytes, autoplay=True, loop=True, muted=True)
+#st.image('data/tree/All/Intro.png', caption='Strucutral Phylogenetic Tree of Eukarya')
 
 st.write('Comparative genomics is hindered by the varying evolutionary rates of genes and genomes.')
 st.write('Therefore, ribosomal RNA genes have been the primary focus for constructing phylogenetic relationships, as they are more stable.')

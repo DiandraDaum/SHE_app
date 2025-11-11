@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import time
 import csv
-from ete3 import Tree, TreeStyle, NodeStyle, Config
+from ete3 import Tree, TreeStyle, NodeStyle
 import sys
 import pathlib
 import base64
@@ -478,14 +478,6 @@ def protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree
     ts_circular.scale = None
     ts_circular.optimal_scale_level = "full"
     ts_circular.force_topology = True
-    #clean Qapplication before rendering
-    # to force ete3 to re-evaluate the headless environment on every run.
-    try:
-        # Check and remove any lingering Qt configuration
-        if 'qt' in Config.get_conf_item('render', 'backend'):
-            Config.set_conf_item('render', 'backend', '') # Clear it
-    except Exception:
-        pass
     # Render Circular tree
     t.render(
         circular_path,
