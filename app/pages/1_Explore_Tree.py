@@ -1006,7 +1006,7 @@ if st.sidebar.checkbox('Find protein'):
                     width='stretch')
                 protein = ''
             else:
-                st.info("Generating tree: this might require some seconds...")
+                st.info("Generating tree: this might require some seconds, please wait")
                 families_csv_path = 'data/core/protein_families_238.csv' #i.e. ./data/core/protein_families_238.csv
                 circular_svg, linear_svg = protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree_path)
                 if layout == 'Circular':
