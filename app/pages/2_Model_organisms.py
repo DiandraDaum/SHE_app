@@ -265,6 +265,7 @@ if st.sidebar.checkbox('Find best Model organism'):
     if (protein_list == '') | (model == ''):
         st.warning('Please input the Uniprot ID of the protein(s) to study, the organism to study (Defaul to Human), and the model organisms you can to choose from, to find the best model organism for you study.')
     else:
+        st.info('a. Ranking the model organisms...')
         if target == '':
             target_species='Homo_sapiens_Human'
         else:
@@ -328,3 +329,10 @@ if st.sidebar.checkbox('Find best Model organism'):
         st.success("\n--- Model Organism Ranking ---")
         st.write(f"Based on structural similarity for UniProt IDs: {', '.join(uniprot_ids)}")
         st.write(scores_df.to_string(formatters={'Normalized_Score': '{:,.2f}'.format}))"""
+        
+        
+        #st.info('b. Making structural phylogenetic tree from your input proteins...')
+
+    if st.sidebar.toggle('Show protein structures alignments'):
+        st.info('c. Loading the protein-protein comparisons ...')
+        
