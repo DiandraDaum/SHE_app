@@ -250,6 +250,7 @@ if st.sidebar.checkbox('Find best Model organism'):
 
         uniprot_ids=protein_list # "Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616"
         compare_species=model
+        """
         root_dir='data/decompressed/' #350 gb
         
         # --- 1. Load Mapping ---
@@ -329,13 +330,15 @@ if st.sidebar.checkbox('Find best Model organism'):
         print("--- Model Organism Ranking ---")
         print(f"Based on structural similarity for UniProt IDs: {', '.join(uniprot_ids)}")
         print(scores_df.to_string(formatters={'Normalized_Score': '{:,.2f}'.format}))
-        print("="*30)
+        print("="*30)"""
         
     if st.sidebar.toggle('Build structural tree'):
-        st.warning('This function is going to be released soon')')
+        st.subheader('Structural tree for your proteins in the input model organisms')
+        st.warning('This function is going to be released soon')
         st.info('b. Making structural phylogenetic tree from your input proteins...')
 
     if st.sidebar.toggle('Show protein structure alignments'):
+        st.subheader('Structural comparison of input proteins in the input model organisms')
         st.warning('This function is going to be released soon')
         st.info('c. Loading the protein-protein comparisons ...')
         

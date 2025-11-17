@@ -78,10 +78,6 @@ st.write('2. Model Organisms: find the best model organism for your study based 
 st.write('3. Download: retrieve all the alignments and tree data.')
 st.write('You will be able to change the tree visualisation style in the sidebar.')
 
-
-st.subheader('Cite')
-st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: The structural History of Eukarya')
-
 st.sidebar.subheader('Updates', divider="rainbow")
 st.sidebar.write('Sign up for updates!')
 email = st.sidebar.text_input('Your email', key="email") #strip against whitespace
@@ -115,3 +111,8 @@ try:
 except:
     # in case the file is not found
     st.warning(f"Demo video could not be loaded")
+
+
+
+st.subheader('Cite')
+st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: The structural History of Eukarya')

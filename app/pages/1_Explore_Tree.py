@@ -1029,6 +1029,7 @@ if st.sidebar.checkbox('4.Find protein structural homologous'):
 if st.sidebar.checkbox('5.Study the structural evolution set of proteins'):
     proteins = ''
     st.title('Tree built from your protein structures:')
+    st.warning('This function is going to be released soon')
     proteins = st.sidebar.text_input(
     'Which proteins (Uniprot ID)?', key="protein")
     st.write('Selected Proteins: ', proteins)
