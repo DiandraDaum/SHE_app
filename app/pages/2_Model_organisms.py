@@ -220,8 +220,11 @@ st.image(
 )
 
 st.write("Here, you can look for the best model organism to use for your study based on the proteins involved in your pathway. Click on 'Find best Model Organism' in the sidebar to start you analysis!")
-st.write("Please note that these analysis might require some time. It is possible to register your email in the sidebar, so that your results will be sent to you as soon as they are ready!")
+st.write("Please note that this analysis might require some time. It is possible to register your email in the sidebar, so that your results will be sent to you as soon as they are ready!")
 
+st.write("Start by checking the 'Find best Model Organism' box in the sidebar. This will result in a ranking of your model organisms.")
+st.write("It is also possible to build a structural phylogenetic tree from the input proteins. To do so, switch on 'Build structural tree'.")
+st.write("If you wish to visualise the structural alignments of your input proteins, turn on 'Show protein structure alignments'.")
 
 ###------sidebar sign up--------------------
 #user sign up for updates and analysis results
@@ -331,6 +334,6 @@ if st.sidebar.checkbox('Find best Model organism'):
     if st.sidebar.toggle('Build structural tree'):
         st.info('b. Making structural phylogenetic tree from your input proteins...')
 
-    if st.sidebar.toggle('Show protein structures alignments'):
+    if st.sidebar.toggle('Show protein structure alignments'):
         st.info('c. Loading the protein-protein comparisons ...')
         
