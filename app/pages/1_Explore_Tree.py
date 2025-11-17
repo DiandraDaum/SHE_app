@@ -783,7 +783,7 @@ if st.sidebar.toggle('Show species branch rate in kingdom'):
 
 # show evorate tree color ------------------------------------------------------------------------
 st.sidebar.subheader('2. Evolutionary rate', divider="green")
-if st.sidebar.toggle('See tree with evolutionary rate colors (yellow high, purple low)'):
+if st.sidebar.toggle('See tree with evolutionary rate'):
     st.title('Evolutionary rate:')
     'Selected Kingdom: ', kingdom
     'Selected layout: ', layout
@@ -793,25 +793,25 @@ if st.sidebar.toggle('See tree with evolutionary rate colors (yellow high, purpl
             tree_c='data/tree/' + kingdom +  '/kingdoms_' + kingdom + "_Circular_tree_evorate.svg"
             st.image(
                 tree_c,
-                caption= 'Circular Tree with evolutionary rate',
+                caption= 'Circular Tree with evolutionary rate; color legend: yellow high, purple low',
                 width='stretch')
         else:
             tree_r = 'data/tree/' + kingdom +  '/kingdoms_' + kingdom + "_Linear_tree_evorate.svg"
             st.image(
                 tree_r,
-                caption= 'Linear Tree with evolutionary rate',
+                caption= 'Linear Tree with evolutionary rate; color legend: yellow high, purple low',
                 width='stretch')
     else:
         tree_c, tree_r = load_evotree(kingdom)
         if layout == 'Circular':
             st.image(
                 tree_c,
-                caption= 'Circular Tree with evolutionary rate',
+                caption= 'Circular Tree with evolutionary rate; color legend: yellow high, purple low',
                 width='stretch')
         else:
             st.image(
                 tree_r,
-                caption= 'Linear Tree with evolutionary rate',
+                caption= 'Linear Tree with evolutionary rate; color legend: yellow high, purple low',
                 width='stretch')
 
 

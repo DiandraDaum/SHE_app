@@ -42,6 +42,7 @@ st.sidebar.subheader('Downloads', divider="yellow")
 if st.sidebar.checkbox('Protein-protein alignments by Organism'):
     st.subheader('Protein-protein alignments by Organism')
     st.write('Here it is possible to download the Foldseek proteome-proteome comparisons by organism')
+    st.warning('This function is going to be released soon')
 
 
 if st.sidebar.checkbox('Tree by Kingdom'):

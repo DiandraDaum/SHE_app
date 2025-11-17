@@ -12,6 +12,7 @@ import os
 from collections import defaultdict
 from tqdm import tqdm
 from datetime import datetime
+import glob
 
 #Code to analyse:
 # model organism search
@@ -46,162 +47,137 @@ def save_email(email):
         st.error(f"An error occurred while saving: {e}")
         return False
 
-# find model organisms -------------------
-def load_data(families_file, mapping_file):
-    """
-    Loads families and mapping files.
-    REMOVED: Loading hits_file. We will do that later.
-    """
-    print("Loading families and mapping files...")
+# find model organisms --------------------------------------------------------------------------------------------------------------------------
+@st.cache_data
+def load_mapping(mapping_file):
+    """Loads the mapping file and creates a {species_name: directory_id} dict."""
     try:
-        families_df = pd.read_csv(families_file)
         mapping_df = pd.read_csv(mapping_file)
-    except FileNotFoundError as e:
-        print(f"Error: File not found. {e}")
-        sys.exit(1)
-    except pd.errors.EmptyDataError as e:
-        print(f"Error: File is empty. {e}")
-        sys.exit(1)
-
-    # Create species_name -> proteome_id map
-    try:
-        species_to_proteome = dict(zip(mapping_df['species_name'], mapping_df['proteome_id']))
-    except KeyError:
-        print(f"Error: Mapping file {mapping_file} must have 'species_name' and 'proteome_id' columns.")
-        sys.exit(1)
-    
-    print("Families and mapping data loaded.")
-    return families_df, species_to_proteome
-
-def load_relevant_hits(hits_file, target_proteins):
-    """
-    NEW FUNCTION: Streams the giant hits_file and only keeps
-    hits relevant to our target proteins.
-    """
-    print(f"\nStreaming {hits_file} to find relevant hits...")
-    
-    # Get the set of full protein IDs we care about
-    target_ids = {data['full_id'] for data in target_proteins.values()}
-    
-    if not target_ids:
-        print("  > No target protein IDs found. Returning empty hits DataFrame.")
-        return pd.DataFrame(columns=['protein1', 'protein2', 'bit_score'])
-
-    chunksize = 10_000_000
-    relevant_chunks = []
-
-    try:
-        reader = pd.read_csv(hits_file, chunksize=chunksize, 
-                           usecols=["protein1", "protein2", "bit_score"])
         
-        for chunk in tqdm(reader, desc="Filtering hits file"):
-            # Keep rows where EITHER protein1 OR protein2 is in our target set
-            relevant_chunk = chunk[
-                (chunk['protein1'].isin(target_ids)) | 
-                (chunk['protein2'].isin(target_ids))
-            ]
-            
-            if not relevant_chunk.empty:
-                relevant_chunks.append(relevant_chunk)
-
+        # [FIX 1] We only need the 'id' column, which has the full directory name
+        # (e.g., "UP000000589_10090"). This is what we will use to find filenames.
+        species_map = dict(zip(mapping_df['species_name'], mapping_df['id']))
+        
+        return species_map
     except FileNotFoundError:
-        print(f"  > ERROR: Hits file not found at {hits_file}")
+        st.error(f"Error: Mapping file not found at {mapping_file}")
         sys.exit(1)
-    except Exception as e:
-        print(f"  > ERROR reading hits file: {e}")
+    except KeyError as e:
+        st.error(f"Error: Mapping file must have columns 'species_name' and 'id'. Missing: {e}")
         sys.exit(1)
 
-    if not relevant_chunks:
-        print("  > No hits found for any target proteins.")
-        return pd.DataFrame(columns=['protein1', 'protein2', 'bit_score'])
-
-    # Combine all the small, relevant chunks into one DataFrame
-    relevant_hits_df = pd.concat(relevant_chunks)
-    print(f"  > Finished. Found {len(relevant_hits_df)} relevant hits.")
-    return relevant_hits_df
-
-def find_target_proteins_by_uniprot(uniprot_ids, target_species, species_to_proteome, families_df):
-    """
-    Finds the full protein IDs and family IDs for the target UniProt IDs
-    within a *specific* target species.
-    (This function is UNCHANGED)
-    """
-    print(f"\nFinding target proteins for '{target_species}'...")
+def find_comparison_csv(target_dir, compare_dir_id):
+    """Finds the specific ...vs_COMPARE_ID_top_hits.csv file within the target dir."""
+    # [FIX 1] We now search using the full 'dir_id' (e.g., UP000000589_10090)
+    search_pattern = os.path.join(target_dir, '**', f'*vs{compare_dir_id}_top_hits.csv')
+    csv_files = glob.glob(search_pattern, recursive=True)
     
-    if target_species not in species_to_proteome:
-        print(f"  > ERROR: Target species '{target_species}' not found in mapping file. Check spelling.")
-        sys.exit(1)
+    if not csv_files:
+        # Fallback search if the naming is slightly different
+        search_pattern_alt = os.path.join(target_dir, '**', f'*vs{compare_dir_id}*.csv')
+        csv_files = glob.glob(search_pattern_alt, recursive=True)
+
+    if not csv_files:
+        st.warning(f"No CSV file found in {target_dir} for comparison with {compare_dir_id}")
+        return None
+    
+    return csv_files[0] # Return the first match
+
+def sum_scores_for_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
+    """
+    Loads a single CSV file and sums the *best hit* bit scores
+    for each target UniProt ID.
+    
+    [FIX] Added 'search_col' to specify which column to search
+    for the UniProt ID (for bi-directional search).
+    """
+    total_score = 0.0
+    try:
+        df = pd.read_csv(csv_file, header=None, usecols=[0, 1, 4], on_bad_lines='warn')
+        df.columns = ['proteinA', 'proteinB', 'bit_score']
         
-    target_proteome_id = species_to_proteome[target_species]
-    print(f"  > Target Proteome ID: {target_proteome_id}")
+        for uniprot_id in uniprot_ids:
+            # [FIX] Use the dynamic 'search_col' argument
+            # This is 'proteinA' for a forward search
+            # and 'proteinB' for a reverse search.
+            hits = df[df[search_col].str.contains(f"-{uniprot_id}-", na=False)]
+            
+            if hits.empty:
+                hits = df[df[search_col].str.contains(uniprot_id, na=False)]
+            
+            if not hits.empty:
+                best_score = hits['bit_score'].max()
+                total_score += best_score
+            else:
+                st.info(f"  > No hit found for {uniprot_id} in {csv_file}")
+
+    except pd.errors.EmptyDataError:
+        st.warning(f"CSV file {csv_file} is empty. Skipping.")
+    except Exception as e:
+        st.error(f"Error processing CSV {csv_file}: {e}")
+        
+    return total_score
+
+def get_self_scores(target_dir, target_dir_id, uniprot_ids):
+    """
+    Calculates the "self-score" for the target species, which will be
+    the 1.0 baseline.
     
-    target_proteins = {} # uniprot_id -> {full_id, family_id}
+    [FIX] This function no longer looks for a "self-CSV".
+    Instead, it scans all available CSVs to find the
+    absolute max score for each target protein, which serves
+    as the robust self-score baseline.
+    """
+    st.info(f"Calculating self-scores for target {target_dir_id}...")
+    
+    # Find ALL comparison CSVs in the target directory
+    search_pattern = os.path.join(target_dir, '**', f'*vs*_top_hits.csv')
+    all_csv_files = glob.glob(search_pattern, recursive=True)
+    
+    if not all_csv_files:
+        st.error(f"No comparison CSVs found at all in {target_dir}. Cannot calculate self-scores.")
+        return 0.0
+
+    total_self_score = 0.0
     
     for uniprot_id in uniprot_ids:
-        # Precise search: Must contain *both* the proteome ID and the UniProt ID
-        matches = families_df[
-            families_df['protein'].str.contains(str(target_proteome_id), na=False) &
-            families_df['protein'].str.contains(f"-{uniprot_id}-", na=False)
-        ]
+        max_score_for_this_protein = 0.0
         
-        # Fallback for different naming conventions
-        if matches.empty:
-            matches = families_df[
-                families_df['protein'].str.contains(str(target_proteome_id), na=False) &
-                families_df['protein'].str.contains(uniprot_id, na=False)
-            ]
+        # Search all CSVs for the highest score for this one protein
+        for csv_file in all_csv_files:
+            try:
+                # Load only the proteinA and bit_score columns
+                df_chunk = pd.read_csv(csv_file, header=None, usecols=[0, 4], on_bad_lines='warn',
+                                       chunksize=100000, dtype={0: 'str', 4: 'float'})
+                
+                for chunk in df_chunk:
+                    chunk.columns = ['proteinA', 'bit_score']
+                    
+                    # Find hits for the UniProt ID
+                    hits = chunk[chunk['proteinA'].str.contains(f"-{uniprot_id}-", na=False)]
+                    if hits.empty:
+                        hits = chunk[chunk['proteinA'].str.contains(uniprot_id, na=False)]
+                    
+                    if not hits.empty:
+                        local_max = hits['bit_score'].max()
+                        if local_max > max_score_for_this_protein:
+                            max_score_for_this_protein = local_max
+                            
+            except pd.errors.EmptyDataError:
+                # This file is empty, skip it
+                continue
+            except Exception as e:
+                # Log other errors (e.g., file corrupted) but continue
+                st.warning(f"Could not fully read {csv_file} for self-score: {e}")
+                continue
+        
+        if max_score_for_this_protein == 0.0:
+            st.warning(f"  > No score found for {uniprot_id} in any comparison file.")
+        
+        st.info(f"  > Max score (baseline) for {uniprot_id} is: {max_score_for_this_protein}")
+        total_self_score += max_score_for_this_protein
 
-        if matches.empty:
-            print(f"  > WARNING: Could not find '{uniprot_id}' in proteome '{target_proteome_id}'. Skipping this ID.")
-            continue
-        
-        if len(matches) > 1:
-            print(f"  > Warning: Found {len(matches)} matches for '{uniprot_id}'. Using first one.")
-            
-        full_id = matches['protein'].values[0]
-        family_id = matches['family_id'].values[0]
-        target_proteins[uniprot_id] = {'full_id': full_id, 'family_id': family_id}
-        print(f"  > Found '{uniprot_id}': {full_id} (Family: {family_id})")
-        
-    return target_proteins
-
-def find_best_hit_in_organism(target_protein_id, target_family_id, compare_proteome_id, families_df, hits_df):
-    """
-    Finds the single best bit_score for a target protein in a specific organism.
-    (This function is UNCHANGED, but now receives the *small* relevant hits_df)
-    """
-    
-    # 1. Get all members of the target's family
-    family_member_ids = set(families_df[families_df['family_id'] == target_family_id]['protein'])
-    
-    # 2. Filter family members to *only* those in the organism we are comparing
-    compare_organism_proteins = {
-        p for p in family_member_ids if str(p).startswith(str(compare_proteome_id))
-    }
-    
-    if not compare_organism_proteins:
-        return 0.0 # No proteins from this family exist in the compare organism
-
-    # 3. Find all hits between the target and this organism's proteins
-    # This query is now fast because hits_df is small
-    hits_v1 = hits_df[
-        (hits_df['protein1'] == target_protein_id) & 
-        (hits_df['protein2'].isin(compare_organism_proteins))
-    ]
-    hits_v2 = hits_df[
-        (hits_df['protein2'] == target_protein_id) & 
-        (hits_df['protein1'].isin(compare_organism_proteins))
-    ]
-    
-    all_hits = pd.concat([hits_v1, hits_v2])
-    
-    if all_hits.empty:
-        # This can happen if the only hits were below the threshold used
-        # to create all_hits.csv
-        return 0.0 
-        
-    # 4. Return the single best bit_score
-    return all_hits['bit_score'].max()
+    return total_self_score
 
 #---------------------------------------
 
@@ -271,69 +247,95 @@ if st.sidebar.checkbox('Find best Model organism'):
             target_species='Homo_sapiens_Human'
         else:
             target_species = target
-        """
+
         uniprot_ids=protein_list # "Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616"
-        families='data/core/model/protein_families_173_without0_DSU_OUTPUT.csv'   #Path to the protein_families.csv file: protein_families_173_without0_DSU_OUTPUT.csv
-        mapping='data/core/model/extracted_and_renamed.csv'    #Path to CSV file with 'proteome_id' and 'species_name' columns
+        compare_species=model
+        root_dir='data/decompressed/' #350 gb
         
-        families_df, species_to_proteome = load_data(families, mapping)
-        target_proteins = find_target_proteins_by_uniprot(uniprot_ids, target_species, species_to_proteome, families_df)
-        if not target_proteins:
-            st.warning("No target proteins were found in the selected model organisms")
-        hits='data/core/model/all_homologous_173_without0_pairs_from_decompressed_files.csv'   #Path to the all_hits.csv file (raw homologous pairs): all_homologous_173_without0_pairs_from_decompressed_files.csv
-        hits_df = load_relevant_hits(hits, target_proteins)
+        # --- 1. Load Mapping ---
+        mapping='data/core/model/extracted_and_renamed.csv'    #Path to CSV file with columns id,proteome_id,species_name
+        species_map = load_mapping(mapping)
         
-        ####print score
-        print("\nRanking model organisms...")
+        # Get the directory ID for the target (Human)
+        if target_species not in species_map:
+            st.error(f"Target species {target_species} not in mapping file.")
+            sys.exit(1)
+
+        # [FIX 1] Get the directory ID for the target
+        target_dir_id = species_map[target_species]
+        target_dir = os.path.join(root_dir, target_dir_id)
+        
+        if not os.path.isdir(target_dir):
+            st.error(f"Target directory not found: {target_dir}")
+            sys.exit(1)
+            
+        st.info(f"Target directory set to: {target_dir}")
+        
+        # --- 2. Score & Rank Organisms ---
         pathway_scores = defaultdict(float)
-        compare = model #List of model organisms to compare (e.g., 'Mus_musculus_Mouse')
-        species_to_score = list(compare)
-        if target_species not in species_to_score:
-            species_to_score.append(target_species)
-        for species in species_to_score:
-            if species not in species_to_proteome:
-                st.warning(f" Skipping'{species}' because canno tbe mapped.")
+        
+        for species in compare_species:
+            if species not in species_map:
+                st.warning(f"'{species}' not in mapping file. Skipping.")
                 continue
-
-            compare_proteome_id = species_to_proteome[species]
-            print(f"  > Scoring '{species}'...")
-            total_pathway_score = 0.0
-            for uniprot_id, data in target_proteins.items():
-                # This function now receives the small, pre-filtered hits_df
-                best_gene_score = find_best_hit_in_organism(
-                    data['full_id'],
-                    data['family_id'],
-                    compare_proteome_id,
-                    families_df,
-                    hits_df # <-- This is the small DataFrame!
-                )
                 
-                if species == target_species and best_gene_score == 0.0:
-                    # This query is also fast now
-                    max_score1 = hits_df[hits_df['protein1'] == data['full_id']]['bit_score'].max()
-                    max_score2 = hits_df[hits_df['protein2'] == data['full_id']]['bit_score'].max()
-                    best_gene_score = max(np.nan_to_num(max_score1), np.nan_to_num(max_score2))
-                    print(f"    - (Self-score for {uniprot_id} set to: {best_gene_score})")
-
-                total_pathway_score += best_gene_score
+            compare_dir_id = species_map[species]
+            st.info(f"--- Scoring '{species}' (vs {compare_dir_id}) ---")
+            
+            # [FIX] Implement bi-directional search
+            csv_file = find_comparison_csv(target_dir, compare_dir_id)
+            search_col = 'proteinA' # Default: search proteinA for the UniProt ID
+            
+            if csv_file is None:
+                # If Human-vs-Mouse not found, try Mouse-vs-Human
+                st.warning(f"Could not find {target_dir_id} vs {compare_dir_id}. Trying reverse search...")
+                reverse_target_dir = os.path.join(root_dir, compare_dir_id)
                 
-            pathway_scores[species] = total_pathway_score
-        
+                if not os.path.isdir(reverse_target_dir):
+                    st.warning(f"Reverse directory {reverse_target_dir} not found. Skipping {species}.")
+                    continue
+                    
+                csv_file = find_comparison_csv(reverse_target_dir, target_dir_id)
+                search_col = 'proteinB' # In reverse file, Human proteins are in column B
+            
+            if csv_file:
+                # Pass the correct column to search
+                total_score = sum_scores_for_orthologs(csv_file, uniprot_ids, search_col)
+                pathway_scores[species] = total_score
+            else:
+                st.error(f"Could not find any comparison file for {species}. Score set to 0.")
+                pathway_scores[species] = 0.0
+            
+        # --- 3. Get Self-Score for Baseline ---
+        target_self_score = get_self_scores(target_dir, target_dir_id, uniprot_ids)
+        pathway_scores[target_species] = target_self_score
+
+        # --- 4. Present Final Ranking ---
         if not pathway_scores:
-            st.warning("Error: No scores were calculated. Check organism names.")
-        
+            st.error("No scores were calculated. Check organism names and paths.")
+            sys.exit(1)
+            
         scores_df = pd.DataFrame.from_dict(pathway_scores, orient='index', columns=['Total_Pathway_Score'])
         scores_df = scores_df.sort_values(by='Total_Pathway_Score', ascending=False)
         
-        scores_df['Normalized_Score'] = scores_df['Total_Pathway_Score'] / scores_df['Total_Pathway_Score'].max()
+        # Handle the case where max score is 0 to avoid NaN
+        max_score = scores_df['Total_Pathway_Score'].max()
+        if max_score > 0:
+            scores_df['Normalized_Score'] = scores_df['Total_Pathway_Score'] / max_score
+        else:
+            scores_df['Normalized_Score'] = 0.0
         
-        st.success("\n--- Model Organism Ranking ---")
-        st.write(f"Based on structural similarity for UniProt IDs: {', '.join(uniprot_ids)}")
-        st.write(scores_df.to_string(formatters={'Normalized_Score': '{:,.2f}'.format}))"""
+        print("\n" + "="*30)
+        print("--- Model Organism Ranking ---")
+        print(f"Based on structural similarity for UniProt IDs: {', '.join(uniprot_ids)}")
+        print(scores_df.to_string(formatters={'Normalized_Score': '{:,.2f}'.format}))
+        print("="*30)
         
     if st.sidebar.toggle('Build structural tree'):
+        st.warning('This function is going to be released soon')')
         st.info('b. Making structural phylogenetic tree from your input proteins...')
 
     if st.sidebar.toggle('Show protein structure alignments'):
+        st.warning('This function is going to be released soon')
         st.info('c. Loading the protein-protein comparisons ...')
         
