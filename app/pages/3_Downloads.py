@@ -35,42 +35,46 @@ if selected is not None:
     st.sidebar.markdown(f"You selected: {sentiment_mapping[selected]}")
 
 st.subheader('Downloads')
+st.write('Here it is possible to download the data (structures and trees) from our analysis')
 
-st.subheader('Download by Organism')
-st.write('Here it is possible to download the Foldseek proteome-proteome comparisons by organism')
+st.sidebar.subheader('Downloads', divider="yellow")
+if st.sidebar.checkbox('Protein-protein alignments by Organism'):
+    if st.subheader('Protein-protein alignments by Organism'):
+    st.write('Here it is possible to download the Foldseek proteome-proteome comparisons by organism')
 
 
-st.subheader('Download Tree by Kingdom')
-st.write('Here it is possible to download the structural newick tree for each kigdom. To open it, try uploading it on iTOL (https://itol.embl.de/upload.cgi)!')
-df = pd.DataFrame({
-    'kingdom': ["All", "Opisthokonta", "Amoebozoa", "Sar", "Viridiplantae", "Discoba", "Rhodophyta"],
-    'number_species': [10, 20, 30, 40, 50, 70, 80] # change to actual number of species
-    })
+if st.sidebar.checkbox('Tree by Kingdom'):
+    st.subheader('Tree (newick file) by Kingdom')
+    st.write('Here it is possible to download the structural newick tree for each kigdom. To open it, try uploading it on iTOL (https://itol.embl.de/upload.cgi)!')
+    df = pd.DataFrame({
+        'kingdom': ["All", "Opisthokonta", "Amoebozoa", "Sar", "Viridiplantae", "Discoba", "Rhodophyta"],
+        'number_species': [10, 20, 30, 40, 50, 70, 80] # change to actual number of species
+        })
 
-for kingdom in df['kingdom']:
-    file = "data/tree/" + kingdom + "/" + "kingdoms_" + kingdom + "_tree.newick"
-    file_name= kingdom + "_tree.newick"
-    label1="Download Tree " + kingdom
-    label2="Download Tree Eukarya"
-    if kingdom == "All":
-        with open(file, "rb") as file:
-            st.download_button(
-            label=label2,
-            data=file,
-            file_name=file_name,
-            mime="image/png",
-            icon=":material/download:",
-        )
-    else:
-        #print(f"Downloading file: {file}")
-        with open(file, "rb") as file:
-            st.download_button(
-                label=label1,
+    for kingdom in df['kingdom']:
+        file = "data/tree/" + kingdom + "/" + "kingdoms_" + kingdom + "_tree.newick"
+        file_name= kingdom + "_tree.newick"
+        label1="Download Tree " + kingdom
+        label2="Download Tree Eukarya"
+        if kingdom == "All":
+            with open(file, "rb") as file:
+                st.download_button(
+                label=label2,
                 data=file,
                 file_name=file_name,
                 mime="image/png",
                 icon=":material/download:",
             )
+        else:
+            #print(f"Downloading file: {file}")
+            with open(file, "rb") as file:
+                st.download_button(
+                    label=label1,
+                    data=file,
+                    file_name=file_name,
+                    mime="image/png",
+                    icon=":material/download:",
+                )
 
 
 

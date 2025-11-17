@@ -692,7 +692,7 @@ df = pd.DataFrame({
 
 # Add sidebar ---------------------------------------------------------------------------------------------------------------------------
 # Choose Taxon
-st.sidebar.subheader('1. Kingdoms')
+st.sidebar.subheader('1. Kingdoms', divider=True)
 kingdom = st.sidebar.selectbox(
     'Which kingdom? (default: All)',
     df['kingdom'],
@@ -782,7 +782,7 @@ if st.sidebar.toggle('Show species branch rate in kingdom'):
     kingdom_csv
 
 # show evorate tree color ------------------------------------------------------------------------
-st.sidebar.subheader('2. Evolutionary rate')
+st.sidebar.subheader('2. Evolutionary rate', divider="green")
 if st.sidebar.toggle('See tree with evolutionary rate colors (yellow high, purple low)'):
     st.title('Evolutionary rate:')
     'Selected Kingdom: ', kingdom
@@ -822,7 +822,7 @@ new_proteomes_path =  'data/core/merged_evo_rate.csv'
 proteomes_df = pd.read_csv(proteomes_path)
 
 # find species ------------------------------------------------------------------------------------------------------
-st.sidebar.subheader('3. Zoom on Taxonomic Group')
+st.sidebar.subheader('3. Zoom on Taxonomic Group', divider="orange")
 if st.sidebar.checkbox('Find species'):
     st.title('Species subtree:')
     species = ''
@@ -946,8 +946,8 @@ if st.sidebar.checkbox('Find taxon'): #it does not handle two new taxa in the sa
 
 
 ############### Protein tree extraction -----------------------------------------------------------------------------------------
-st.sidebar.subheader('Protein Evolution')
-if st.sidebar.checkbox('4. Find protein structural homologous'):
+st.sidebar.subheader('Protein Evolution', divider="red")
+if st.sidebar.checkbox('4.Find protein structural homologous'):
     protein = ''
     st.title('Tree of all organisms sharing a protein structure:')
     protein = st.sidebar.text_input(
@@ -1026,7 +1026,7 @@ if st.sidebar.checkbox('4. Find protein structural homologous'):
                 else:
                     st.warning("QApplication is creating an empty svg. Restart the app")
 
-if st.sidebar.checkbox('5. Study the structural evolution set of proteins'):
+if st.sidebar.checkbox('5.Study the structural evolution set of proteins'):
     proteins = ''
     st.title('Tree built from your protein structures:')
     proteins = st.sidebar.text_input(

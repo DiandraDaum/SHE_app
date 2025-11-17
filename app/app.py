@@ -82,22 +82,20 @@ st.write('You will be able to change the tree visualisation style in the sidebar
 st.subheader('Cite')
 st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: The structural History of Eukarya')
 
-st.subheader('Updates')
-st.write('Sign up for updates!')
-email = st.text_input('Your email', key="email") #strip against whitespace
-# Submission Button in the main content area
-# Submission Button in the main content area
-if st.button('Subscribe'):
+st.sidebar.subheader('Updates', divider="rainbow")
+st.sidebar.write('Sign up for updates!')
+email = st.sidebar.text_input('Your email', key="email") #strip against whitespace
+if st.sidebar. button('Subscribe'):
     # Retrieve the value from session state using the key "email" (updated from "user")
     user_email = st.session_state.email.strip()
     if not user_email:
         # Only check remaining: must not be empty
         st.error("Please enter an email address.")
     else:
-        # email is non-empty and we save it.
+        # If we reach here, the email is non-empty and we save it.
         if save_email(user_email):
             # Updated success message
-            st.success(f"Thank you! **{user_email}** is where you will receive updates about SHE.")
+            st.sidebar.success(f"Thank you! **{user_email}** is where you will receive updates regarding SHE!")
             # Clear the input field after successful submission (updated key)
             #st.session_state.email = ""
 

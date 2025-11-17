@@ -227,7 +227,7 @@ st.write("Please note that these analysis might require some time. It is possibl
 
 ###------sidebar sign up--------------------
 #user sign up for updates and analysis results
-st.sidebar.subheader('Results')
+st.sidebar.subheader('Results', divider="rainbow")
 st.sidebar.write('Sign up to receive your results by email')
 st.sidebar.text_input('Your email', key="email") #strip against whitespace
 
@@ -243,14 +243,14 @@ if st.sidebar. button('Receive Results'):
         # If we reach here, the email is non-empty and we save it.
         if save_email(user_email):
             # Updated success message
-            st.success(f"Thank you! **{user_email}** is where you will receive your results.")
+            st.sidebar.success(f"Thank you! **{user_email}** is where you will receive your results.")
             # Clear the input field after successful submission (updated key)
             #st.session_state.email = ""
 
 
 ################analysis -------------------------------------------
 #@st.cache_data
-st.sidebar.subheader('6. Model Organism Search')
+st.sidebar.subheader('6. Model Organism Search', divider="violet")
 if st.sidebar.checkbox('Find best Model organism'):
     st.title('Find the best model organism for your study according to the structural phylogenetic tree!')
     protein_list = st.sidebar.text_input(
@@ -265,7 +265,7 @@ if st.sidebar.checkbox('Find best Model organism'):
     if (protein_list == '') | (model == ''):
         st.warning('Please input the Uniprot ID of the protein(s) to study, the organism to study (Defaul to Human), and the model organisms you can to choose from, to find the best model organism for you study.')
     else:
-        st.info('a. Ranking the model organisms...')
+        st.info('a. Ranking your model organisms...')
         if target == '':
             target_species='Homo_sapiens_Human'
         else:
@@ -330,8 +330,8 @@ if st.sidebar.checkbox('Find best Model organism'):
         st.write(f"Based on structural similarity for UniProt IDs: {', '.join(uniprot_ids)}")
         st.write(scores_df.to_string(formatters={'Normalized_Score': '{:,.2f}'.format}))"""
         
-        
-        #st.info('b. Making structural phylogenetic tree from your input proteins...')
+    if st.sidebar.toggle('Build structural tree'):
+        st.info('b. Making structural phylogenetic tree from your input proteins...')
 
     if st.sidebar.toggle('Show protein structures alignments'):
         st.info('c. Loading the protein-protein comparisons ...')
