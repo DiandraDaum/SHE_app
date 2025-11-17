@@ -35,11 +35,12 @@ if selected is not None:
     st.sidebar.markdown(f"You selected: {sentiment_mapping[selected]}")
 
 st.subheader('Downloads')
-st.write('Here it is possible to download the data (structures and trees) from our analysis')
+st.write('Here it is possible to download the data (structures and trees) from our analysis.')
+st.write('Please, select the type of file you want to download from the sidebar.')
 
 st.sidebar.subheader('Downloads', divider="yellow")
 if st.sidebar.checkbox('Protein-protein alignments by Organism'):
-    if st.subheader('Protein-protein alignments by Organism'):
+    st.subheader('Protein-protein alignments by Organism')
     st.write('Here it is possible to download the Foldseek proteome-proteome comparisons by organism')
 
 

@@ -213,12 +213,10 @@ st.set_page_config(
 )
 
 
-
 st.title('SHE: Structural History of Eukarya')
-st.subheader('Strucutral Phylogenetic Tree')
 st.image(
     'data/tree/model.png',
-    caption='Strucutral Phylogenetic Tree of Eukarya'
+    caption='Protein-protein structure comparison to rank the best model organism for your target organism'
 )
 
 st.write("Here, you can look for the best model organism to use for your study based on the proteins involved in your pathway. Click on 'Find best Model Organism' in the sidebar to start you analysis!")
