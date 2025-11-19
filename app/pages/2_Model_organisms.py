@@ -377,7 +377,8 @@ if st.sidebar.checkbox('Find best Model organism'):
         scores_df = scores_df.sort_values(by='Total_Pathway_Score', ascending=False)
         
         # Handle the case where max score is 0 to avoid NaN
-        max_score = scores_df['Total_Pathway_Score'].max()
+        #max_score = scores_df['Total_Pathway_Score'].max()
+        max_score = scores_df.loc['Homo_Sapiens_Human', 'Total_Pathway_Score']
         if max_score > 0:
             scores_df['Normalized_Score'] = scores_df['Total_Pathway_Score'] / max_score
         else:
