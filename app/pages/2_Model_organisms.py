@@ -133,7 +133,7 @@ def get_self_scores(target_dir, target_dir_id, uniprot_ids):
     absolute max score for each target protein, which serves
     as the robust self-score baseline.
     """
-    st.info(f"Calculating self-scores for target {target_dir_id}...")
+    #st.info(f"Calculating self-scores for target {target_dir_id}...")
     
     # Find ALL comparison CSVs in the target directory
     search_pattern = os.path.join(target_dir, '**', f'*vs*_top_hits.csv')
@@ -289,12 +289,12 @@ if st.sidebar.checkbox('Find best Model organism'):
     protein_list = st.sidebar.text_input(
     'Which proteins are you studying in your target organism? (each Uniprot ID separated by a space, i.e: Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616)', key="protein_list")
     model = st.sidebar.text_input(
-    'Which model organisms do you have available (i.e: Danio_rerio_Zebrafish_Brachydanio_rerio Caenorhabditis_elegans Mus_musculus_Mouse)?', key="model")
-    st.write('Selected Protein(s) to study: ', protein_list)
-    st.write('Selected Model Organism(s): ', model) # 'Danio_rerio_Zebrafish_Brachydanio_rerio Caenorhabditis_elegans Mus_musculus_Mouse'
+    'Which model organisms do you have available (i.e: "Danio_rerio_Zebrafish_Brachydanio_rerio" "Caenorhabditis_elegans Mus_musculus_Mouse")?', key="model")
     if (protein_list == '') | (model == ''):
         st.warning('Please input the Uniprot ID of the protein(s) to study, the organism to study (Defaul to Human), and the model organisms you can to choose from, to find the best model organism for you study.')
     else:
+        st.write('Selected Protein(s) to study: ', protein_list)
+        st.write('Selected Model Organism(s): ', model) # 'Danio_rerio_Zebrafish_Brachydanio_rerio Caenorhabditis_elegans Mus_musculus_Mouse'
         if target == '':
             target_species='Homo_sapiens_Human'
             st.write('Selected Target Organism: ', target_species) #"Homo_sapiens_Human"
@@ -304,7 +304,7 @@ if st.sidebar.checkbox('Find best Model organism'):
 
         st.info('a. Ranking your model organisms...')
         uniprot_ids=protein_list # "Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616"
-        compare_species=model.list()
+        compare_species=model
         
         root_dir='data/decompressed/' #350 gb
         
@@ -329,8 +329,10 @@ if st.sidebar.checkbox('Find best Model organism'):
         
         # --- 2. Score & Rank Organisms ---
         pathway_scores = defaultdict(float)
-        
+        #st.info(f"input uniprot_ids: {uniprot_ids}")
+        #st.info(f"input compare-species: {compare_species}")
         for species in compare_species:
+            st.info(f"input species: {species}")
             if species not in species_map:
                 st.warning(f"'{species}' not in mapping file. Skipping.")
                 continue
