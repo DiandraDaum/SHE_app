@@ -44,13 +44,14 @@ if st.sidebar.checkbox('Protein-protein alignments by Organism'):
     st.subheader('Protein-protein alignments by Organism')
     st.write('Here it is possible to download the Foldseek proteome-proteome comparisons by organism')
     proteome = st.sidebar.text_input(
-    'Which proteome ID (UniProt)?', key="proteome")
-    st.write('You selected for download: ', proteome)
+    'Which proteome: UniProt ID?', key="proteome")
+    st.write('Proteome selected for download: ', proteome)
     st.page_link("https://www.uniprot.org/proteomes/" + proteome, label="UniProt Proteomes", icon="🌎")
-    st.warning('Please input a proteome ID (Uniprot): i.e. UP000005640')
+    if proteome == '':
+        st.warning('Please input the UniProt proteome ID (i.e. UP000005640)')
     if st.sidebar.toggle('Bitscore only'):
         root_dir_bitscores='data/decompressed/' #350 gb
-        results=root_dir_bitscores + proteome
+        results=root_dir_bitscores + proteome "_" + *
         results_name=proteome + "_bitscores.csv"
         label1="Download comparisons bitscore for " + proteome
         with open(results, "rb") as results:
@@ -65,7 +66,7 @@ if st.sidebar.checkbox('Protein-protein alignments by Organism'):
         st.warning('This function is going to be released soon')
         """
         root_dir_combfold='data/subset/' #350 gb
-        results=root_dir_combfold + proteome
+        results=root_dir_combfold + proteome "_" + *
         results_name=proteome + "_combfold"
         label2="Download ComFold results for " + proteome
         with open(results, "rb") as results:
