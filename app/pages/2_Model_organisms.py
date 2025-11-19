@@ -291,19 +291,20 @@ if st.sidebar.checkbox('Find best Model organism'):
     model = st.sidebar.text_input(
     'Which model organisms do you have available (i.e: Danio_rerio_Zebrafish_Brachydanio_rerio Caenorhabditis_elegans Mus_musculus_Mouse)?', key="model")
     st.write('Selected Protein(s) to study: ', protein_list)
-    st.write('Selected Target Organism: ', target) #"Homo_sapiens_Human"
     st.write('Selected Model Organism(s): ', model) # 'Danio_rerio_Zebrafish_Brachydanio_rerio Caenorhabditis_elegans Mus_musculus_Mouse'
     if (protein_list == '') | (model == ''):
         st.warning('Please input the Uniprot ID of the protein(s) to study, the organism to study (Defaul to Human), and the model organisms you can to choose from, to find the best model organism for you study.')
     else:
-        st.info('a. Ranking your model organisms...')
         if target == '':
             target_species='Homo_sapiens_Human'
+            st.write('Selected Target Organism: ', target_species) #"Homo_sapiens_Human"
         else:
             target_species = target
+            st.write('Selected Target Organism: ', target_species) # not "Homo_sapiens_Human"
 
+        st.info('a. Ranking your model organisms...')
         uniprot_ids=protein_list # "Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616"
-        compare_species=model
+        compare_species=model.list()
         
         root_dir='data/decompressed/' #350 gb
         
@@ -324,7 +325,7 @@ if st.sidebar.checkbox('Find best Model organism'):
             st.error(f"Target directory not found: {target_dir}")
             sys.exit(1)
             
-        st.info(f"Target directory set to: {target_dir}")
+        #st.info(f"Target directory set to: {target_dir}")
         
         # --- 2. Score & Rank Organisms ---
         pathway_scores = defaultdict(float)
@@ -395,6 +396,7 @@ if st.sidebar.checkbox('Find best Model organism'):
         st.subheader('Structural comparison of your proteins between the input target and model organisms')
         st.warning('This function is going to be released soon')
         st.info('c. Loading the protein-protein comparisons ...')
+        """
         #make df with target_protein_id and top structural homologous model_organism_protein_id1, model_organism_protein_id2, model_organism_protein_id3, etc
         uniprot_list=pd.DataFrame(protein_list, orient='index', columns=['target_protein'])
         target_protein = st.sidebar.selectbox(
@@ -402,11 +404,11 @@ if st.sidebar.checkbox('Find best Model organism'):
         uniprot_list['target_protein'],
         key = 'protein_selector')
         target_uniprot=target_protein
-        for each 
         for model_protein_id in columns
             model_protein_path=""   #path to compressed pdb comparison
             # render pdb with mol*
             render_3dmol(model_protein_path) # render each model protein homologous
+        """
 
 
         

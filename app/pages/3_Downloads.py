@@ -51,54 +51,54 @@ if st.sidebar.checkbox('Protein-protein alignments by Organism'):
     st.page_link("https://www.uniprot.org/proteomes/" + proteome, label="UniProt Proteomes", icon="🌎")
     if proteome == '':
         st.warning('Please input the UniProt proteome ID (i.e. UP000005640)')
-    if st.sidebar.toggle('Bitscore only'):
-        root_dir_bitscores='data/decompressed/' #350 gb
-        file_pattern= f"{root_dir_bitscores}/{proteome}_*"
-        matching_paths = glob.glob(file_pattern)
-        if matching_paths:
-            st.info("Zipping all the comparison bitscore csvs ... Please wait some seconds for the download botton to appear :)")
-            target_folder_path = matching_paths[0] 
-            zip_file_name = f"{proteome}_bitscores"
-            # The output path will be './temp_archives/UP000005640_bitscores.zip'
-            output_base_dir = "temp_archives" 
-            # Create the output directory if it doesn't exist
-            os.makedirs(output_base_dir, exist_ok=True) 
-            # The result will be 'temp_archives/UP000005640_bitscores.zip'
-            shutil.make_archive(
-                base_name=os.path.join(output_base_dir, zip_file_name),
-                format='zip',
-                root_dir=os.path.dirname(target_folder_path), # Start zipping from the parent directory
-                base_dir=os.path.basename(target_folder_path)  # Only include the target folder itself
-            )
-            # Get the full path to the newly created ZIP file and make download availabel
-            zip_file_path = os.path.join(output_base_dir, f"{zip_file_name}.zip")
-            with open(zip_file_path, "rb") as file:
-                st.download_button(
-                    label="Download Proteome Data (ZIP)",
-                    data=file, # The actual byte content of the zip file
-                    file_name=f"{zip_file_name}.zip", # The name the user will see
-                    mime="application/zip", # Critical: Set the correct MIME type for zip files
-                    icon=":material/download:",
+    else: 
+        if st.sidebar.toggle('Bitscore only'):
+            root_dir_bitscores='data/decompressed/' #350 gb
+            file_pattern= f"{root_dir_bitscores}/{proteome}_*"
+            matching_paths = glob.glob(file_pattern)
+            if matching_paths:
+                st.info("Zipping all the comparison bitscore csvs for your proteome ... Please wait some seconds for the download button to appear :)")
+                target_folder_path = matching_paths[0] 
+                zip_file_name = f"{proteome}_bitscores"
+                # output path: './temp_archives/UP000005640_bitscores.zip'
+                output_base_dir = "temp_archives" 
+                os.makedirs(output_base_dir, exist_ok=True) 
+                # results in 'temp_archives/UP000005640_bitscores.zip'
+                shutil.make_archive(
+                    base_name=os.path.join(output_base_dir, zip_file_name),
+                    format='zip',
+                    root_dir=os.path.dirname(target_folder_path), # Start zipping from the parent directory
+                    base_dir=os.path.basename(target_folder_path)  # Only include the target folder itself
                 )
-            # OPTIONAL: Clean up the generated zip file after use
-            os.remove(zip_file_path)
-        else:
-            st.error("Proteome not found.")
-    if st.sidebar.toggle('Full CombFold results'):
-        st.warning('This function is going to be released soon')
-        """
-        root_dir_combfold='data/subset/' #350 gb
-        results=root_dir_combfold + proteome "_" + *
-        results_name=proteome + "_combfold"
-        label2="Download ComFold results for " + proteome
-        with open(results, "rb") as results:
+                # Get the full path to the newly created ZIP file and make download availabel
+                zip_file_path = os.path.join(output_base_dir, f"{zip_file_name}.zip")
+                with open(zip_file_path, "rb") as file:
                     st.download_button(
-                        label=label2,
-                        data=results,
-                        file_name=results_name,
-                        mime="image/png",
+                        label="Download all bitscores for " + proteome + " (.zip)",
+                        data=file, # The actual byte content of the zip file
+                        file_name=f"{zip_file_name}.zip", # The name the user will see
+                        mime="application/zip", # Critical: Set the correct MIME type for zip files
                         icon=":material/download:",
-                    )"""
+                    )
+                # Clean up the generated zip file after use
+                os.remove(zip_file_path)
+            else:
+                st.error("Proteome not found.")
+        if st.sidebar.toggle('Full CombFold results'):
+            st.warning('This function is going to be released soon')
+            """
+            root_dir_combfold='data/subset/' #350 gb
+            results=root_dir_combfold + proteome "_" + *
+            results_name=proteome + "_combfold"
+            label2="Download ComFold results for " + proteome
+            with open(results, "rb") as results:
+                        st.download_button(
+                            label=label2,
+                            data=results,
+                            file_name=results_name,
+                            mime="image/png",
+                            icon=":material/download:",
+                        )"""
 
 
 
