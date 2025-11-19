@@ -39,10 +39,44 @@ st.write('Here it is possible to download the data (structures and trees) from o
 st.write('Please, select the type of file you want to download from the sidebar.')
 
 st.sidebar.subheader('Downloads', divider="yellow")
+
 if st.sidebar.checkbox('Protein-protein alignments by Organism'):
     st.subheader('Protein-protein alignments by Organism')
     st.write('Here it is possible to download the Foldseek proteome-proteome comparisons by organism')
-    st.warning('This function is going to be released soon')
+    proteome = st.sidebar.text_input(
+    'Which proteome ID (UniProt)?', key="proteome")
+    st.write('You selected for download: ', proteome)
+    st.page_link("https://www.uniprot.org/proteomes/" + proteome, label="UniProt Proteomes", icon="🌎")
+    st.warning('Please input a proteome ID (Uniprot): i.e. UP000005640')
+    if st.sidebar.toggle('Bitscore only'):
+        root_dir_bitscores='data/decompressed/' #350 gb
+        results=root_dir_bitscores + proteome
+        results_name=proteome + "_bitscores.csv"
+        label1="Download comparisons bitscore for " + proteome
+        with open(results, "rb") as results:
+                    st.download_button(
+                        label=label1,
+                        data=results,
+                        file_name=results_name,
+                        mime="image/png",
+                        icon=":material/download:",
+                    )
+    if st.sidebar.toggle('Full CombFold results'):
+        st.warning('This function is going to be released soon')
+        """
+        root_dir_combfold='data/subset/' #350 gb
+        results=root_dir_combfold + proteome
+        results_name=proteome + "_combfold"
+        label2="Download ComFold results for " + proteome
+        with open(results, "rb") as results:
+                    st.download_button(
+                        label=label2,
+                        data=results,
+                        file_name=results_name,
+                        mime="image/png",
+                        icon=":material/download:",
+                    )"""
+
 
 
 if st.sidebar.checkbox('Tree by Kingdom'):

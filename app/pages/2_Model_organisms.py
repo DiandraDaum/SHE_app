@@ -13,6 +13,11 @@ from collections import defaultdict
 from tqdm import tqdm
 from datetime import datetime
 import glob
+import py3Dmol
+from stmol import showmol
+from stmol import *
+from IPython.display import HTML
+
 
 #Code to analyse:
 # model organism search
@@ -179,6 +184,55 @@ def get_self_scores(target_dir, target_dir_id, uniprot_ids):
 
     return total_self_score
 
+
+
+# --- Function to generate the Mol* HTML viewer ---
+
+def render_3dmol(afdb_download_url: str):
+    """
+    Fetches the CIF data and renders it using py3Dmol via stmol.
+    """
+    st.info("Fetching protein structure from AlphaFold database...")
+    cif_data = None
+    
+    try:
+        # 1. Fetch the CIF data
+        cif_response = requests.get(afdb_download_url, timeout=30)
+        cif_response.raise_for_status() 
+        cif_data = cif_response.text
+        
+        if not cif_data or not isinstance(cif_data, str):
+             st.error("Fetched data is empty or not a string. Cannot render structure.")
+             return
+             
+    except requests.exceptions.RequestException as e:
+        st.error(f"Network error during CIF download: {e}")
+        return
+
+    # 2. Initialize the py3Dmol viewer object
+    # DO NOT call .render()
+    view = py3Dmol.view(width=800, height=500, js='https://3dmol.org/build/3Dmol.js')
+
+    # 3. Add the model
+    view.addModel(cif_data, 'cif')
+
+    # 4. Set the coloring scheme (lDDT for AlphaFold)
+    # Official Hex Codes (approximate):
+    # Very High (>90): Dark Blue (#0053D6)
+    # High (70-90): Light Blue/Cyan (#64CCEB)
+    # Low (50-70): Yellow (#FFDB00)
+    # Very Low (<50): Red/Orange (#FF7D45)
+    view.setStyle({'cartoon': {'colorscheme': {'prop':'b','gradient': 'roygb','min':50,'max':90}}})
+    #view.render()
+    #view.show()
+    
+    # 5. Render the view using the stmol component
+    # The showmol function handles the Streamlit component embedding correctly.
+    try:
+        showmol(view, height=510, width=800)
+    except Exception as e:
+         st.error(f"Error rendering 3Dmol viewer with stmol: {e}")
+
 #---------------------------------------
 
 ##MAIN##
@@ -230,10 +284,10 @@ if st.sidebar. button('Receive Results'):
 st.sidebar.subheader('6. Model Organism Search', divider="violet")
 if st.sidebar.checkbox('Find best Model organism'):
     st.title('Find the best model organism for your study according to the structural phylogenetic tree!')
-    protein_list = st.sidebar.text_input(
-    'Which proteins are you studying? (each Uniprot ID separated by a space, i.e: Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616)', key="protein")
     target = st.sidebar.text_input(
-    'Which organism would you like to study (Default: Homo_sapiens_Human)', key="target")
+    'Which organism would you like to study (empty = Default: Homo_sapiens_Human)', key="target")
+    protein_list = st.sidebar.text_input(
+    'Which proteins are you studying in your target organism? (each Uniprot ID separated by a space, i.e: Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616)', key="protein_list")
     model = st.sidebar.text_input(
     'Which model organisms do you have available (i.e: Danio_rerio_Zebrafish_Brachydanio_rerio Caenorhabditis_elegans Mus_musculus_Mouse)?', key="model")
     st.write('Selected Protein(s) to study: ', protein_list)
@@ -250,7 +304,7 @@ if st.sidebar.checkbox('Find best Model organism'):
 
         uniprot_ids=protein_list # "Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616"
         compare_species=model
-        """
+        
         root_dir='data/decompressed/' #350 gb
         
         # --- 1. Load Mapping ---
@@ -259,7 +313,7 @@ if st.sidebar.checkbox('Find best Model organism'):
         
         # Get the directory ID for the target (Human)
         if target_species not in species_map:
-            st.error(f"Target species {target_species} not in mapping file.")
+            st.error(f"Target species {target_species} not in mapping file. Please check the species name spelling. Find full list of organisms name at point 4. in the Explore Tree page")
             sys.exit(1)
 
         # [FIX 1] Get the directory ID for the target
@@ -330,15 +384,29 @@ if st.sidebar.checkbox('Find best Model organism'):
         print("--- Model Organism Ranking ---")
         print(f"Based on structural similarity for UniProt IDs: {', '.join(uniprot_ids)}")
         print(scores_df.to_string(formatters={'Normalized_Score': '{:,.2f}'.format}))
-        print("="*30)"""
+        print("="*30)
         
-    if st.sidebar.toggle('Build structural tree'):
+    if st.sidebar.toggle('Build structural evolutionary tree'):
         st.subheader('Structural tree for your proteins in the input model organisms')
         st.warning('This function is going to be released soon')
         st.info('b. Making structural phylogenetic tree from your input proteins...')
 
     if st.sidebar.toggle('Show protein structure alignments'):
-        st.subheader('Structural comparison of input proteins in the input model organisms')
+        st.subheader('Structural comparison of your proteins between the input target and model organisms')
         st.warning('This function is going to be released soon')
         st.info('c. Loading the protein-protein comparisons ...')
+        #make df with target_protein_id and top structural homologous model_organism_protein_id1, model_organism_protein_id2, model_organism_protein_id3, etc
+        uniprot_list=pd.DataFrame(protein_list, orient='index', columns=['target_protein'])
+        target_protein = st.sidebar.selectbox(
+        'Which target protein do you want to see the structure comparison with your model organisms of?',
+        uniprot_list['target_protein'],
+        key = 'protein_selector')
+        target_uniprot=target_protein
+        for each 
+        for model_protein_id in columns
+            model_protein_path=""   #path to compressed pdb comparison
+            # render pdb with mol*
+            render_3dmol(model_protein_path) # render each model protein homologous
+
+
         
