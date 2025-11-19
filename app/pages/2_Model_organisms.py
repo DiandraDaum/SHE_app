@@ -331,7 +331,7 @@ if st.sidebar.checkbox('Find best Model organism'):
         pathway_scores = defaultdict(float)
         #st.info(f"input uniprot_ids: {uniprot_ids}")
         #st.info(f"input compare-species: {compare_species}")
-        for species in compare_species:
+        for species in compare_species.split():
             st.info(f"input species: {species}")
             if species not in species_map:
                 st.warning(f"'{species}' not in mapping file. Skipping.")
