@@ -83,7 +83,7 @@ def find_comparison_csv(target_dir, compare_dir_id):
         csv_files = glob.glob(search_pattern_alt, recursive=True)
 
     if not csv_files:
-        st.warning(f"No CSV file found in {target_dir} for comparison with {compare_dir_id}")
+        #st.warning(f"No CSV file found in {target_dir} for comparison with {compare_dir_id}")
         return None
     
     return csv_files[0] # Return the first match
@@ -114,7 +114,7 @@ def sum_scores_for_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
                 best_score = hits['bit_score'].max()
                 total_score += best_score
             else:
-                st.info(f"  > No hit found for {uniprot_id} in {csv_file}")
+                #st.info(f"  > No hit found for {uniprot_id} in {csv_file}")
 
     except pd.errors.EmptyDataError:
         st.warning(f"CSV file {csv_file} is empty. Skipping.")
@@ -179,7 +179,7 @@ def get_self_scores(target_dir, target_dir_id, uniprot_ids):
         if max_score_for_this_protein == 0.0:
             st.warning(f"  > No score found for {uniprot_id} in any comparison file.")
         
-        st.info(f"  > Max score (baseline) for {uniprot_id} is: {max_score_for_this_protein}")
+        #st.info(f"  > Max score (baseline) for {uniprot_id} is: {max_score_for_this_protein}")
         total_self_score += max_score_for_this_protein
 
     return total_self_score
@@ -289,7 +289,7 @@ if st.sidebar.checkbox('Find best Model organism'):
     protein_list = st.text_input(
     'Which proteins are you studying in your target organism? (each Uniprot ID separated by a space, i.e: Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616)', key="protein_list")
     model = st.text_input(
-    'Which model organisms do you have available (i.e: "Danio_rerio_Zebrafish_Brachydanio_rerio" "Caenorhabditis_elegans Mus_musculus_Mouse")?', key="model")
+    'Which model organisms do you have available (each species separated by a space i.e: Saccharomyces_cerevisiae_strain_ATCC_204508_S288c_Baker_s_yeast Arabidopsis_thaliana_Mouse_ear_cress Drosophila_melanogaster_Fruit_fly Xenopus_tropicalis_Western_clawed_frog_Silurana_tropicalis Danio_rerio_Zebrafish_Brachydanio_rerio Caenorhabditis_elegans Mus_musculus_Mouse)?', key="model")
     if (protein_list == '') | (model == ''):
         st.warning('Please input the Uniprot ID of the protein(s) to study, the organism to study (Defaul to Human), and the model organisms you can to choose from, to find the best model organism for you study.')
     else:
@@ -304,7 +304,7 @@ if st.sidebar.checkbox('Find best Model organism'):
 
         st.info('a. Ranking your model organisms...')
         uniprot_ids=protein_list.split() # "Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616"
-        compare_species=model
+        compare_species=model.split()
         
         root_dir='data/decompressed/' #350 gb
         
@@ -331,14 +331,14 @@ if st.sidebar.checkbox('Find best Model organism'):
         pathway_scores = defaultdict(float)
         #st.info(f"input uniprot_ids: {uniprot_ids}")
         #st.info(f"input compare-species: {compare_species}")
-        for species in compare_species.split():
-            st.info(f"input species: {species}")
+        for species in compare_species:
+            #st.info(f"input species: {species}")
             if species not in species_map:
                 st.warning(f"'{species}' not in mapping file. Skipping.")
                 continue
                 
             compare_dir_id = species_map[species]
-            st.info(f"--- Scoring '{species}' (vs {compare_dir_id}) ---")
+            #st.info(f"--- Scoring '{species}' (vs {compare_dir_id}) ---")
             
             # [FIX] Implement bi-directional search
             csv_file = find_comparison_csv(target_dir, compare_dir_id)
@@ -346,11 +346,11 @@ if st.sidebar.checkbox('Find best Model organism'):
             
             if csv_file is None:
                 # If Human-vs-Mouse not found, try Mouse-vs-Human
-                st.warning(f"Could not find {target_dir_id} vs {compare_dir_id}. Trying reverse search...")
+                #st.warning(f"Could not find {target_dir_id} vs {compare_dir_id}. Trying reverse search...")
                 reverse_target_dir = os.path.join(root_dir, compare_dir_id)
                 
                 if not os.path.isdir(reverse_target_dir):
-                    st.warning(f"Reverse directory {reverse_target_dir} not found. Skipping {species}.")
+                    #st.warning(f"Reverse directory {reverse_target_dir} not found. Skipping {species}.")
                     continue
                     
                 csv_file = find_comparison_csv(reverse_target_dir, target_dir_id)
@@ -383,11 +383,11 @@ if st.sidebar.checkbox('Find best Model organism'):
         else:
             scores_df['Normalized_Score'] = 0.0
         
-        print("\n" + "="*30)
-        print("--- Model Organism Ranking ---")
-        print(f"Based on structural similarity for UniProt IDs: {', '.join(uniprot_ids)}")
-        print(scores_df.to_string(formatters={'Normalized_Score': '{:,.2f}'.format}))
-        print("="*30)
+        st.write("\n" + "="*100)
+        ("--- Model Organisms Ranking ---")
+        st.write(f"Based on structural similarity for UniProt IDs: {', '.join(uniprot_ids)}")
+        st.write(scores_df.to_string(formatters={'Normalized_Score': '{:,.2f}'.format}))
+        st.write("="*100)
         
     if st.sidebar.toggle('Build structural evolutionary tree'):
         st.subheader('Structural tree for your proteins in the input model organisms')
