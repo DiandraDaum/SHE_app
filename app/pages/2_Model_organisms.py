@@ -113,7 +113,7 @@ def sum_scores_for_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
             if not hits.empty:
                 best_score = hits['bit_score'].max()
                 total_score += best_score
-            else:
+            #else:
                 #st.info(f"  > No hit found for {uniprot_id} in {csv_file}")
 
     except pd.errors.EmptyDataError:
@@ -383,11 +383,12 @@ if st.sidebar.checkbox('Find best Model organism'):
         else:
             scores_df['Normalized_Score'] = 0.0
         
-        st.write("\n" + "="*100)
+        st.write("\n" + "="*70)
         ("--- Model Organisms Ranking ---")
         st.write(f"Based on structural similarity for UniProt IDs: {', '.join(uniprot_ids)}")
-        st.write(scores_df.to_string(formatters={'Normalized_Score': '{:,.2f}'.format}))
-        st.write("="*100)
+        #st.write(scores_df.row().to_string(formatters={'Normalized_Score': '{:,.2f}'.format}))
+        st.dataframe(scores_df.style.format({'Normalized_Score': '{:,.2f}'}))
+        st.write("="*70)
         
     if st.sidebar.toggle('Build structural evolutionary tree'):
         st.subheader('Structural tree for your proteins in the input model organisms')
