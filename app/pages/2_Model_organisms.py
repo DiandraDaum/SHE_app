@@ -284,11 +284,11 @@ if st.sidebar. button('Receive Results'):
 st.sidebar.subheader('6. Model Organism Search', divider="violet")
 if st.sidebar.checkbox('Find best Model organism'):
     st.title('Find the best model organism for your study according to the structural phylogenetic tree!')
-    target = st.sidebar.text_input(
+    target = st.text_input(
     'Which organism would you like to study (empty = Default: Homo_sapiens_Human)', key="target")
-    protein_list = st.sidebar.text_input(
+    protein_list = st.text_input(
     'Which proteins are you studying in your target organism? (each Uniprot ID separated by a space, i.e: Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616)', key="protein_list")
-    model = st.sidebar.text_input(
+    model = st.text_input(
     'Which model organisms do you have available (i.e: "Danio_rerio_Zebrafish_Brachydanio_rerio" "Caenorhabditis_elegans Mus_musculus_Mouse")?', key="model")
     if (protein_list == '') | (model == ''):
         st.warning('Please input the Uniprot ID of the protein(s) to study, the organism to study (Defaul to Human), and the model organisms you can to choose from, to find the best model organism for you study.')
@@ -303,7 +303,7 @@ if st.sidebar.checkbox('Find best Model organism'):
             st.write('Selected Target Organism: ', target_species) # not "Homo_sapiens_Human"
 
         st.info('a. Ranking your model organisms...')
-        uniprot_ids=protein_list # "Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616"
+        uniprot_ids=protein_list.split() # "Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616"
         compare_species=model
         
         root_dir='data/decompressed/' #350 gb
