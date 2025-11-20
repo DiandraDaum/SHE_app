@@ -3,7 +3,6 @@ os.environ['QT_QPA_PLATFORM'] = 'offscreen'
 import streamlit as st
 import pandas as pd
 import numpy as np
-from biotite.sequence.phylo import neighbor_joining
 import time
 import csv
 import sys
@@ -24,6 +23,7 @@ from scipy.spatial.distance import pdist, squareform
 from ete3 import Tree, TreeStyle, NodeStyle
 from Bio import Phylo
 from Bio.Phylo import Consensus
+from biotite.sequence.phylo import neighbor_joining
 from io import StringIO
 import copy
 
@@ -278,13 +278,18 @@ def generate_distance_matrix(species_scores_dict, uniprot_ids, out_dir):
     dists = pdist(df_log.values, metric='euclidean')
     dmat = squareform(dists)
     
-    # Save
-    np.save(os.path.join(out_dir, 'dmat.npy'), dmat)
-    dmat_out=outdir + 'dmat.npy'
+    # Save dmat.npy
+    dmat_path = os.path.join(out_dir, 'dmat.npy')
+    np.save(dmat_path, dmat)
+    # FIX 1: Changed 'outdir' to 'out_dir' and ensured correct path construction
+    dmat_out = dmat_path
     
+    # Save ids_in_dmat.csv
     ids_df = pd.DataFrame({'id': df.index})
-    ids_df.to_csv(os.path.join(out_dir, 'ids_in_dmat.csv'), index=False)
-    ids_out=outdir + 'ids_in_dmat.csv'
+    ids_path = os.path.join(out_dir, 'ids_in_dmat.csv')
+    ids_df.to_csv(ids_path, index=False)
+    # FIX 2: Changed 'outdir' to 'out_dir' and ensured correct path construction
+    ids_out = ids_path
 
     return dmat_out, ids_out
 
@@ -456,11 +461,12 @@ st.image(
 )
 
 st.write("Here, you can look for the best model organism to use for your study based on the proteins involved in your pathway. Click on 'Find best Model Organism' in the sidebar to start you analysis!")
-st.write("Please note that this analysis might require some time. It is possible to register your email in the sidebar, so that your results will be sent to you as soon as they are ready!")
-
 st.write("Start by checking the 'Find best Model Organism' box in the sidebar. This will result in a ranking of your model organisms.")
 st.write("It is also possible to build a structural phylogenetic tree from the input proteins. To do so, switch on 'Build structural tree'.")
 st.write("If you wish to visualise the structural alignments of your input proteins, turn on 'Show protein structure alignments'.")
+
+st.warning("Please note that this analysis might require some time. It is possible to register your email in the sidebar, so that your results will be sent to you as soon as they are ready!")
+
 
 ###------sidebar sign up--------------------
 #user sign up for updates and analysis results
@@ -604,104 +610,97 @@ if st.sidebar.checkbox('Find best Model organism'):
         st.write(f"🎉 **The top model organism for your study is: {top_model_organism}**")
         st.write("="*70)
 
-    #make tree-----------------------------------------------------------------------------------------------------------------------------
-    if st.sidebar.toggle('Build structural evolutionary tree'):
-        st.subheader('Structural tree for your proteins in the input model organisms')
-        st.info('b. Making structural phylogenetic tree from your input proteins...please wait some minutes')
-        # distance matrix
-        matrix_out="results/model_trees/"
-        dmat_out, ids_out = generate_distance_matrix(tree_data, uniprot_ids, matrix_out)
-        distance_matrix=dmat_out[0]
-        ids=ids_out[0]
-        n_bootstraps=100
+        #make tree-----------------------------------------------------------------------------------------------------------------------------
+        if st.sidebar.toggle('Build structural evolutionary tree'):
+            st.subheader('Structural tree for your proteins in the input model organisms')
+            st.info('b. Making structural phylogenetic tree from your input proteins...please wait some minutes')
+            # distance matrix
+            matrix_out="results/model_trees/"
+            dmat_out, ids_out = generate_distance_matrix(tree_data, uniprot_ids, matrix_out)
+            distance_matrix=dmat_out[0]
+            ids=ids_out[0]
+            n_bootstraps=100
+            st.info(f"id matrix file: {distance_matrix}, and ids: {ids}")
 
-        #make tree----------------------------------
-        distance_matrix = np.load(distance_matrix)
-        ids = pd.read_csv(ids)['id'].values #Read from csv - keep the format consistens
-        # Verify number of IDs matches matrix dimensions
-        if len(ids) != len(distance_matrix):
-            print(f"Error: Number of IDs ({len(ids)}) doesn't match matrix dimensions ({len(distance_matrix)})")
-            sys.exit(1)
-        #print(f"Loaded {len(ids)} IDs and {distance_matrix.shape} distance matrix")
-        trees = []
-        bootstrap_matrices = []
-        #print("Creating original tree...")
-        original_tree = neighbor_joining(distance_matrix)
-        trees.append(parse_biotite_tree(original_tree, ids))
-        #print(f"Creating {n_bootstraps-1} bootstrap trees...")
-        for _ in tqdm(range(n_bootstraps-1)):
-            dmat = bootstrap_from_distance_matrix(distance_matrix)
-            bootstrap_matrices.append(dmat)
-            tree = neighbor_joining(dmat)
-            trees.append(parse_biotite_tree(tree, ids))
+            #make tree----------------------------------
+            distance_matrix = np.load(distance_matrix)
+            ids = pd.read_csv(ids)['id'].values #Read from csv - keep the format consistens
+            # Verify number of IDs matches matrix dimensions
+            if len(ids) != len(distance_matrix):
+                st.error(f"Error: Number of IDs ({len(ids)}) doesn't match matrix dimensions ({len(distance_matrix)})")
+                sys.exit(1)
+            #print(f"Loaded {len(ids)} IDs and {distance_matrix.shape} distance matrix")
+            trees = []
+            bootstrap_matrices = []
+            #print("Creating original tree...")
+            original_tree = neighbor_joining(distance_matrix)
+            trees.append(parse_biotite_tree(original_tree, ids))
+            #print(f"Creating {n_bootstraps-1} bootstrap trees...")
+            for _ in tqdm(range(n_bootstraps-1)):
+                dmat = bootstrap_from_distance_matrix(distance_matrix)
+                bootstrap_matrices.append(dmat)
+                tree = neighbor_joining(dmat)
+                trees.append(parse_biotite_tree(tree, ids))
 
-        #print("Calculating bootstrap support values...")
-        original_tree = trees[0]
-        bootstrap_replicates = trees[1:]
-        supported_tree = analyze_bootstrap_support(original_tree, bootstrap_replicates)
+            #print("Calculating bootstrap support values...")
+            original_tree = trees[0]
+            bootstrap_replicates = trees[1:]
+            supported_tree = analyze_bootstrap_support(original_tree, bootstrap_replicates)
 
-        #print("Calculating support statistics...")
-        stats, support_df = get_support_statistics(supported_tree)
-        outdir="results/model_trees/"
-        support_df.to_csv(outdir+'support_per_clade.csv', index=None)
-        #print('Saved support metrics to', args.outdir+'support_per_clade.csv')
-        #print("Saving results...")
-        # Save bootstrap matrices
-        np.save(os.path.join(outdir, 'bootstrap_distance_matrices.npy'),
-                np.array(bootstrap_matrices))
-        # Save supported tree
-        Phylo.write(supported_tree,
-                    os.path.join(outdir, 'bootstrap_tree.newick'),
-                    'newick')
-        # Save statistics
-        with open(os.path.join(outdir, 'bootstrap_stats.txt'), 'w') as f:
-            f.write("Bootstrap Support Statistics:\n")
-            for stat, value in stats.items():
-                if 'support' in stat:
-                    f.write(f"{stat}: {value:.1f}%\n")
-                else:
-                    f.write(f"{stat}: {value}\n")
+            #print("Calculating support statistics...")
+            stats, support_df = get_support_statistics(supported_tree)
+            outdir="results/model_trees/"
+            support_df.to_csv(outdir+'support_per_clade.csv', index=None)
+            #print('Saved support metrics to', args.outdir+'support_per_clade.csv')
+            #print("Saving results...")
+            # Save bootstrap matrices
+            np.save(os.path.join(outdir, 'bootstrap_distance_matrices.npy'),
+                    np.array(bootstrap_matrices))
+            # Save supported tree
+            Phylo.write(supported_tree,
+                        os.path.join(outdir, 'bootstrap_tree.newick'),
+                        'newick')
+            # Save statistics
+            with open(os.path.join(outdir, 'bootstrap_stats.txt'), 'w') as f:
+                f.write("Bootstrap Support Statistics:\n")
+                for stat, value in stats.items():
+                    if 'support' in stat:
+                        f.write(f"{stat}: {value:.1f}%\n")
+                    else:
+                        f.write(f"{stat}: {value}\n")
 
-            f.write("\nInterpretation Guide:\n")
-            f.write("- Support values ≥70%: Strong support\n")
-            f.write("- Support values 50-69%: Moderate support\n")
-            f.write("- Support values <50%: Weak support\n")
+                f.write("\nInterpretation Guide:\n")
+                f.write("- Support values ≥70%: Strong support\n")
+                f.write("- Support values 50-69%: Moderate support\n")
+                f.write("- Support values <50%: Weak support\n")
 
-        #print("\nSaved files:")
-        #print("1. bootstrap_distance_matrices.npy - All bootstrap distance matrices")
-        #print("2. bootstrap_tree.newick - Tree with bootstrap support values")
-        #print("3. bootstrap_stats.txt - Support statistics")
-        #print("\nQuick statistics:")
-        #print(f"Strong support nodes (≥70%): {stats['strong_support_nodes']}/{stats['total_nodes']}")
-        #print(f"Mean support: {stats['mean_support']:.1f}%")
+            # load tree ----------------------------------------------
+            model_tree="results/model_trees/bootstrap_tree.newick"
+            svg_model = load_tree(model_tree)
+            st.image(
+                svg_model, #extracted tree svg path
+                caption='Best model organism tree',
+                width='stretch')
+            
 
-        # load tree ----------------------------------------------
-        model_tree="results/model_trees/bootstrap_tree.newick"
-        svg_model = load_tree(model_tree)
-        st.image(
-            svg_model, #extracted tree svg path
-            caption='Best model organism tree',
-            width='stretch')
-        
-
-    # show protein structures --------------------------------------------------------------------------------------
-    if st.sidebar.toggle('Show protein structure alignments'):
-        st.subheader('Structural comparison of your proteins between the input target and model organisms')
-        st.warning('This function is going to be released soon')
-        st.info('c. Loading the protein-protein comparisons ...')
-        """
-        #make df with target_protein_id and top structural homologous model_organism_protein_id1, model_organism_protein_id2, model_organism_protein_id3, etc
-        uniprot_list=pd.DataFrame(protein_list, orient='index', columns=['target_protein'])
-        target_protein = st.sidebar.selectbox(
-        'Which target protein do you want to see the structure comparison with your model organisms of?',
-        uniprot_list['target_protein'],
-        key = 'protein_selector')
-        target_uniprot=target_protein
-        for model_protein_id in columns
-            model_protein_path=""   #path to compressed pdb comparison
-            # render pdb with mol*
-            render_3dmol(model_protein_path) # render each model protein homologous
-        """
+        # show protein structures --------------------------------------------------------------------------------------
+        if st.sidebar.toggle('Show protein structure alignments'):
+            st.subheader('Structural comparison of your proteins between the input target and model organisms')
+            st.warning('This function is going to be released soon')
+            st.info('c. Loading the protein-protein comparisons ...')
+            """
+            #make df with target_protein_id and top structural homologous model_organism_protein_id1, model_organism_protein_id2, model_organism_protein_id3, etc
+            uniprot_list=pd.DataFrame(protein_list, orient='index', columns=['target_protein'])
+            target_protein = st.sidebar.selectbox(
+            'Which target protein do you want to see the structure comparison with your model organisms of?',
+            uniprot_list['target_protein'],
+            key = 'protein_selector')
+            target_uniprot=target_protein
+            for model_protein_id in columns
+                model_protein_path=""   #path to compressed pdb comparison
+                # render pdb with mol*
+                render_3dmol(model_protein_path) # render each model protein homologous
+            """
 
 
-        
+            
