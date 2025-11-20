@@ -56,3 +56,4 @@ ipywidgets(==7.6.3)
 ipython_genutils
 datetime
 ipython
+scipy
