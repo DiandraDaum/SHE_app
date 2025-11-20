@@ -26,7 +26,7 @@ from Bio.Phylo import Consensus
 from biotite.sequence.phylo import neighbor_joining
 from io import StringIO
 import copy
-
+import shutil
 
 #Code to analyse:
 # model organism search
@@ -471,12 +471,12 @@ st.warning("Please note that this analysis might require some time. It is possib
 ###------sidebar sign up--------------------
 #user sign up for updates and analysis results
 st.sidebar.subheader('Results', divider="rainbow")
-st.sidebar.write('Sign up to receive your results by email')
-st.sidebar.text_input('Your email', key="email") #strip against whitespace
+st.sidebar.write('Sign up to receive your results')
+st.sidebar.text_input('Your email here:', key="email") #strip against whitespace
 
 
 # Submission Button in the main content area
-if st.sidebar. button('Receive Results'):
+if st.sidebar.button('Receive Results by email'):
     # Retrieve the value from session state using the key "email" (updated from "user")
     user_email = st.session_state.email.strip()
     if not user_email:
@@ -486,10 +486,7 @@ if st.sidebar. button('Receive Results'):
         # If we reach here, the email is non-empty and we save it.
         if save_email(user_email):
             # Updated success message
-            st.sidebar.write(f"Thank you! **{user_email}** is where you will receive your results.")
-            # Clear the input field after successful submission (updated key)
-            #st.session_state.email = ""
-
+            st.sidebar.success(f"Thank you! Your email: **{user_email}** .")
 
 ################analysis -------------------------------------------
 
@@ -708,5 +705,29 @@ if st.sidebar.checkbox('Find best Model organism'):
                 render_3dmol(model_protein_path) # render each model protein homologous
             """
 
-
-            
+        user_dir="results/model_trees/" + user
+        target_folder_path=user_dir[0]
+        user_name=user.split('@')[0]
+        zip_file_name = f"results_{user_name}" 
+        output_base_dir = "temp_archives" 
+        os.makedirs(output_base_dir, exist_ok=True) 
+        # results in 'temp_archives/UP000005640_bitscores.zip'
+        shutil.make_archive(
+            base_name=os.path.join(output_base_dir, zip_file_name),
+            format='zip',
+            root_dir=os.path.dirname(target_folder_path), # Start zipping from the parent directory
+            base_dir=os.path.basename(target_folder_path)  # Only include the target folder itself
+        )
+        # Get the full path to the newly created ZIP file and make download availabel
+        zip_file_path = os.path.join(output_base_dir, f"{zip_file_name}.zip")
+        with open(zip_file_path, "rb") as file:
+            st.sidebaer.download_button(
+                label="Download results now",
+                data=file, # The actual byte content of the zip file
+                file_name=f"{zip_file_name}.zip", # The name the user will see
+                mime="application/zip", # Critical: Set the correct MIME type for zip files
+                icon=":material/download:",
+            )
+        # Clean up the generated zip file after use
+        os.remove(zip_file_path)
+      
