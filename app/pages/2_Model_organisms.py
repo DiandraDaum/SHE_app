@@ -492,7 +492,12 @@ if st.sidebar. button('Receive Results'):
 
 
 ################analysis -------------------------------------------
-#@st.cache_data
+if user_email:
+    user=user_email
+else:
+    user="user1"
+
+
 st.sidebar.subheader('6. Model Organism Search', divider="violet")
 if st.sidebar.checkbox('Find best Model organism'):
     st.title('Find the best model organism for your study according to the structural phylogenetic tree!')
@@ -615,7 +620,7 @@ if st.sidebar.checkbox('Find best Model organism'):
             st.subheader('Structural tree for your proteins in the input model organisms')
             st.info('b. Making structural phylogenetic tree from your input proteins...please wait some minutes')
             # distance matrix
-            matrix_out="results/model_trees/"
+            matrix_out="results/model_trees/" + user + "/"
             dmat_out, ids_out = generate_distance_matrix(tree_data, uniprot_ids, matrix_out)
             distance_matrix=dmat_out
             ids=ids_out
