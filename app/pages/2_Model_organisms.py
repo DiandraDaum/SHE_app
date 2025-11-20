@@ -476,7 +476,7 @@ st.sidebar.text_input('Your email here:', key="email") #strip against whitespace
 
 
 # Submission Button in the main content area
-if st.sidebar.button('Receive Results by email'):
+if st.sidebar.button('Receive Results'):
     # Retrieve the value from session state using the key "email" (updated from "user")
     user_email = st.session_state.email.strip()
     if not user_email:
@@ -705,8 +705,8 @@ if st.sidebar.checkbox('Find best Model organism'):
                 render_3dmol(model_protein_path) # render each model protein homologous
             """
 
-        user_dir="results/model_trees/" + user
-        target_folder_path=user_dir[0]
+        user_dir = os.path.join("results", "model_trees", user)
+        target_folder_path=user_dir
         user_name=user.split('@')[0]
         zip_file_name = f"results_{user_name}" 
         output_base_dir = "temp_archives" 
@@ -721,7 +721,7 @@ if st.sidebar.checkbox('Find best Model organism'):
         # Get the full path to the newly created ZIP file and make download availabel
         zip_file_path = os.path.join(output_base_dir, f"{zip_file_name}.zip")
         with open(zip_file_path, "rb") as file:
-            st.sidebaer.download_button(
+            st.sidebar.download_button(
                 label="Download results now",
                 data=file, # The actual byte content of the zip file
                 file_name=f"{zip_file_name}.zip", # The name the user will see
