@@ -1,3 +1,5 @@
+import os
+os.environ['QT_QPA_PLATFORM'] = 'offscreen'
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -8,16 +10,17 @@ import pathlib
 import base64
 import textwrap
 import time
-import os
 from collections import defaultdict
 from tqdm import tqdm
 from datetime import datetime
 import glob
+from urllib.parse import urlparse
 import py3Dmol
 from stmol import showmol
 from stmol import *
 from IPython.display import HTML
 from scipy.spatial.distance import pdist, squareform
+from ete3 import Tree, TreeStyle, NodeStyle
 
 
 #Code to analyse:
@@ -73,7 +76,6 @@ def find_comparison_csv(target_dir, compare_dir_id):
         csv_files = glob.glob(search_pattern_alt, recursive=True)
 
     return csv_files[0] if csv_files else None
-
 
 def process_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
     """
@@ -158,7 +160,6 @@ def get_human_self_vector(target_dir, uniprot_ids):
     total_self_score = sum(human_vector)
     
     return total_self_score, human_vector
-
 
 def sum_scores_for_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
     """
@@ -277,6 +278,110 @@ def generate_distance_matrix(species_scores_dict, uniprot_ids, out_dir):
     
     ids_df = pd.DataFrame({'id': df.index})
     ids_df.to_csv(os.path.join(out_dir, 'ids_in_dmat.csv'), index=False)
+
+
+# make tree from distance matrix -------------------------------------------
+def bootstrap_from_distance_matrix(distance_matrix):
+    """Bootstrap by resampling cells in the distance matrix"""
+    n = len(distance_matrix)
+    bootstrap_matrix = copy.deepcopy(distance_matrix)
+
+    col_pos = np.random.choice(range(n), n, replace=True)
+    sampled_vals = np.random.choice(distance_matrix.flatten(), n, replace=True)
+    bootstrap_matrix[range(n), col_pos] = sampled_vals
+
+    #Make symmetric
+    bootstrap_matrix = np.triu(bootstrap_matrix)
+    bootstrap_matrix += bootstrap_matrix.T
+
+    # Ensure diagonal remains zero
+    np.fill_diagonal(bootstrap_matrix, 0)
+
+    return bootstrap_matrix
+
+def load_ids(ids_file):
+    """Load sequence IDs from file with flexible format handling"""
+    try:
+        # First try reading as numpy file
+        if ids_file.endswith('.npy'):
+            return np.load(ids_file).tolist()
+
+        # Try reading as text file
+        with open(ids_file, 'r') as f:
+            lines = [line.strip() for line in f if line.strip()]
+
+        # Try different formats
+        if len(lines) == 0:
+            raise ValueError("Empty file")
+
+        # Try tab-delimited format
+        if '\t' in lines[0]:
+            ids = [line.split('\t')[-1] for line in lines]
+        else:
+            # Assume one ID per line
+            ids = lines
+
+        return ids
+
+    except Exception as e:
+        print(f"Error reading IDs file: {e}")
+        print("File should contain one ID per line or be tab-delimited")
+        sys.exit(1)
+
+def parse_biotite_tree(biotite_tree, ids):
+    """Convert biotite tree to Bio.Phylo tree"""
+    newick = biotite_tree.to_newick(ids)
+    return Phylo.read(StringIO(newick), 'newick')
+
+def analyze_bootstrap_support(original_tree, bootstrap_trees):
+    """Calculate bootstrap support values"""
+    support_tree = Consensus.get_support(original_tree, bootstrap_trees)
+
+
+    return support_tree
+
+def get_support_statistics(tree):
+    """Calculate statistics about bootstrap support values"""
+    support_values = [clade.confidence for clade in tree.find_clades()]
+    clade_names = [clade.name for clade in tree.find_clades()]
+
+    support_df = pd.DataFrame()
+    support_df['clade'] = clade_names
+    support_df['confidence'] = support_values
+
+    if not support_values:
+        return None
+
+    support_values =  support_df.confidence.dropna()
+    stats = {
+        'mean_support': np.mean(support_values),
+        'median_support': np.median(support_values),
+        'min_support': np.min(support_values),
+        'max_support': np.max(support_values),
+        'strong_support_nodes': len([v for v in support_values if v >= 70]),
+        'moderate_support_nodes': len([v for v in support_values if 50 <= v < 70]),
+        'weak_support_nodes': len([v for v in support_values if v < 50]),
+        'total_nodes': len(support_values)
+    }
+    return stats, support_df
+
+def load_tree(tree_path):
+    # Load the Tree: i.e. tree = Tree(main_tree_file)
+    model_tree = Tree(tree_path, format=1) #format=0
+    ts = TreeStyle()
+    ts.mode = "r"   
+    ts.show_leaf_name = True #true or false
+    ts.show_branch_length = False
+    ts.force_topology = True #not bad
+    # Render tree
+    model_tree_out="results/model_trees/model_tree.svg"
+    model_tree.render(
+    model_tree_out,
+    tree_style=ts,
+    #w=183,
+    units="px"  
+    )
+    return model_tree_out
 
 # --- Function to generate the Mol* HTML viewer ---
 
@@ -489,13 +594,88 @@ if st.sidebar.checkbox('Find best Model organism'):
         top_model_organism = df_final.iloc[1]['Organism']
         st.write(f"🎉 **The top model organism for your study is: {top_model_organism}**")
         st.write("="*70)
-        
+
+    #make tree-----------------------------------------------------------------------------------------------------------------------------
     if st.sidebar.toggle('Build structural evolutionary tree'):
         st.subheader('Structural tree for your proteins in the input model organisms')
-        st.info('b. Making structural phylogenetic tree from your input proteins...')
+        st.info('b. Making structural phylogenetic tree from your input proteins...please wait some minutes')
+        # distance matrix
         matrix_out="results/model_trees/"
         generate_distance_matrix(tree_data, uniprot_ids, matrix_out)
+        distance_matrix="results/model_trees/dmat.npy"
+        ids="results/model_trees/ids_in_dmat.csv"
+        n_bootstraps=100
 
+        #make tree----------------------------------
+        distance_matrix = np.load(distance_matrix)
+        ids = pd.read_csv(ids)['id'].values #Read from csv - keep the format consistens
+        # Verify number of IDs matches matrix dimensions
+        if len(ids) != len(distance_matrix):
+            print(f"Error: Number of IDs ({len(ids)}) doesn't match matrix dimensions ({len(distance_matrix)})")
+            sys.exit(1)
+        #print(f"Loaded {len(ids)} IDs and {distance_matrix.shape} distance matrix")
+        trees = []
+        bootstrap_matrices = []
+        #print("Creating original tree...")
+        original_tree = neighbor_joining(distance_matrix)
+        trees.append(parse_biotite_tree(original_tree, ids))
+        #print(f"Creating {n_bootstraps-1} bootstrap trees...")
+        for _ in tqdm(range(n_bootstraps-1)):
+            dmat = bootstrap_from_distance_matrix(distance_matrix)
+            bootstrap_matrices.append(dmat)
+            tree = neighbor_joining(dmat)
+            trees.append(parse_biotite_tree(tree, ids))
+
+        #print("Calculating bootstrap support values...")
+        original_tree = trees[0]
+        bootstrap_replicates = trees[1:]
+        supported_tree = analyze_bootstrap_support(original_tree, bootstrap_replicates)
+
+        #print("Calculating support statistics...")
+        stats, support_df = get_support_statistics(supported_tree)
+        outdir="results/model_trees/"
+        support_df.to_csv(outdir+'support_per_clade.csv', index=None)
+        #print('Saved support metrics to', args.outdir+'support_per_clade.csv')
+        #print("Saving results...")
+        # Save bootstrap matrices
+        np.save(os.path.join(outdir, 'bootstrap_distance_matrices.npy'),
+                np.array(bootstrap_matrices))
+        # Save supported tree
+        Phylo.write(supported_tree,
+                    os.path.join(outdir, 'bootstrap_tree.newick'),
+                    'newick')
+        # Save statistics
+        with open(os.path.join(outdir, 'bootstrap_stats.txt'), 'w') as f:
+            f.write("Bootstrap Support Statistics:\n")
+            for stat, value in stats.items():
+                if 'support' in stat:
+                    f.write(f"{stat}: {value:.1f}%\n")
+                else:
+                    f.write(f"{stat}: {value}\n")
+
+            f.write("\nInterpretation Guide:\n")
+            f.write("- Support values ≥70%: Strong support\n")
+            f.write("- Support values 50-69%: Moderate support\n")
+            f.write("- Support values <50%: Weak support\n")
+
+        #print("\nSaved files:")
+        #print("1. bootstrap_distance_matrices.npy - All bootstrap distance matrices")
+        #print("2. bootstrap_tree.newick - Tree with bootstrap support values")
+        #print("3. bootstrap_stats.txt - Support statistics")
+        #print("\nQuick statistics:")
+        #print(f"Strong support nodes (≥70%): {stats['strong_support_nodes']}/{stats['total_nodes']}")
+        #print(f"Mean support: {stats['mean_support']:.1f}%")
+
+        # load tree ----------------------------------------------
+        model_tree="results/model_trees/bootstrap_tree.newick"
+        svg_model = load_tree(model_tree)
+        st.image(
+            svg_model, #extracted tree svg path
+            caption='Best model organism tree',
+            width='stretch')
+        
+
+    # show protein structures --------------------------------------------------------------------------------------
     if st.sidebar.toggle('Show protein structure alignments'):
         st.subheader('Structural comparison of your proteins between the input target and model organisms')
         st.warning('This function is going to be released soon')
