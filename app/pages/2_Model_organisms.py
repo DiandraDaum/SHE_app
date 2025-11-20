@@ -3,6 +3,7 @@ os.environ['QT_QPA_PLATFORM'] = 'offscreen'
 import streamlit as st
 import pandas as pd
 import numpy as np
+from biotite.sequence.phylo import neighbor_joining
 import time
 import csv
 import sys
@@ -21,6 +22,10 @@ from stmol import *
 from IPython.display import HTML
 from scipy.spatial.distance import pdist, squareform
 from ete3 import Tree, TreeStyle, NodeStyle
+from Bio import Phylo
+from Bio.Phylo import Consensus
+from io import StringIO
+import copy
 
 
 #Code to analyse:

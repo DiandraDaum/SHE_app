@@ -57,3 +57,5 @@ ipython_genutils
 datetime
 ipython
 scipy
+biotite
+
