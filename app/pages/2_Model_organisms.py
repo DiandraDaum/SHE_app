@@ -88,6 +88,50 @@ def find_comparison_csv(target_dir, compare_dir_id):
     
     return csv_files[0] # Return the first match
 
+
+def process_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
+    """
+    Returns:
+    1. total_score (float): Sum of scores for ranking.
+    2. presence_map (dict): {id: 1/-1} for iTOL.
+    3. score_vector (list): [score1, score2...] for Tree Construction.
+    """
+    total_score = 0.0
+    presence_map = {uid: -1 for uid in uniprot_ids}
+    score_map = {uid: 0.0 for uid in uniprot_ids} # Default 0.0 if missing
+
+    try:
+        df = pd.read_csv(csv_file, header=None, usecols=[0, 1, 4], on_bad_lines='warn')
+        df.columns = ['proteinA', 'proteinB', 'bit_score']
+        
+        for uniprot_id in uniprot_ids:
+            # Robust search for ID
+            hits = df[df[search_col].str.contains(f"-{uniprot_id}-", na=False)]
+            if hits.empty:
+                hits = df[df[search_col].str.contains(uniprot_id, na=False)]
+            
+            if not hits.empty:
+                best_score = hits['bit_score'].max()
+                total_score += best_score
+                
+                # For iTOL
+                if best_score > 0:
+                    presence_map[uniprot_id] = 1
+                
+                # For Tree (Store actual score)
+                score_map[uniprot_id] = best_score
+
+    except Exception as e:
+        logging.warning(f"Error processing {csv_file}: {e}")
+        
+    # Convert score_map to a sorted list based on uniprot_ids order
+    score_vector = [score_map[uid] for uid in uniprot_ids]
+    
+    return total_score, presence_map, score_vector
+
+
+
+
 def sum_scores_for_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
     """
     Loads a single CSV file and sums the *best hit* bit scores
@@ -184,7 +228,38 @@ def get_self_scores(target_dir, target_dir_id, uniprot_ids):
 
     return total_self_score
 
-
+def generate_distance_matrix(species_scores_dict, uniprot_ids, out_dir):
+    """
+    Calculates pairwise distances between species based on their score vectors.
+    Saves dmat.npy and ids.csv compatible with your bootstrapping script.
+    """
+    logging.info("Generating distance matrix for phylogenetic tree...")
+    
+    # 1. Convert dictionary to DataFrame for easy handling
+    # Rows: Species, Cols: UniProt IDs
+    df = pd.DataFrame.from_dict(species_scores_dict, orient='index', columns=uniprot_ids)
+    
+    # 2. Normalize Data (Log transform to dampen outlier scores)
+    # We use log2(x + 1) to handle zeros gracefully
+    df_log = np.log2(df + 1)
+    
+    # 3. Calculate Pairwise Euclidean Distance
+    # This clusters species that have similar "patterns" of high/low scores
+    dists = pdist(df_log.values, metric='euclidean')
+    dmat = squareform(dists)
+    
+    # 4. Save outputs
+    # Save Distance Matrix
+    dmat_path = os.path.join(out_dir, 'dmat.npy')
+    np.save(dmat_path, dmat)
+    
+    # Save IDs (Species Names)
+    ids_path = os.path.join(out_dir, 'ids_in_dmat.csv')
+    ids_df = pd.DataFrame({'id': df.index})
+    ids_df.to_csv(ids_path, index=False) # Must include header 'id'
+    
+    logging.info(f"  > Saved distance matrix: {dmat_path}")
+    logging.info(f"  > Saved IDs file: {ids_path}")
 
 # --- Function to generate the Mol* HTML viewer ---
 
@@ -324,7 +399,10 @@ if st.sidebar.checkbox('Find best Model organism'):
         if not os.path.isdir(target_dir):
             st.error(f"Target directory not found: {target_dir}")
             sys.exit(1)
-            
+        
+        # Storage
+        ranking_scores = {}
+        tree_data = {} # {Species: [Vector of Scores]}
         #st.info(f"Target directory set to: {target_dir}")
         
         # --- 2. Score & Rank Organisms ---
@@ -349,20 +427,26 @@ if st.sidebar.checkbox('Find best Model organism'):
                 #st.warning(f"Could not find {target_dir_id} vs {compare_dir_id}. Trying reverse search...")
                 reverse_target_dir = os.path.join(root_dir, compare_dir_id)
                 
-                if not os.path.isdir(reverse_target_dir):
+                #if not os.path.isdir(reverse_target_dir):
+                if os.path.isdir(reverse_target_dir):
                     #st.warning(f"Reverse directory {reverse_target_dir} not found. Skipping {species}.")
-                    continue
-                    
-                csv_file = find_comparison_csv(reverse_target_dir, target_dir_id)
-                search_col = 'proteinB' # In reverse file, Human proteins are in column B
+                    #continue
+                    csv_file = find_comparison_csv(reverse_target_dir, target_dir_id)
+                    search_col = 'proteinB' # In reverse file, Human proteins are in column B
             
             if csv_file:
                 # Pass the correct column to search
                 total_score = sum_scores_for_orthologs(csv_file, uniprot_ids, search_col)
                 pathway_scores[species] = total_score
+                score, presence, vector = process_orthologs(csv_file, args.uniprot_ids, search_col)
+                ranking_scores[species] = score
+                itol_data[species] = presence
+                tree_data[species] = vector
             else:
                 st.error(f"Could not find any comparison file for {species}. Score set to 0.")
                 pathway_scores[species] = 0.0
+                itol_data[species] = {uid: -1 for uid in args.uniprot_ids}
+                tree_data[species] = [0.0] * len(args.uniprot_ids)
             
         # --- 3. Get Self-Score for Baseline ---
         target_self_score = get_self_scores(target_dir, target_dir_id, uniprot_ids)
@@ -395,8 +479,9 @@ if st.sidebar.checkbox('Find best Model organism'):
         
     if st.sidebar.toggle('Build structural evolutionary tree'):
         st.subheader('Structural tree for your proteins in the input model organisms')
-        st.warning('This function is going to be released soon')
         st.info('b. Making structural phylogenetic tree from your input proteins...')
+        matrix_out="results/model_trees/"
+        generate_distance_matrix(tree_data, uniprot_ids, netwick_out)
 
     if st.sidebar.toggle('Show protein structure alignments'):
         st.subheader('Structural comparison of your proteins between the input target and model organisms')
