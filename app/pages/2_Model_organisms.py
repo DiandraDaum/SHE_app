@@ -266,7 +266,7 @@ def generate_distance_matrix(species_scores_dict, uniprot_ids, out_dir):
     """
     Generates dmat.npy and ids_in_dmat.csv for the bootstrap script.
     """
-    st.info("Generating distance matrix ...")
+    #st.info("Generating distance matrix ...")
     
     # Convert to DataFrame
     df = pd.DataFrame.from_dict(species_scores_dict, orient='index', columns=uniprot_ids)
@@ -388,7 +388,7 @@ def load_tree(tree_path):
     ts.show_branch_length = False
     ts.force_topology = True #not bad
     # Render tree
-    model_tree_out="results/model_trees/model_tree.svg"
+    model_tree_out="results/model_trees/model_tree.png"
     model_tree.render(
     model_tree_out,
     tree_style=ts,
@@ -617,10 +617,10 @@ if st.sidebar.checkbox('Find best Model organism'):
             # distance matrix
             matrix_out="results/model_trees/"
             dmat_out, ids_out = generate_distance_matrix(tree_data, uniprot_ids, matrix_out)
-            distance_matrix=dmat_out[0]
-            ids=ids_out[0]
+            distance_matrix=dmat_out
+            ids=ids_out
             n_bootstraps=100
-            st.info(f"id matrix file: {distance_matrix}, and ids: {ids}")
+            #st.info(f"id matrix file: {distance_matrix}, and ids: {ids}")
 
             #make tree----------------------------------
             distance_matrix = np.load(distance_matrix)
