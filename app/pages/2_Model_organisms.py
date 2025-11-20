@@ -275,9 +275,13 @@ def generate_distance_matrix(species_scores_dict, uniprot_ids, out_dir):
     
     # Save
     np.save(os.path.join(out_dir, 'dmat.npy'), dmat)
+    dmat_out=outdir + 'dmat.npy'
     
     ids_df = pd.DataFrame({'id': df.index})
     ids_df.to_csv(os.path.join(out_dir, 'ids_in_dmat.csv'), index=False)
+    ids_out=outdir + 'ids_in_dmat.csv'
+
+    return dmat_out, ids_out
 
 
 # make tree from distance matrix -------------------------------------------
@@ -601,9 +605,9 @@ if st.sidebar.checkbox('Find best Model organism'):
         st.info('b. Making structural phylogenetic tree from your input proteins...please wait some minutes')
         # distance matrix
         matrix_out="results/model_trees/"
-        generate_distance_matrix(tree_data, uniprot_ids, matrix_out)
-        distance_matrix="results/model_trees/dmat.npy"
-        ids="results/model_trees/ids_in_dmat.csv"
+        dmat_out, ids_out = generate_distance_matrix(tree_data, uniprot_ids, matrix_out)
+        distance_matrix=dmat_out[0]
+        ids=ids_out[0]
         n_bootstraps=100
 
         #make tree----------------------------------
