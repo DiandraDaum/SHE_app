@@ -379,7 +379,7 @@ def get_support_statistics(tree):
     }
     return stats, support_df
 
-def load_tree(tree_path):
+def load_tree(tree_path, user):
     # Load the Tree: i.e. tree = Tree(main_tree_file)
     model_tree = Tree(tree_path, format=1) #format=0
     ts = TreeStyle()
@@ -388,7 +388,7 @@ def load_tree(tree_path):
     ts.show_branch_length = False
     ts.force_topology = True #not bad
     # Render tree
-    model_tree_out="results/model_trees/model_tree.png"
+    model_tree_out="results/model_trees/" + user + "/model_tree.png"
     model_tree.render(
     model_tree_out,
     tree_style=ts,
@@ -486,20 +486,20 @@ if st.sidebar. button('Receive Results'):
         # If we reach here, the email is non-empty and we save it.
         if save_email(user_email):
             # Updated success message
-            st.sidebar.success(f"Thank you! **{user_email}** is where you will receive your results.")
+            st.sidebar.write(f"Thank you! **{user_email}** is where you will receive your results.")
             # Clear the input field after successful submission (updated key)
             #st.session_state.email = ""
 
 
 ################analysis -------------------------------------------
-if user_email:
-    user=user_email
-else:
-    user="user1"
-
 
 st.sidebar.subheader('6. Model Organism Search', divider="violet")
 if st.sidebar.checkbox('Find best Model organism'):
+    user_email = st.session_state.email.strip()
+    if not user_email:
+        user="user1"
+    else: 
+        user=user_email
     st.title('Find the best model organism for your study according to the structural phylogenetic tree!')
     target = st.text_input(
     'Which organism would you like to study (empty = Default: Homo_sapiens_Human)', key="target")
@@ -609,8 +609,6 @@ if st.sidebar.checkbox('Find best Model organism'):
         st.write("--- Organism Ranking ---")
         #st.write(df_final)
         st.write(df_final.to_html(index=False), unsafe_allow_html=True)
-        
-
         top_model_organism = df_final.iloc[1]['Organism']
         st.write(f"🎉 **The top model organism for your study is: {top_model_organism}**")
         st.write("="*70)
@@ -621,6 +619,9 @@ if st.sidebar.checkbox('Find best Model organism'):
             st.info('b. Making structural phylogenetic tree from your input proteins...please wait some minutes')
             # distance matrix
             matrix_out="results/model_trees/" + user + "/"
+            if not os.path.exists(matrix_out):
+                os.makedirs(matrix_out) #mkdir
+
             dmat_out, ids_out = generate_distance_matrix(tree_data, uniprot_ids, matrix_out)
             distance_matrix=dmat_out
             ids=ids_out
@@ -654,7 +655,7 @@ if st.sidebar.checkbox('Find best Model organism'):
 
             #print("Calculating support statistics...")
             stats, support_df = get_support_statistics(supported_tree)
-            outdir="results/model_trees/"
+            outdir="results/model_trees/" + user + "/"
             support_df.to_csv(outdir+'support_per_clade.csv', index=None)
             #print('Saved support metrics to', args.outdir+'support_per_clade.csv')
             #print("Saving results...")
@@ -680,8 +681,8 @@ if st.sidebar.checkbox('Find best Model organism'):
                 f.write("- Support values <50%: Weak support\n")
 
             # load tree ----------------------------------------------
-            model_tree="results/model_trees/bootstrap_tree.newick"
-            svg_model = load_tree(model_tree)
+            model_tree=outdir + "/bootstrap_tree.newick"
+            svg_model = load_tree(model_tree, user)
             st.image(
                 svg_model, #extracted tree svg path
                 caption='Best model organism tree',
