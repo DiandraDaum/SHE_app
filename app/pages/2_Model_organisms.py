@@ -17,6 +17,7 @@ import py3Dmol
 from stmol import showmol
 from stmol import *
 from IPython.display import HTML
+from scipy.spatial.distance import pdist, squareform
 
 
 #Code to analyse:
@@ -483,10 +484,11 @@ if st.sidebar.checkbox('Find best Model organism'):
         st.write("--- Organism Ranking ---")
         #st.write(df_final)
         st.write(df_final.to_html(index=False), unsafe_allow_html=True)
-        st.write("="*70)
+        
 
         top_model_organism = df_final.iloc[1]['Organism']
         st.write(f"🎉 **The top model organism for your study is: {top_model_organism}**")
+        st.write("="*70)
         
     if st.sidebar.toggle('Build structural evolutionary tree'):
         st.subheader('Structural tree for your proteins in the input model organisms')
