@@ -42,9 +42,9 @@ st.write('Please, select the type of file you want to download from the sidebar.
 
 st.sidebar.subheader('Downloads', divider="yellow")
 
-if st.sidebar.checkbox('Protein-protein alignments by Organism'):
+if st.sidebar.checkbox('Alignment scores by Organism'):
     st.subheader('Protein-protein alignments by Organism')
-    st.write('Here it is possible to download the Foldseek proteome-proteome comparisons by organism')
+    st.write('Here it is possible to download the Foldseek proteome-proteome comparison bitscores (csv files) by organism')
     proteome = st.sidebar.text_input(
     'Which proteome: UniProt ID?', key="proteome")
     st.write('Proteome selected for download: ', proteome)
@@ -84,21 +84,45 @@ if st.sidebar.checkbox('Protein-protein alignments by Organism'):
                 os.remove(zip_file_path)
             else:
                 st.error("Proteome not found.")
-        if st.sidebar.toggle('Full CombFold results'):
+
+if st.sidebar.checkbox('Protein predictions'):
+    if st.sidebar.toggle('By proteome')
+        st.subheader('Protein structure predictions for all Proteome')
+        st.write('Here it is possible to download the predicted protein structures per Proteome')
+        proteome = st.sidebar.text_input(
+        'Which proteome: UniProt ID?', key="proteome")
+        st.write('Proteome selected for download: ', proteome)
+        st.page_link("https://www.uniprot.org/proteomes/" + proteome, label="UniProt Proteomes", icon="🌎")
+        if proteome == '':
+            st.warning('Please input the UniProt proteome ID (i.e. UP000005640)')
+        else:
             st.warning('This function is going to be released soon')
-            """
-            root_dir_combfold='data/subset/' #350 gb
-            results=root_dir_combfold + proteome "_" + *
-            results_name=proteome + "_combfold"
-            label2="Download ComFold results for " + proteome
-            with open(results, "rb") as results:
-                        st.download_button(
-                            label=label2,
-                            data=results,
-                            file_name=results_name,
-                            mime="image/png",
-                            icon=":material/download:",
-                        )"""
+            #download proteome.zip from subset
+    if st.sidebar.toggle('By protein')
+        st.subheader('Protein structure predictions by protein')
+            st.write('Here it is possible to download the predicted protein structures')
+            protein = st.sidebar.text_input(
+            'Which protein: UniProt ID?', key="protein")
+            st.write('Protein structure selected for download: ', protein)
+            st.page_link("https://www.uniprot.org/uniprotkb/" + protein + "/entry", label="UniProt", icon="🌎")
+            if proteome == '':
+                st.warning('Please input the UniProt protein ID (i.e. A6NI61)')
+            else: 
+                st.warning('This function is going to be released soon')
+                #download proteome.zip from subset
+"""
+    root_dir_combfold='data/subset/' #350 gb
+    results=root_dir_combfold + proteome "_" + *
+    results_name=proteome + "_combfold"
+    label2="Download ComFold results for " + proteome
+    with open(results, "rb") as results:
+                st.download_button(
+                    label=label2,
+                    data=results,
+                    file_name=results_name,
+                    mime="image/png",
+                    icon=":material/download:",
+                )"""
 
 
 
