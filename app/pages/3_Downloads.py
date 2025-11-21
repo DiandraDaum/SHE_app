@@ -86,7 +86,7 @@ if st.sidebar.checkbox('Alignment scores by Organism'):
                 st.error("Proteome not found.")
 
 if st.sidebar.checkbox('Protein predictions'):
-    if st.sidebar.toggle('By proteome')
+    if st.sidebar.toggle('By proteome'):
         st.subheader('Protein structure predictions for all Proteome')
         st.write('Here it is possible to download the predicted protein structures per Proteome')
         proteome = st.sidebar.text_input(
@@ -98,31 +98,31 @@ if st.sidebar.checkbox('Protein predictions'):
         else:
             st.warning('This function is going to be released soon')
             #download proteome.zip from subset
-    if st.sidebar.toggle('By protein')
+    if st.sidebar.toggle('By protein'):
         st.subheader('Protein structure predictions by protein')
-            st.write('Here it is possible to download the predicted protein structures')
-            protein = st.sidebar.text_input(
-            'Which protein: UniProt ID?', key="protein")
-            st.write('Protein structure selected for download: ', protein)
-            st.page_link("https://www.uniprot.org/uniprotkb/" + protein + "/entry", label="UniProt", icon="🌎")
-            if proteome == '':
-                st.warning('Please input the UniProt protein ID (i.e. A6NI61)')
-            else: 
-                st.warning('This function is going to be released soon')
-                #download proteome.zip from subset
-"""
-    root_dir_combfold='data/subset/' #350 gb
-    results=root_dir_combfold + proteome "_" + *
-    results_name=proteome + "_combfold"
-    label2="Download ComFold results for " + proteome
-    with open(results, "rb") as results:
-                st.download_button(
-                    label=label2,
-                    data=results,
-                    file_name=results_name,
-                    mime="image/png",
-                    icon=":material/download:",
-                )"""
+        st.write('Here it is possible to download the predicted protein structures')
+        protein = st.sidebar.text_input(
+        'Which protein: UniProt ID?', key="protein")
+        st.write('Protein structure selected for download: ', protein)
+        st.page_link("https://www.uniprot.org/uniprotkb/" + protein + "/entry", label="UniProt", icon="🌎")
+        if protein == '':
+            st.warning('Please input the UniProt protein ID (i.e. A6NI61)')
+        else: 
+            st.warning('This function is going to be released soon')
+            #download proteome.zip from subset
+        """
+            root_dir_combfold='data/subset/' #350 gb
+            results=root_dir_combfold + proteome "_" + *
+            results_name=proteome + "_combfold"
+            label2="Download ComFold results for " + proteome
+            with open(results, "rb") as results:
+                        st.download_button(
+                            label=label2,
+                            data=results,
+                            file_name=results_name,
+                            mime="image/png",
+                            icon=":material/download:",
+                        )"""
 
 
 
