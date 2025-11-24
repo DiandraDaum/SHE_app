@@ -21,7 +21,8 @@ from stmol import *
 from IPython.display import HTML
 from scipy.spatial.distance import pdist, squareform
 from ete3 import Tree, TreeStyle, NodeStyle
-from ete3.webplugin import WebTreeApplication
+#from ete3.webplugin import WebTreeApplication
+#from ete3.treeview.web import WebTreeApplication
 from Bio import Phylo
 from Bio.Phylo import Consensus
 from biotite.sequence.phylo import neighbor_joining
