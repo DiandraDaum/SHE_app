@@ -486,10 +486,9 @@ def create_plotly_data(tree):
             branch_lines.extend([parent.x, parent.x, None])
             branch_lines.extend([node.y, parent.y, None])
             
-    return branch_lines, node_coords
+    return branch_lines_x, branch_lines_y, node_coords
 
 def display_interactive_tree(tree_path):
-    st.header("Interactive Phylogenetic Tree")
     
     try:
         # Load the tree from the Newick file
@@ -499,14 +498,13 @@ def display_interactive_tree(tree_path):
         tree = get_tree_coordinates(tree)
         
         # Generate Plotly data lists
-        branch_lines_x, branch_lines_y = create_plotly_data(tree)
+        branch_lines_x, branch_lines_y, node_coords = create_plotly_data(tree)
         
     except Exception as e:
         st.error(f"Error processing tree file: {e}")
         return
 
     # --- Create the Plotly Figure ---
-
     # 1. Branch Traces (Lines)
     trace_branches = go.Scatter(
         x=branch_lines_x, y=branch_lines_y,
