@@ -535,8 +535,8 @@ def display_interactive_tree(tree_path):
     fig = go.Figure(data=[trace_branches, trace_nodes])
 
     fig.update_layout(
-        title='Phylogenetic Tree (Plotly Interactive)',
-        xaxis=dict(showgrid=False, title='Evolutionary Distance'),
+        title='Interactive Tree for model organism ranking',
+        xaxis=dict(showgrid=False, title='Branch length'),
         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False), # Hide y-axis labels
         showlegend=False,
         hovermode="closest",

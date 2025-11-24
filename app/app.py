@@ -59,7 +59,6 @@ st.sidebar.video(tree_bytes, autoplay=True, loop=True, muted=True)
 #st.image('data/tree/All/Intro.png', caption='Strucutral Phylogenetic Tree of Eukarya')
 
 st.write('Clasical phylogenetic trees constructed based on sequence alignments of a small set of genes (i.e. rRNAs) are hindered by limitations.')
-st.write('New developments in protein structure prediction and alignment enable comparisons on the structural level, capturing more distant and detailed evolutionary relationships.')
 st.write('To capture a more complete picture of evolution, we here construct evolutionary relationships based on predictions of all protein structures in an organism, obtaining proteome-wide comparisons (2.96x1014 structure alignments between 24.3 million proteins).')
 st.write('This provides a comprehensive and detailed picture of proteome structural similarity and evolutionary rates across eukaryotes (1542 species), highlighting the importance of structural novelty at the proteome level for organism complexity, with humans as a clear outlier.')
 
