@@ -21,6 +21,7 @@ from stmol import *
 from IPython.display import HTML
 from scipy.spatial.distance import pdist, squareform
 from ete3 import Tree, TreeStyle, NodeStyle
+import plotly.graph_objects as go
 #from ete3.webplugin import WebTreeApplication
 #from ete3.treeview.web import WebTreeApplication
 from Bio import Phylo
@@ -29,7 +30,6 @@ from biotite.sequence.phylo import neighbor_joining
 from io import StringIO
 import copy
 import shutil
-
 
 #Code to analyse:
 # model organism search
@@ -427,6 +427,124 @@ def render_tree(tree_path, user):
     )
     return model_tree_out
 
+
+# plotly_chart---------------------------------------------------------------------
+def get_tree_coordinates(tree):
+    # This function traverses the tree and assigns x, y coordinates
+    
+    # 1. Assign Y-coordinates (depth/level)
+    # The leaves will be at y=0, and the root will be at the max depth
+    leaves = tree.get_leaves()
+    max_depth = len(leaves)
+    
+    for i, leaf in enumerate(leaves):
+        leaf.y = i
+    
+    for node in tree.traverse("postorder"):
+        if node.is_leaf():
+            node.x = node.dist # X is the accumulated branch length
+        else:
+            # For internal nodes, Y is the mean of its children's Y coordinates
+            node.y = sum(child.y for child in node.children) / len(node.children)
+            # X is the max branch length of its children + its own branch length
+            node.x = max(child.x for child in node.children) + node.dist
+            
+    # Normalize X to be distance from root
+    root_x = tree.x
+    for node in tree.traverse("preorder"):
+        node.x = root_x - node.x
+
+    return tree
+
+def create_plotly_data(tree):
+    # This collects all the branch line segments and node scatter points
+    branch_lines = []
+    node_coords = {'x': [], 'y': [], 'text': [], 'name': []}
+
+    for node in tree.traverse():
+        # Add node coordinates for the scatter plot
+        node_coords['x'].append(node.x)
+        node_coords['y'].append(node.y)
+        node_coords['name'].append(node.name if node.name else f"Internal Node {node.x}")
+        
+        # Create custom hover text
+        hover_text = f"**Node:** {node.name if node.name else 'Internal Node'}<br>"
+        if not node.is_root():
+            hover_text += f"**Dist:** {node.dist:.3f}"
+        node_coords['text'].append(hover_text)
+        
+        # Create line segments for branches
+        if not node.is_root():
+            parent = node.up
+            
+            # Horizontal segment (from child X to parent X at child Y)
+            branch_lines.extend([node.x, parent.x, None])
+            branch_lines.extend([node.y, node.y, None])
+            
+            # Vertical segment (from child Y to parent Y at parent X)
+            # This is optional for phylograms but helps visualize the hierarchy
+            branch_lines.extend([parent.x, parent.x, None])
+            branch_lines.extend([node.y, parent.y, None])
+            
+    return branch_lines, node_coords
+
+def display_interactive_tree(tree_path):
+    st.header("Interactive Phylogenetic Tree")
+    
+    try:
+        # Load the tree from the Newick file
+        tree = Tree(tree_path, format=1)
+        
+        # Calculate coordinates
+        tree = get_tree_coordinates(tree)
+        
+        # Generate Plotly data lists
+        branch_lines_x, branch_lines_y = create_plotly_data(tree)
+        
+    except Exception as e:
+        st.error(f"Error processing tree file: {e}")
+        return
+
+    # --- Create the Plotly Figure ---
+
+    # 1. Branch Traces (Lines)
+    trace_branches = go.Scatter(
+        x=branch_lines_x, y=branch_lines_y,
+        mode='lines',
+        line=dict(color='black', width=1),
+        hoverinfo='none', # Branches don't need hover
+        name='Branches'
+    )
+
+    # 2. Node Traces (Scatter Points)
+    trace_nodes = go.Scatter(
+        x=node_coords['x'], y=node_coords['y'],
+        mode='markers+text',
+        marker=dict(size=5, color='red'),
+        text=node_coords['name'], # Leaf/Node name displayed next to the point
+        textposition="middle right",
+        textfont=dict(size=10),
+        hovertext=node_coords['text'], # Custom hover text
+        hoverinfo='text',
+        name='Nodes'
+    )
+
+    # 3. Create the figure and layout
+    fig = go.Figure(data=[trace_branches, trace_nodes])
+
+    fig.update_layout(
+        title='Phylogenetic Tree (Plotly Interactive)',
+        xaxis=dict(showgrid=False, title='Evolutionary Distance'),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False), # Hide y-axis labels
+        showlegend=False,
+        hovermode="closest",
+        plot_bgcolor='white',
+        margin=dict(l=20, r=20, t=40, b=20)
+    )
+    
+    # --- Display in Streamlit ---
+    st.plotly_chart(fig, use_container_width=True)
+
 # --- Function to generate the Mol* HTML viewer ---
 
 def render_3dmol(afdb_download_url: str):
@@ -709,7 +827,8 @@ if st.sidebar.checkbox('Find best Model organism'):
 
             # load tree ----------------------------------------------
             model_tree= outdir + "bootstrap_tree.newick"
-            loaded_tree = load_tree(model_tree)
+            #loaded_tree = load_tree(model_tree)
+            display_interactive_tree(model_tree)
             #svg_model = render_tree(model_tree, user)
             #st.image(svg_model, caption='Best model organism tree', width='stretch')
             
