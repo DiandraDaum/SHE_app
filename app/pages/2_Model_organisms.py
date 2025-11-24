@@ -851,8 +851,9 @@ if st.sidebar.checkbox('Find best Model organism'):
             #st.image(svg_model, caption='Best model organism tree', width='stretch')
             #svg_model = load_itol(model_tree)
             st.markdown("Use the controls (pan, zoom, select) to explore the tree.")
-            model_tree_path = model_tree 
+            tree=None
             try:
+                model_tree_path = model_tree 
                 tree = Phylo.read(model_tree_path, 'newick')
             except FileNotFoundError:
                 st.error(f"Newick file not found at: {model_tree_path}")
@@ -915,17 +916,25 @@ if st.sidebar.checkbox('Find best Model organism'):
 
             layout = {'name': 'breadthfirst'}
             
+            # Define the style dictionary to control the Cytoscape container/canvas
+            container_style = {
+                'background': '#FFFFFF', #white bg for canvas
+                'height': '600px',
+                'width': '100%',
+            }
+
+            # The function call is updated to use the 'style' parameter
             cytoscape_result = cytoscape(
                 elements=elements,
                 stylesheet=stylesheet,
                 layout=layout,
-                # Set a fixed height for the canvas
-                container_height="600px", 
-                container_width="100%",
+                #container_height="600px",
+                #container_width="100%",
+                style=container_style, 
                 # Other optional settings:
-                # tapNode=True, # Listen for node clicks
-                # tapEdge=True, # Listen for edge clicks
-                # key="cytoscape-phylogeny" # Unique key for the component
+                # tapNode=True, 
+                # tapEdge=True, 
+                # key="cytoscape-phylogeny" 
             )
 
             # Display interactive data returned by the component
