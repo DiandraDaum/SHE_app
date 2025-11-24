@@ -410,7 +410,7 @@ def load_itol(current_dir):
     #test.add_file(current_dir + 'labels.txt')
     #test.add_file(current_dir + 'ranges.txt')
     # Add parameters
-    test.params['APIkey'] = '<YOUR API KEY HERE>'
+    test.params['APIkey'] = 'P8puHywKybkQsfX1lKbxzg'
     test.params['treeName'] = 'Model Organisms Tree'
     # Check parameters
     test.print_variables()
