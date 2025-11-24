@@ -1,0 +1,14 @@
+Bootstrap Support Statistics:
+mean_support: 67.7%
+median_support: 77.8%
+min_support: 25.3%
+max_support: 100.0%
+strong_support_nodes: 4.0%
+moderate_support_nodes: 0.0%
+weak_support_nodes: 2.0%
+total_nodes: 6
+
+Interpretation Guide:
+- Support values ≥70%: Strong support
+- Support values 50-69%: Moderate support
+- Support values <50%: Weak support

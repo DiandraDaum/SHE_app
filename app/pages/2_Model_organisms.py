@@ -404,7 +404,9 @@ def load_itol(current_dir):
     # Create the Itol class
     test = Itol()
     # Set the tree file
-    tree = current_dir + 'model_tree.newick'
+    #tree = current_dir + 'model_tree.newick'
+    tree_path_string = current_dir + 'bootstrap_tree.newick'
+    tree = Path(tree_path_string)
     test.add_file(tree)
     #test.add_file(current_dir + 'colors_tol.txt')
     #test.add_file(current_dir + 'labels.txt')
