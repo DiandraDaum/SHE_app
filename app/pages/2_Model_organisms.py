@@ -30,6 +30,7 @@ import shutil
 from pathlib import Path
 from itolapi import Itol, ItolExport
 
+import math
 from Bio import Phylo
 from st_cytoscape import cytoscape
 
@@ -770,13 +771,13 @@ if st.sidebar.checkbox('Find best Model organism'):
         csv_out="results/model_trees/" + user + "/organisms_ranking.csv"
         df_final.to_csv(csv_out, index=False)
         # 6. Display the Final Table in Streamlit
-        st.write("\n" + "="*70)
+        st.write("\n" + "="*80)
         st.write("--- Organism Ranking ---")
         #st.write(df_final)
         st.write(df_final.to_html(index=False), unsafe_allow_html=True)
         top_model_organism = df_final.iloc[1]['Organism']
         st.write(f"🎉 **The top model organism for your study is: {top_model_organism}**")
-        st.write("="*70)
+        st.write("="*80)
 
         #make tree-----------------------------------------------------------------------------------------------------------------------------
         if st.sidebar.toggle('Build structural evolutionary tree'):
@@ -914,7 +915,8 @@ if st.sidebar.checkbox('Find best Model organism'):
                 }
             ]
 
-            layout = {'name': 'breadthfirst'}
+            #layout = {'name': 'breadthfirst'}
+            layout = {'name': 'preset'}
             
             # Define the style dictionary to control the Cytoscape container/canvas
             container_style = {
