@@ -27,6 +27,9 @@ from biotite.sequence.phylo import neighbor_joining
 from io import StringIO
 import copy
 import shutil
+from pathlib import Path
+from itolapi import Itol, ItolExport
+
 
 #Code to analyse:
 # model organism search
@@ -397,6 +400,62 @@ def load_tree(tree_path, user):
     )
     return model_tree_out
 
+def load_itol(current_dir):
+    # Create the Itol class
+    test = Itol()
+    # Set the tree file
+    tree = current_dir / 'model_tree.newick'
+    test.add_file(tree)
+    test.add_file(current_dir / 'colors_tol.txt')
+    test.add_file(current_dir / 'labels.txt')
+    test.add_file(current_dir / 'ranges.txt')
+    # Add parameters
+    test.params['APIkey'] = '<YOUR API KEY HERE>'
+    test.params['treeName'] = 'Tree of Life Example'
+    # Check parameters
+    test.print_variables()
+    # Submit the tree
+    print('')
+    print((
+        'Uploading the tree.  This may take some time depending on how large the '
+        'tree is and how much load there is on the itol server'
+    ))
+    good_upload = test.upload()
+    if not good_upload:
+        print('There was an error:' + test.comm.upload_output)
+        sys.exit(1)
+    # Read the tree ID
+    print('Tree ID: ' + test.comm.tree_id)
+
+    # Read the iTOL API return statement
+    print('iTOL output: ' + test.comm.upload_output)
+
+    # Website to be redirected to iTOL tree
+    print('Tree Web Page URL: ' + test.get_webpage())
+
+    # Warnings associated with the upload
+    print('Warnings: ', test.comm.warnings)
+
+    # Export a pre-made tree to svg
+    itol_exporter = ItolExport()
+    itol_exporter.set_export_param_value('tree', 'model_tree')
+    itol_exporter.set_export_param_value('format', 'svg')
+    itol_exporter.set_export_param_value('datasetList', 'dataset1')
+    # itol_exporter.export(Path('example_pdf.pdf'))
+    # print('exported tree to ',export_location)
+
+    # Export the tree above to svg
+    print('Exporting to svg')
+    itol_exporter = test.get_itol_export()
+    export_location = current_dir / 'model_tree.svg'
+    itol_exporter.set_export_param_value('format', 'svg')
+    itol_exporter.set_export_param_value('datasetList', 'dataset1')
+    itol_exporter.export(export_location)
+    print('exported tree to ', export_location)
+
+
+
+
 # --- Function to generate the Mol* HTML viewer ---
 
 def render_3dmol(afdb_download_url: str):
@@ -678,13 +737,10 @@ if st.sidebar.checkbox('Find best Model organism'):
                 f.write("- Support values <50%: Weak support\n")
 
             # load tree ----------------------------------------------
-            model_tree=outdir + "/bootstrap_tree.newick"
-            svg_model = load_tree(model_tree, user)
-            st.image(
-                svg_model, #extracted tree svg path
-                caption='Best model organism tree',
-                width='stretch')
-            
+            model_tree=outdir
+            #svg_model = load_tree(model_tree, user)
+            #st.image(svg_model, caption='Best model organism tree', width='stretch')
+            tree = load_itol(model_tree)
 
         # show protein structures --------------------------------------------------------------------------------------
         if st.sidebar.toggle('Show protein structure alignments'):
