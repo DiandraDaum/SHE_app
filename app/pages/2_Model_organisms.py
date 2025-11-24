@@ -458,7 +458,8 @@ def get_tree_coordinates(tree):
 
 def create_plotly_data(tree):
     # This collects all the branch line segments and node scatter points
-    branch_lines = []
+    branch_lines_x = []
+    branch_lines_y = []
     node_coords = {'x': [], 'y': [], 'text': [], 'name': []}
 
     for node in tree.traverse():
@@ -476,15 +477,18 @@ def create_plotly_data(tree):
         # Create line segments for branches
         if not node.is_root():
             parent = node.up
+            # 1. Horizontal segment (from child X to parent X at child Y)
+            # Extends the X list: [Child_X, Parent_X, None]
+            branch_lines_x.extend([node.x, parent.x, None])
+            # Extends the Y list: [Child_Y, Child_Y, None]
+            branch_lines_y.extend([node.y, node.y, None])
             
-            # Horizontal segment (from child X to parent X at child Y)
-            branch_lines.extend([node.x, parent.x, None])
-            branch_lines.extend([node.y, node.y, None])
-            
-            # Vertical segment (from child Y to parent Y at parent X)
-            # This is optional for phylograms but helps visualize the hierarchy
-            branch_lines.extend([parent.x, parent.x, None])
-            branch_lines.extend([node.y, parent.y, None])
+            # 2. Vertical segment (from child Y to parent Y at Parent X)
+            # This segment connects the horizontal line to the parent node's vertical position
+            # Extends the X list: [Parent_X, Parent_X, None]
+            branch_lines_x.extend([parent.x, parent.x, None])
+            # Extends the Y list: [Child_Y, Parent_Y, None]
+            branch_lines_y.extend([node.y, parent.y, None])
             
     return branch_lines_x, branch_lines_y, node_coords
 

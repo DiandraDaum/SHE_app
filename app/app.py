@@ -52,8 +52,7 @@ st.title('SHE: Structural History of Eukarya')
 
 st.sidebar.success("Find more analysis options in the panels above.")
 
-
-st.subheader('Strucutral Phylogenetic Tree from proteome-wide structure alignments of 1542 Eukarya')
+st.subheader('Strucutral Phylogenetic Tree from proteome-wide structure alignments')
 video_tree = open("data/tree/final_tree.mp4", "rb")
 tree_bytes = video_tree.read()
 st.sidebar.video(tree_bytes, autoplay=True, loop=True, muted=True)
@@ -62,7 +61,7 @@ st.sidebar.video(tree_bytes, autoplay=True, loop=True, muted=True)
 st.write('Clasical phylogenetic trees constructed based on sequence alignments of a small set of genes (i.e. rRNAs) are hindered by limitations.')
 st.write('New developments in protein structure prediction and alignment enable comparisons on the structural level, capturing more distant and detailed evolutionary relationships.')
 st.write('To capture a more complete picture of evolution, we here construct evolutionary relationships based on predictions of all protein structures in an organism, obtaining proteome-wide comparisons (2.96x1014 structure alignments between 24.3 million proteins).')
-st.write('This provides a comprehensive and detailed picture of proteome structural similarity and evolutionary rates across eukaryotes, highlighting the importance of structural novelty at the proteome level for organism complexity, with humans as a clear outlier.')
+st.write('This provides a comprehensive and detailed picture of proteome structural similarity and evolutionary rates across eukaryotes (1542 species), highlighting the importance of structural novelty at the proteome level for organism complexity, with humans as a clear outlier.')
 
 st.write('Start exploring the new proteome-wide structural phylogenetic tree by selecting the panels in the sidebar!')
 st.write('1. Explore Tree: check the structrual phylogenetic tree for all Eukarya, a kingdom, a taxon, a species or a set of proteins. You will be able to change the tree visualisation style in the sidebar.')
