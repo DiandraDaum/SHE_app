@@ -404,14 +404,14 @@ def load_itol(current_dir):
     # Create the Itol class
     test = Itol()
     # Set the tree file
-    tree = current_dir / 'model_tree.newick'
+    tree = current_dir + 'model_tree.newick'
     test.add_file(tree)
-    test.add_file(current_dir / 'colors_tol.txt')
-    test.add_file(current_dir / 'labels.txt')
-    test.add_file(current_dir / 'ranges.txt')
+    #test.add_file(current_dir + 'colors_tol.txt')
+    #test.add_file(current_dir + 'labels.txt')
+    #test.add_file(current_dir + 'ranges.txt')
     # Add parameters
     test.params['APIkey'] = '<YOUR API KEY HERE>'
-    test.params['treeName'] = 'Tree of Life Example'
+    test.params['treeName'] = 'Model Organisms Tree'
     # Check parameters
     test.print_variables()
     # Submit the tree
@@ -447,7 +447,7 @@ def load_itol(current_dir):
     # Export the tree above to svg
     print('Exporting to svg')
     itol_exporter = test.get_itol_export()
-    export_location = current_dir / 'model_tree.svg'
+    export_location = current_dir + 'model_tree.svg'
     itol_exporter.set_export_param_value('format', 'svg')
     itol_exporter.set_export_param_value('datasetList', 'dataset1')
     itol_exporter.export(export_location)
@@ -660,6 +660,9 @@ if st.sidebar.checkbox('Find best Model organism'):
         df_presence = pd.DataFrame(presence_list)
         df_rank.insert(0, 'Rank', df_rank.index + 1)
         df_final = pd.merge(df_rank, df_presence, on='Organism', how='left')
+        # Ssave sf as csv
+        csv_out="results/model_trees/" + user + "/organisms_ranking.csv"
+        df_final.to_csv(csv_out, index=False)
         # 6. Display the Final Table in Streamlit
         st.write("\n" + "="*70)
         st.write("--- Organism Ranking ---")
@@ -737,7 +740,7 @@ if st.sidebar.checkbox('Find best Model organism'):
                 f.write("- Support values <50%: Weak support\n")
 
             # load tree ----------------------------------------------
-            model_tree=outdir
+            model_tree=outdir + "/"
             #svg_model = load_tree(model_tree, user)
             #st.image(svg_model, caption='Best model organism tree', width='stretch')
             tree = load_itol(model_tree)
