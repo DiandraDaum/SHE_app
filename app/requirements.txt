@@ -59,7 +59,6 @@ ipython
 scipy
 biotite
 itolapi
-streamlit-cytoscape
 st-cytoscape
 
 

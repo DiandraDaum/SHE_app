@@ -31,7 +31,7 @@ from pathlib import Path
 from itolapi import Itol, ItolExport
 
 from Bio import Phylo
-from streamlit_cytoscape import st_cytoscape
+from st_cytoscape import cytoscape
 
 
 #Code to analyse:
@@ -915,7 +915,7 @@ if st.sidebar.checkbox('Find best Model organism'):
 
             layout = {'name': 'breadthfirst'}
             
-            cytoscape_result = st_cytoscape(
+            cytoscape_result = cytoscape(
                 elements=elements,
                 stylesheet=stylesheet,
                 layout=layout,
