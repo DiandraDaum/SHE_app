@@ -400,7 +400,7 @@ def load_tree(tree_path):
     # --- 3. Render the Tree to a File-like Object (SVG is best) ---
     # We use an in-memory string buffer to avoid writing a temp file
     svg_buffer = StringIO()
-    tree.render(file=svg_buffer, w=600, h=400, units="px", tree_style=ts)
+    tree.render(svg_buffer, w=600, h=400, units="px", tree_style=ts)
     
     # --- 4. Display the SVG in Streamlit ---
     # Streamlit can display SVG content directly as HTML
