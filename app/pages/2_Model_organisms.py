@@ -27,12 +27,11 @@ from biotite.sequence.phylo import neighbor_joining
 from io import StringIO
 import copy
 import shutil
-from pathlib import Path
-from itolapi import Itol, ItolExport
 
-import math
-from Bio import Phylo
-from st_cytoscape import cytoscape
+
+
+
+
 
 
 #Code to analyse:
@@ -404,165 +403,6 @@ def load_tree(tree_path, user):
     )
     return model_tree_out
 
-def load_itol(current_dir):
-    # Create the Itol class
-    test = Itol()
-    # Set the tree file
-    #tree = current_dir + 'model_tree.newick'
-    tree_path_string = current_dir + 'bootstrap_tree.newick'
-    tree = Path(tree_path_string)
-    test.add_file(tree)
-    #test.add_file(current_dir + 'colors_tol.txt')
-    #test.add_file(current_dir + 'labels.txt')
-    #test.add_file(current_dir + 'ranges.txt')
-    # Add parameters
-    test.params['APIkey'] = 'P8puHywKybkQsfX1lKbxzg'
-    test.params['treeName'] = 'Model Organisms Tree'
-    test.params['projectName'] = 'SHE_app'
-    # Check parameters
-    test.print_variables()
-    # Submit the tree
-    #st.info(('Uploading the tree. This may take some time depending on how large the tree is and how much load there is on the itol server'))
-    good_upload = test.upload()
-    if not good_upload:
-        st.error('There was an error:' + test.comm.upload_output)
-        sys.exit(1)
-    # Read the tree ID
-    st.info('Tree ID: ' + test.comm.tree_id)
-    # Read the iTOL API return statement
-    st.info('iTOL output: ' + test.comm.upload_output)
-    # Website to be redirected to iTOL tree
-    st.info('Tree Web Page URL: ' + test.get_webpage())
-    # Warnings associated with the upload
-    st.info('Warnings: ', test.comm.warnings)
-
-    # Export a pre-made tree to svg
-    itol_exporter = ItolExport()
-    #itol_exporter.set_export_param_value('tree', 'model_tree')
-    #itol_exporter.set_export_param_value('format', 'svg')
-    #itol_exporter.set_export_param_value('datasetList', 'dataset1')
-    # itol_exporter.export(Path('example_pdf.pdf'))
-    # print('exported tree to ',export_location)
-
-    # Export the tree above to svg
-    st.info('Exporting to svg')
-    itol_exporter = test.get_itol_export()
-    export_location = current_dir + 'model_tree.svg'
-    itol_exporter.set_export_param_value('format', 'svg')
-    itol_exporter.set_export_param_value('datasetList', 'dataset1')
-    # add params from batch export options
-    itol_exporter.set_export_param_value('display_mode', '1') # Possible values: 1,2 or 3 (1=rectangular, 2=circular, 3=unrooted)
-    itol_exporter.set_export_param_value('ignore_branch_length', '1') # Possible values: 0 or 1
-    # continue export
-    itol_exporter.export(export_location)
-    st.info('exported tree to ', export_location)
-    return export_location[0]
-
-
-def generate_elements(tree, xlen=30, ylen=30, grabbable=False):
-    def get_col_positions(tree, column_width=80):
-        taxa = tree.get_terminals()
-
-        # Some constants for the drawing calculations
-        max_label_width = max(len(str(taxon)) for taxon in taxa)
-        drawing_width = column_width - max_label_width - 1
-
-        """Create a mapping of each clade to its column position."""
-        depths = tree.depths()
-        # If there are no branch lengths, assume unit branch lengths
-        if not max(depths.values()):
-            depths = tree.depths(unit_branch_lengths=True)
-            # Potential drawing overflow due to rounding -- 1 char per tree layer
-        fudge_margin = int(math.ceil(math.log(len(taxa), 2)))
-        cols_per_branch_unit = ((drawing_width - fudge_margin) /
-                                float(max(depths.values())))
-        return dict((clade, int(blen * cols_per_branch_unit + 1.0))
-                    for clade, blen in depths.items())
-
-    def get_row_positions(tree):
-        taxa = tree.get_terminals()
-        positions = dict((taxon, 2 * idx) for idx, taxon in enumerate(taxa))
-
-        def calc_row(clade):
-            for subclade in clade:
-                if subclade not in positions:
-                    calc_row(subclade)
-            positions[clade] = ((positions[clade.clades[0]] +
-                                positions[clade.clades[-1]]) // 2)
-
-        calc_row(tree.root)
-        return positions
-
-    def add_to_elements(clade, clade_id):
-        children = clade.clades
-
-        pos_x = col_positions[clade] * xlen
-        pos_y = row_positions[clade] * ylen
-
-        cy_source = {
-            "data": {"id": clade_id},
-            'position': {'x': pos_x, 'y': pos_y},
-            'classes': 'nonterminal',
-            'grabbable': grabbable
-        }
-        nodes.append(cy_source)
-
-        if clade.is_terminal():
-            cy_source['data']['name'] = clade.name
-            cy_source['classes'] = 'terminal'
-
-        for n, child in enumerate(children):
-            # The "support" node is on the same column as the parent clade,
-            # and on the same row as the child clade. It is used to create the
-            # 90 degree angle between the parent and the children.
-            # Edge config: parent -> support -> child
-
-            support_id = clade_id + 's' + str(n)
-            child_id = clade_id + 'c' + str(n)
-            pos_y_child = row_positions[child] * ylen
-
-            cy_support_node = {
-                'data': {'id': support_id},
-                'position': {'x': pos_x, 'y': pos_y_child},
-                'grabbable': grabbable,
-                'classes': 'support'
-            }
-
-            cy_support_edge = {
-                'data': {
-                    'source': clade_id,
-                    'target': support_id,
-                    'sourceCladeId': clade_id
-                },
-            }
-
-            cy_edge = {
-                'data': {
-                    'source': support_id,
-                    'target': child_id,
-                    'length': clade.branch_length,
-                    'sourceCladeId': clade_id
-                },
-            }
-
-            if clade.confidence and clade.confidence.value:
-                cy_source['data']['confidence'] = clade.confidence.value
-
-            nodes.append(cy_support_node)
-            edges.extend([cy_support_edge, cy_edge])
-
-            add_to_elements(child, child_id)
-
-    col_positions = get_col_positions(tree)
-    row_positions = get_row_positions(tree)
-
-    nodes = []
-    edges = []
-
-    add_to_elements(tree.clade, 'r')
-
-    return nodes, edges
-
 # --- Function to generate the Mol* HTML viewer ---
 
 def render_3dmol(afdb_download_url: str):
@@ -767,17 +607,14 @@ if st.sidebar.checkbox('Find best Model organism'):
         df_presence = pd.DataFrame(presence_list)
         df_rank.insert(0, 'Rank', df_rank.index + 1)
         df_final = pd.merge(df_rank, df_presence, on='Organism', how='left')
-        # Ssave sf as csv
-        csv_out="results/model_trees/" + user + "/organisms_ranking.csv"
-        df_final.to_csv(csv_out, index=False)
         # 6. Display the Final Table in Streamlit
-        st.write("\n" + "="*80)
+        st.write("\n" + "="*70)
         st.write("--- Organism Ranking ---")
         #st.write(df_final)
         st.write(df_final.to_html(index=False), unsafe_allow_html=True)
         top_model_organism = df_final.iloc[1]['Organism']
         st.write(f"🎉 **The top model organism for your study is: {top_model_organism}**")
-        st.write("="*80)
+        st.write("="*70)
 
         #make tree-----------------------------------------------------------------------------------------------------------------------------
         if st.sidebar.toggle('Build structural evolutionary tree'):
@@ -847,100 +684,13 @@ if st.sidebar.checkbox('Find best Model organism'):
                 f.write("- Support values <50%: Weak support\n")
 
             # load tree ----------------------------------------------
-            model_tree=outdir + 'bootstrap_tree.newick'
-            #svg_model = load_tree(model_tree, user)
-            #st.image(svg_model, caption='Best model organism tree', width='stretch')
-            #svg_model = load_itol(model_tree)
-            st.markdown("Use the controls (pan, zoom, select) to explore the tree.")
-            tree=None
-            try:
-                model_tree_path = model_tree 
-                tree = Phylo.read(model_tree_path, 'newick')
-            except FileNotFoundError:
-                st.error(f"Newick file not found at: {model_tree_path}")
-            except Exception as e:
-                st.error(f"Error loading tree: {e}")
-
-            # 2. Convert tree to Cytoscape elements
-            nodes, edges = generate_elements(tree)
-            elements = nodes + edges
-
-            stylesheet = [
-                # Default edge style
-                {
-                    'selector': 'edge',
-                    'style': {
-                        "source-endpoint": "inside-to-node",
-                        "target-endpoint": "inside-to-node",
-                        'line-color': '#ccc',
-                        'width': 2
-                    }
-                },
-                # Non-terminal node styling
-                {
-                    'selector': '.nonterminal',
-                    'style': {
-                        'label': 'data(confidence)',
-                        'background-opacity': 0, # Hide the node itself
-                        "text-halign": "left",
-                        "text-valign": "top",
-                        'font-size': '10px'
-                    }
-                },
-                # Terminal node styling (Leaves)
-                {
-                    'selector': '.terminal',
-                    'style': {
-                        'label': 'data(name)',
-                        'width': 10,
-                        'height': 10,
-                        "text-valign": "center",
-                        "text-halign": "right",
-                        'background-color': "#000000" # Black dot for the leaf
-                    }
-                },
-                # Custom style for support (edges)
-                {
-                    'selector': '.support',
-                    'style': {'background-opacity': 0}
-                },
-                # Style for selected nodes/edges
-                {
-                    'selector': ':selected',
-                    'style': {
-                        'background-color': 'red',
-                        'line-color': 'red',
-                        'opacity': 0.8
-                    }
-                }
-            ]
-
-            #layout = {'name': 'breadthfirst'}
-            layout = {'name': 'preset'}
+            model_tree=outdir + "/bootstrap_tree.newick"
+            svg_model = load_tree(model_tree, user)
+            st.image(
+                svg_model, #extracted tree svg path
+                caption='Best model organism tree',
+                width='stretch')
             
-            # Define the style dictionary to control the Cytoscape container/canvas
-            container_style = {
-                'background': '#FFFFFF', #white bg for canvas
-                'height': '600px',
-                'width': '100%',
-            }
-
-            # The function call is updated to use the 'style' parameter
-            cytoscape_result = cytoscape(
-                elements=elements,
-                stylesheet=stylesheet,
-                layout=layout,
-                #container_height="600px",
-                #container_width="100%",
-                style=container_style, 
-                # Other optional settings:
-                # tapNode=True, 
-                # tapEdge=True, 
-                # key="cytoscape-phylogeny" 
-            )
-
-            # Display interactive data returned by the component
-            st.json(cytoscape_result)
 
         # show protein structures --------------------------------------------------------------------------------------
         if st.sidebar.toggle('Show protein structure alignments'):
