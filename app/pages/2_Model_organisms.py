@@ -21,17 +21,13 @@ from stmol import *
 from IPython.display import HTML
 from scipy.spatial.distance import pdist, squareform
 from ete3 import Tree, TreeStyle, NodeStyle
+from ete3.webplugin import WebTreeApplication
 from Bio import Phylo
 from Bio.Phylo import Consensus
 from biotite.sequence.phylo import neighbor_joining
 from io import StringIO
 import copy
 import shutil
-
-
-
-
-
 
 
 #Code to analyse:
@@ -385,7 +381,34 @@ def get_support_statistics(tree):
     }
     return stats, support_df
 
-def load_tree(tree_path, user):
+
+def load_tree(tree_path):
+    # --- 1. Load the Tree ---
+    try:
+        tree = Tree(tree_path, format=1) 
+    except Exception as e:
+        st.error(f"Error loading tree: {e}")
+
+    # --- 2. Define a Tree Style (Optional) ---
+    ts = TreeStyle()
+    ts.show_leaf_name = True
+    ts.mode = "r"  # 'r' for rectangular, 'c' for circular
+    ts.arc_start = -180 # 0 degrees
+    ts.arc_span = 180 # 180 degrees
+
+    # --- 3. Render the Tree to a File-like Object (SVG is best) ---
+    # We use an in-memory string buffer to avoid writing a temp file
+    svg_buffer = StringIO()
+    tree.render(file=svg_buffer, w=600, h=400, units="px", tree_style=ts)
+    
+    # --- 4. Display the SVG in Streamlit ---
+    # Streamlit can display SVG content directly as HTML
+    st.markdown(svg_buffer.getvalue(), unsafe_allow_html=True)
+    
+    return tree
+
+
+def render_tree(tree_path, user):
     # Load the Tree: i.e. tree = Tree(main_tree_file)
     model_tree = Tree(tree_path, format=1) #format=0
     ts = TreeStyle()
@@ -684,12 +707,10 @@ if st.sidebar.checkbox('Find best Model organism'):
                 f.write("- Support values <50%: Weak support\n")
 
             # load tree ----------------------------------------------
-            model_tree=outdir + "/bootstrap_tree.newick"
-            svg_model = load_tree(model_tree, user)
-            st.image(
-                svg_model, #extracted tree svg path
-                caption='Best model organism tree',
-                width='stretch')
+            model_tree= outdir + "bootstrap_tree.newick"
+            loaded_tree = load_tree(model_tree)
+            #svg_model = render_tree(model_tree, user)
+            #st.image(svg_model, caption='Best model organism tree', width='stretch')
             
 
         # show protein structures --------------------------------------------------------------------------------------
