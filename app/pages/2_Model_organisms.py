@@ -417,45 +417,41 @@ def load_itol(current_dir):
     # Check parameters
     test.print_variables()
     # Submit the tree
-    print('')
-    print((
+    st.info('')
+    st.info((
         'Uploading the tree.  This may take some time depending on how large the '
         'tree is and how much load there is on the itol server'
     ))
     good_upload = test.upload()
     if not good_upload:
-        print('There was an error:' + test.comm.upload_output)
+        st.error('There was an error:' + test.comm.upload_output)
         sys.exit(1)
     # Read the tree ID
-    print('Tree ID: ' + test.comm.tree_id)
-
+    st.info('Tree ID: ' + test.comm.tree_id)
     # Read the iTOL API return statement
-    print('iTOL output: ' + test.comm.upload_output)
-
+    st.info('iTOL output: ' + test.comm.upload_output)
     # Website to be redirected to iTOL tree
-    print('Tree Web Page URL: ' + test.get_webpage())
-
+    st.info('Tree Web Page URL: ' + test.get_webpage())
     # Warnings associated with the upload
-    print('Warnings: ', test.comm.warnings)
+    st.info('Warnings: ', test.comm.warnings)
 
     # Export a pre-made tree to svg
     itol_exporter = ItolExport()
-    itol_exporter.set_export_param_value('tree', 'model_tree')
-    itol_exporter.set_export_param_value('format', 'svg')
-    itol_exporter.set_export_param_value('datasetList', 'dataset1')
+    #itol_exporter.set_export_param_value('tree', 'model_tree')
+    #itol_exporter.set_export_param_value('format', 'svg')
+    #itol_exporter.set_export_param_value('datasetList', 'dataset1')
     # itol_exporter.export(Path('example_pdf.pdf'))
     # print('exported tree to ',export_location)
 
     # Export the tree above to svg
-    print('Exporting to svg')
+    st.info('Exporting to svg')
     itol_exporter = test.get_itol_export()
     export_location = current_dir + 'model_tree.svg'
     itol_exporter.set_export_param_value('format', 'svg')
     itol_exporter.set_export_param_value('datasetList', 'dataset1')
     itol_exporter.export(export_location)
-    print('exported tree to ', export_location)
-
-
+    st.info('exported tree to ', export_location)
+    return export_location[0]
 
 
 # --- Function to generate the Mol* HTML viewer ---
@@ -742,10 +738,11 @@ if st.sidebar.checkbox('Find best Model organism'):
                 f.write("- Support values <50%: Weak support\n")
 
             # load tree ----------------------------------------------
-            model_tree=outdir + "/"
+            model_tree=outdir #+ 'bootstrap_tree.newick'
             #svg_model = load_tree(model_tree, user)
             #st.image(svg_model, caption='Best model organism tree', width='stretch')
-            tree = load_itol(model_tree)
+            svg_model = load_itol(model_tree)
+            st.image(svg_model, caption='Best model organism tree', width='stretch')
 
         # show protein structures --------------------------------------------------------------------------------------
         if st.sidebar.toggle('Show protein structure alignments'):
