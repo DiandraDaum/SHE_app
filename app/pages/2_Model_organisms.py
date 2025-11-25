@@ -551,6 +551,63 @@ def display_interactive_tree(tree_path):
     # --- Display in Streamlit ---
     st.plotly_chart(fig, use_container_width=True)
 
+
+
+
+# reteive protein pdbs
+def get_pdb(protein, proteome):
+    index_dir='data/subset/index' 
+    proteome_indexes= f"{index_dir}/{proteome}_*_fc_id_mapping.csv"
+    matching_proteome = glob.glob(proteome_indexes)
+    if not matching_proteome:
+        st.error(f"Error: No matching proteome file found for {proteome}")
+    index_file_path = matching_proteome[0]
+    proteome_df = pd.read_csv(index_file_path) # columns: 'fc_db_index' and 'afdb_id'
+    af_protein=f"AF-{protein}-F1-model_v4"
+    matching_rows = proteome_df[proteome_df['afdb_id'] == af_protein]
+    if matching_rows.empty:
+        st.error(f"Structure prediction for protein {af_protein} not found in {proteome}.")
+    
+    retrieved_index = matching_rows['fc_db_index'].iloc[0]     #index in 'fc_db_index' column of the first matching row
+    
+    #from  index get protein pdb --------------------------------------------------------------------
+    subset_dir='data/subset/subset'
+    wild_proteome_dir = f"{subset_dir}/{proteome}_*"
+    proteome_dirs = glob.glob(wild_proteome_dir)
+    if proteome_dirs:
+        proteome_dir = proteome_dirs[0]
+    else:
+        st.error(f"Error: Could not find any directory matching the pattern: {wild_proteome_dir}")
+        sys.exit(1)
+    db_dir = f"{proteome_dir}/extracted_pdbs" 
+    db_dir_path = Path(db_dir)
+
+    # Locate the full database file
+    db_name_wild = f"{proteome_dir}/{proteome}_*"
+    db_name = glob.glob(db_name_wild)[0]
+    
+    os.makedirs(db_dir, exist_ok=True)
+    target_name = None
+    target_pdb_filepath = None
+    protein_found = False
+    #st.info(f"Looking for protein {af_protein} (database index {retrieved_index}). Please wait...")
+    protein_index = 0
+    with fc.open(db_name) as db: 
+        # Iterate through the database entries
+        for (name_full, pdb_dc) in db:
+            if protein_index == retrieved_index:
+                target_name = name_full.split('.')[0] 
+                target_pdb_filepath = os.path.join(db_dir, target_name + ".pdb")
+                    with open(target_pdb_filepath, "w") as pdb_file:
+                        pdb_file.write(pdb_dc)
+                protein_found = True
+                break # Stop iterating immediately after the target is found
+            protein_index += 1
+    if protein_found:
+        target_pdb_filepath = os.path.join(db_dir, af_protein + ".pdb")
+    return target_pdb_filepath
+
+
 # --- Function to generate the Mol* HTML viewer ---
 
 def render_3dmol(afdb_download_url: str):
@@ -767,7 +824,7 @@ if st.sidebar.checkbox('Find best Model organism'):
         st.write("\n" + "="*70)
         st.write("--- Organism Ranking ---")
         st.write(f"Target: {target_species}")
-        st.write(df_final.to_html(index=False), unsafe_allow_html=True)
+        #st.write(df_final.to_html(index=False), unsafe_allow_html=True)
         top_model_organism = df_final.iloc[0]['Organism']
         st.write(f"🎉 **The top model organism for your study is: {top_model_organism}**")
         st.write("="*70)
@@ -802,16 +859,23 @@ if st.sidebar.checkbox('Find best Model organism'):
             st.subheader('Structural comparison of your proteins between the input target and model organisms')
             st.info('c. Loading the protein-protein comparisons ...')
             output=csv_out + "structures"
-            for protein in uniprot_ids
-
-
-            target_uniprot=target_protein
-            for model_protein_id in columns
-                model_protein_path=""   #path to compressed pdb comparison
-                # render pdb with mol*
-                render_3dmol(model_protein_path) # render each protein comparison
-            
-
+            pdbs=[]
+            for protein in uniprot_ids: #get target proteins structures
+                if target_species='Homo_sapiens_Human':
+                    proteome = 'UP000005640'
+                    target_pdb = get_pdb(protein, proteome)
+                    pdbs.append[target_pdb]
+                else:
+                    proteome = #match
+                    target_pdb = get_pdb(protein, proteome)
+                    pdbs.append[target_pdb]
+            #get top hit protein name
+            for homologous in uniprot_ids:
+                #proteome = match
+                target_pdb = get_pdb(protein, proteome)
+                pdbs.append[target_pdb]
+            for protein in pdbs.split():
+                render_3dmol(pdbs) # render each protein for comparison
 
         # download button
         is_random_user = False

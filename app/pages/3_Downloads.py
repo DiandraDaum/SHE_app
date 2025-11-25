@@ -147,10 +147,10 @@ if st.sidebar.checkbox('Protein structure predictions'):
                 zip_download(matching_paths, zip_file_name, label3)
             else:
                 st.info("Zipping the proteome predictions folder ... Please wait a couple of minutes for the download button to appear :)")
-                os.makedirs(db_dir, exist_ok=True)
                 db_name_wild=f"{proteome_dir}/{proteome}_*"
                 db_name = glob.glob(db_name_wild)[0]
                 with fc.open(db_name) as db: 
+                    os.makedirs(db_dir, exist_ok=True)
                     for (name, pdb_dc) in db:
                         name = name.split('.')[0]
                         with open(db_dir + "/" + name + ".pdb", "w") as pdb_file:
@@ -239,6 +239,7 @@ if st.sidebar.checkbox('Protein structure predictions'):
                         mime="application/octet-stream",
                         icon=":material/download:",
                     )
+            os.remove(db_dir)
 
 
 if st.sidebar.checkbox('Tree by Kingdom'):
