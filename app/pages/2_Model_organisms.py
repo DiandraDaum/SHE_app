@@ -32,6 +32,9 @@ from io import StringIO
 import copy
 import shutil
 
+from pathlib import Path
+import foldcomp as fc
+
 #Code to analyse:
 # model organism search
 #gene set search --> tree build
@@ -645,7 +648,8 @@ st.sidebar.subheader('6. Model Organism Search', divider="violet")
 if st.sidebar.checkbox('Find best Model organism'):
     user_email = st.session_state.email.strip()
     if not user_email:
-        user="user1"
+        random_num = random.randint(100000, 999999)
+        user = f"user_{random_num}"
     else: 
         user=user_email
     st.title('Find the best model organism for your study according to the structural phylogenetic tree!')
@@ -796,22 +800,24 @@ if st.sidebar.checkbox('Find best Model organism'):
         # show protein structures --------------------------------------------------------------------------------------
         if st.sidebar.toggle('Show protein structure alignments'):
             st.subheader('Structural comparison of your proteins between the input target and model organisms')
-            st.warning('This function is going to be released soon')
             st.info('c. Loading the protein-protein comparisons ...')
-            """
-            #make df with target_protein_id and top structural homologous model_organism_protein_id1, model_organism_protein_id2, model_organism_protein_id3, etc
-            uniprot_list=pd.DataFrame(protein_list, orient='index', columns=['target_protein'])
-            target_protein = st.sidebar.selectbox(
-            'Which target protein do you want to see the structure comparison with your model organisms of?',
-            uniprot_list['target_protein'],
-            key = 'protein_selector')
+            output=csv_out + "structures"
+            for protein in uniprot_ids
+                for proteome in 
+
+
             target_uniprot=target_protein
             for model_protein_id in columns
                 model_protein_path=""   #path to compressed pdb comparison
                 # render pdb with mol*
                 render_3dmol(model_protein_path) # render each model protein homologous
-            """
+            
 
+
+        # download button
+        is_random_user = False
+        if not user_email:
+            is_random_user = True
         user_dir = os.path.join("results", "model_trees", user)
         target_folder_path=user_dir
         user_name=user.split('@')[0]
@@ -837,4 +843,6 @@ if st.sidebar.checkbox('Find best Model organism'):
             )
         # Clean up the generated zip file after use
         os.remove(zip_file_path)
+        if is_random_user:
+                os.remove(user_dir)
       
