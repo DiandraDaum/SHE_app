@@ -803,14 +803,13 @@ if st.sidebar.checkbox('Find best Model organism'):
             st.info('c. Loading the protein-protein comparisons ...')
             output=csv_out + "structures"
             for protein in uniprot_ids
-                for proteome in 
 
 
             target_uniprot=target_protein
             for model_protein_id in columns
                 model_protein_path=""   #path to compressed pdb comparison
                 # render pdb with mol*
-                render_3dmol(model_protein_path) # render each model protein homologous
+                render_3dmol(model_protein_path) # render each protein comparison
             
 
 
