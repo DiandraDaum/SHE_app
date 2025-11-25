@@ -762,18 +762,18 @@ if st.sidebar.checkbox('Find best Model organism'):
         # 6. Display the Final Table in Streamlit
         st.write("\n" + "="*70)
         st.write("--- Organism Ranking ---")
-        st.write(f"{target_species_row }")
+        st.write(f"Target: {target_species}")
         st.write(df_final.to_html(index=False), unsafe_allow_html=True)
-        top_model_organism = df_final.iloc[1]['Organism']
+        top_model_organism = df_final.iloc[0]['Organism']
         st.write(f"🎉 **The top model organism for your study is: {top_model_organism}**")
         st.write("="*70)
 
         # show bar chart
-        df_final['Display_Organism'] = df_final['Organism'].strip('_')[:1]
+        df_final['Display_Organism'] = df_final['Organism'].str.split('_').str[:-1].str.join('_')
         # Create the horizontal bar chart figure
         fig = px.bar(
             df_final,
-            x='Total Bitscore',
+            x='Score',
             y='Organism',
             orientation='h', # Key for horizontal bars
             color='Score', # Color bars based on score
