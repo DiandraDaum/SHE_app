@@ -142,7 +142,7 @@ if st.sidebar.checkbox('Protein structure predictions'):
             zip_file_name = f"{proteome}_preds"
             label3="Download protein structure prediction for " + proteome
             if db_dir_path.exists(): #already unzipped pdbs
-                st.info("Zipping the proteome predictions folder ... Please wait a couple of seconds for the download button to appear :)")
+                st.info("Zipping the proteome predictions folder ... Please wait a couple of minutes for the download button to appear :)")
                 matching_paths = [db_dir]
                 zip_download(matching_paths, zip_file_name, label3)
             else:
@@ -151,15 +151,12 @@ if st.sidebar.checkbox('Protein structure predictions'):
                 db_name_wild=f"{proteome_dir}/{proteome}_*"
                 db_name = glob.glob(db_name_wild)[0]
                 with fc.open(db_name) as db: 
-                    # Iterate through database
-                    #pdb.set_trace()     #id = 'AF-Q3SXZ7-F1-model_v4.cif.gz'
                     for (name, pdb_dc) in db:
                         name = name.split('.')[0]
                         with open(db_dir + "/" + name + ".pdb", "w") as pdb_file:
                             pdb_file.write(pdb_dc)
                 matching_paths = [db_dir]
                 zip_download(matching_paths, zip_file_name, label3)
-
             
     elif st.sidebar.toggle('By protein'):
         st.subheader('Protein structure predictions by protein')
@@ -168,7 +165,7 @@ if st.sidebar.checkbox('Protein structure predictions'):
         st.write('Protein structure selected for download: ', protein)
         st.page_link("https://www.uniprot.org/uniprotkb/" + protein + "/entry", label="UniProtKB", icon="🌎")
         if protein == '':
-            st.warning('Please input the UniProt proteome ID (i.e. UP000005640) and the UniProt protein ID (i.e. A6NI61) in the respective spaces')
+            st.warning('Please input the UniProt proteome ID (i.e. UP000000226) and the UniProt protein ID (i.e. V7ATE2) in the respective spaces')
         else:
             #find protein index in proteome ---------------------------------------------------------------
             index_dir='data/subset/index' #140 gb zipped
@@ -180,25 +177,68 @@ if st.sidebar.checkbox('Protein structure predictions'):
             proteome_df = pd.read_csv(index_file_path) # columns: 'fc_db_index' and 'afdb_id'
             af_protein=f"AF-{protein}-F1-model_v4"
             matching_rows = proteome_df[proteome_df['afdb_id'] == af_protein]
-            if not matching_rows.empty:
-                retrieved_index = matching_rows['fc_db_index'].iloc[0]     #index in 'fc_db_index' column of the first matching row
-            else:
-                st.error(f"Structure prediction for protein {af_protein} not found.")
+            if matching_rows.empty:
+                st.error(f"Structure prediction for protein {af_protein} not found in {proteome}.")
+            
+            retrieved_index = matching_rows['fc_db_index'].iloc[0]     #index in 'fc_db_index' column of the first matching row
             
             #from  index get protein pdb --------------------------------------------------------------------
             subset_dir='data/subset/subset'
-            pdb_dir = f"{subset_dir}/{proteome}_*/extracted_pdbs" 
-            matching_paths = glob.glob(proteome_dir)
-            # extract pdbs
-            protein_pdb=pdb_dir[0].iloc[retrieved_index] #.pdb file
-            label4="Download protein structure prediction for " + protein
-            with open(protein_pdb, "rb") as file:
-                st.download_button(
-                    label=label4,
-                    data=file,
-                    file_name=af_protein + ".pdb",
-                    icon=":material/download:",
-                )
+            wild_proteome_dir = f"{subset_dir}/{proteome}_*"
+            proteome_dirs = glob.glob(wild_proteome_dir)
+            if proteome_dirs:
+                proteome_dir = proteome_dirs[0]
+            else:
+                st.error(f"Error: Could not find any directory matching the pattern: {wild_proteome_dir}")
+                sys.exit(1)
+            db_dir = f"{proteome_dir}/extracted_pdbs" 
+            db_dir_path = Path(db_dir)
+
+            # Locate the full database file
+            db_name_wild = f"{proteome_dir}/{proteome}_*"
+            db_name = glob.glob(db_name_wild)[0]
+            
+            os.makedirs(db_dir, exist_ok=True)
+            target_name = None
+            target_pdb_filepath = None
+            protein_found = False
+            #st.info(f"Looking for protein {af_protein} (database index {retrieved_index}). Please wait...")
+            protein_index = 0
+            st.info("Please wait for the download button to appear :)")
+            with fc.open(db_name) as db: 
+                # Iterate through the database entries
+                for (name_full, pdb_dc) in db:
+                    if protein_index == retrieved_index:
+                        target_name = name_full.split('.')[0] 
+                        target_pdb_filepath = os.path.join(db_dir, target_name + ".pdb")
+                        
+                        # B. Check if the file already exists on disk
+                        if Path(target_pdb_filepath).exists():
+                            st.info("Protein file already exists. Preparing download...")
+                        else:
+                            # C. If it doesn't exist, extract and write it to the db_dir folder
+                            st.info("Extracting and writing file to disk...")
+                            # Note: The 'pdb_dc' content is assumed to be the PDB/structure text
+                            with open(target_pdb_filepath, "w") as pdb_file:
+                                pdb_file.write(pdb_dc)
+                        
+                        protein_found = True
+                        break # Stop iterating immediately after the target is found
+                    
+                    protein_index += 1
+            
+            if protein_found:
+                target_pdb_filepath = os.path.join(db_dir, af_protein + ".pdb")
+                label4="Download protein structure prediction for " + protein
+                # Download the file using the dynamically determined path and name
+                with open(target_pdb_filepath, "rb") as file:
+                    st.download_button(
+                        label=label4,
+                        data=file,
+                        file_name=target_name + ".pdb", # Use the dynamically found name
+                        mime="application/octet-stream",
+                        icon=":material/download:",
+                    )
 
 
 if st.sidebar.checkbox('Tree by Kingdom'):
