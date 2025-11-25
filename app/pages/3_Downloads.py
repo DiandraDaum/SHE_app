@@ -13,6 +13,7 @@ import time
 import os
 import glob
 import shutil
+from pathlib import Path
 
 import foldcomp as fc
 
@@ -21,6 +22,34 @@ import foldcomp as fc
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
 #@st.cache_data
 
+def zip_download(matching_paths, zip_file_name, label):
+    target_folder_path = matching_paths[0] 
+    #zip_file_name = f"{proteome}_foldseek"
+    output_base_dir = "temp_archives" 
+    os.makedirs(output_base_dir, exist_ok=True) 
+    shutil.make_archive(
+        base_name=os.path.join(output_base_dir, zip_file_name),
+        format='zip',
+        root_dir=os.path.dirname(target_folder_path), # Start zipping from the parent directory
+        base_dir=os.path.basename(target_folder_path)  # Only include the target folder itself
+    )
+    # Get the full path to the newly created ZIP file and make download availabel
+    zip_file_path = os.path.join(output_base_dir, f"{zip_file_name}.zip")
+    with open(zip_file_path, "rb") as file:
+        st.download_button(
+            label=label,
+            data=file, # The actual byte content of the zip file
+            file_name=f"{zip_file_name}.zip", # The name the user will see
+            mime="application/zip", 
+            icon=":material/download:",
+        )
+    # Clean up the generated zip file after use
+    os.remove(zip_file_path)
+
+
+
+
+##########page-----------------------------------------------
 st.set_page_config(
     page_title="SHE: Downloads",
     page_icon= "data/tree/logo_tree.png", 
@@ -28,7 +57,7 @@ st.set_page_config(
 )
 
 st.title('SHE: Structural History of Eukarya')
-#-----------
+#----sidebar-------
 st.sidebar.write("Do you like it?")
 sentiment_mapping = [":material/thumb_down:", ":material/thumb_up:"]
 selected = st.sidebar.feedback("thumbs")
@@ -59,28 +88,9 @@ if st.sidebar.checkbox('Complete Foldseek results by Proteome'):
         matching_paths = glob.glob(proteome_dir)
         if matching_paths:
             st.info("Zipping ... Please wait some seconds for the download button to appear :)")
-            target_folder_path = matching_paths[0] 
             zip_file_name = f"{proteome}_foldseek"
-            output_base_dir = "temp_archives" 
-            os.makedirs(output_base_dir, exist_ok=True) 
-            shutil.make_archive(
-                base_name=os.path.join(output_base_dir, zip_file_name),
-                format='zip',
-                root_dir=os.path.dirname(target_folder_path), # Start zipping from the parent directory
-                base_dir=os.path.basename(target_folder_path)  # Only include the target folder itself
-            )
-            # Get the full path to the newly created ZIP file and make download availabel
-            zip_file_path = os.path.join(output_base_dir, f"{zip_file_name}.zip")
-            with open(zip_file_path, "rb") as file:
-                st.download_button(
-                    label="Download all bitscores for " + proteome + " (.zip)",
-                    data=file, # The actual byte content of the zip file
-                    file_name=f"{zip_file_name}.zip", # The name the user will see
-                    mime="application/zip", 
-                    icon=":material/download:",
-                )
-            # Clean up the generated zip file after use
-            os.remove(zip_file_path)
+            label1="Download Foldseek results for " + proteome + " (.zip)"
+            zip_download(matching_paths, zip_file_name, label1)
         else:
             st.error(f"Proteome {proteome} not found.")
 
@@ -99,30 +109,9 @@ if st.sidebar.checkbox('Alignment scores by Organism'):
         matching_paths = glob.glob(file_pattern)
         if matching_paths:
             st.info("Zipping all the comparison bitscore csvs for your proteome ... Please wait some seconds for the download button to appear :)")
-            target_folder_path = matching_paths[0] 
+            label2="Download all bitscores for " + proteome + " (.zip)"
             zip_file_name = f"{proteome}_bitscores"
-            # output path: './temp_archives/UP000005640_bitscores.zip'
-            output_base_dir = "temp_archives" 
-            os.makedirs(output_base_dir, exist_ok=True) 
-            # results in 'temp_archives/UP000005640_bitscores.zip'
-            shutil.make_archive(
-                base_name=os.path.join(output_base_dir, zip_file_name),
-                format='zip',
-                root_dir=os.path.dirname(target_folder_path), # Start zipping from the parent directory
-                base_dir=os.path.basename(target_folder_path)  # Only include the target folder itself
-            )
-            # Get the full path to the newly created ZIP file and make download availabel
-            zip_file_path = os.path.join(output_base_dir, f"{zip_file_name}.zip")
-            with open(zip_file_path, "rb") as file:
-                st.download_button(
-                    label="Download all bitscores for " + proteome + " (.zip)",
-                    data=file, # The actual byte content of the zip file
-                    file_name=f"{zip_file_name}.zip", # The name the user will see
-                    mime="application/zip", # Critical: Set the correct MIME type for zip files
-                    icon=":material/download:",
-                )
-            # Clean up the generated zip file after use
-            os.remove(zip_file_path)
+            zip_download(matching_paths, zip_file_name, label2)
         else:
             st.error("Proteome not found.")
 
@@ -142,37 +131,19 @@ if st.sidebar.checkbox('Protein structure predictions'):
         else:
             st.info("Zipping the proteome predictions folder ... Please wait some seconds for the download button to appear :)")
             subset_dir='data/subset/subset'
-            proteome_dir = f"{subset_dir}/{proteome}_*" 
-            db_dir=f"{proteome_dir}/extracted_pdbs/" 
-            if db_dir exists: #already unzipped
-                matching_paths = glob.glob(db_dir)
-                target_folder_path = matching_paths[0]
-                # temp zip pdbs folder for download
-                zip_file_name = f"{proteome}_preds"
-                    output_base_dir = "temp_archives" 
-                    os.makedirs(output_base_dir, exist_ok=True) 
-                    shutil.make_archive(
-                        base_name=os.path.join(output_base_dir, zip_file_name),
-                        format='zip',
-                        root_dir=os.path.dirname(target_folder_path), # Start zipping from the parent directory
-                        base_dir=os.path.basename(target_folder_path)  # Only include the target folder itself
-                    )
-                    # Get the full path to the newly created ZIP file and make download availabel
-                    zip_file_path = os.path.join(output_base_dir, f"{zip_file_name}.zip")
-                    label2="Download protein structure prediction for " + proteome
-                    st.download_button(
-                        label="Download predictions for " + proteome + " (.zip)",
-                        data=file, # The actual byte content of the zip file
-                        file_name=f"{zip_file_name}.zip", # The name the user will see
-                        mime="application/zip", # Critical: Set the correct MIME type for zip files
-                        icon=":material/download:",
-                    )
-                    # Clean up the generated zip file after use
-                    os.remove(zip_file_path)
+            wild_proteome_dir = f"{subset_dir}/{proteome}_*"
+            proteome_dir = glob.glob(wild_proteome_dir)[0]
+            db_dir=f"{proteome_dir}/extracted_pdbs" 
+            db_dir_path = Path(db_dir)
+            zip_file_name = f"{proteome}_preds"
+            label3="Download protein structure prediction for " + proteome
+            if db_dir_path.exists(): #already unzipped pdbs
+                matching_paths = [db_dir]
+                zip_download(matching_paths, zip_file_name, label3)
             else:
-                db_name=f"{proteome_dir}/{proteome}_*"
-                db_name = glob.glob(db_name)
-                db_name = db_name[0]
+                os.makedirs(db_dir, exist_ok=True)
+                db_name_wild=f"{proteome_dir}/{proteome}_*"
+                db_name = glob.glob(db_name_wild)[0]
                 with fc.open(db_name) as db: 
                     # Iterate through database
                     #pdb.set_trace()     #id = 'AF-Q3SXZ7-F1-model_v4.cif.gz'
@@ -181,34 +152,10 @@ if st.sidebar.checkbox('Protein structure predictions'):
                         #tc+=1
                         #print(name, tc)
                         name = name.split('.')[0]
-                        with open(db_dir + name + ".pdb", "w") as pdb_file:
+                        with open(db_dir + "/" + name + ".pdb", "w") as pdb_file:
                             pdb_file.write(pdb_dc)
-                matching_paths = glob.glob(db_dir)
-                target_folder_path = matching_paths[0]
-                # temp zip pdbs folder for download
-                zip_file_name = f"{proteome}_preds"
-                    output_base_dir = "temp_archives" 
-                    os.makedirs(output_base_dir, exist_ok=True) 
-                    shutil.make_archive(
-                        base_name=os.path.join(output_base_dir, zip_file_name),
-                        format='zip',
-                        root_dir=os.path.dirname(target_folder_path), # Start zipping from the parent directory
-                        base_dir=os.path.basename(target_folder_path)  # Only include the target folder itself
-                    )
-                    # Get the full path to the newly created ZIP file and make download availabel
-                    zip_file_path = os.path.join(output_base_dir, f"{zip_file_name}.zip")
-                    label2="Download protein structure prediction for " + proteome
-                    st.download_button(
-                        label="Download predictions for " + proteome + " (.zip)",
-                        data=file, # The actual byte content of the zip file
-                        file_name=f"{zip_file_name}.zip", # The name the user will see
-                        mime="application/zip", # Critical: Set the correct MIME type for zip files
-                        icon=":material/download:",
-                    )
-                    # Clean up the generated zip file after use
-                    os.remove(zip_file_path)
-
-
+                matching_paths = [db_dir]
+                zip_download(matching_paths, zip_file_name, label3)
 
             
     elif st.sidebar.toggle('By protein'):
@@ -218,7 +165,7 @@ if st.sidebar.checkbox('Protein structure predictions'):
         st.write('Protein structure selected for download: ', protein)
         st.page_link("https://www.uniprot.org/uniprotkb/" + protein + "/entry", label="UniProtKB", icon="🌎")
         if protein == '':
-            st.warning('Please input the UniProt protein ID (i.e. A6NI61)')
+            st.warning('Please input the UniProt proteome ID (i.e. UP000005640) and the UniProt protein ID (i.e. A6NI61) in the respective spaces')
         else:
             #find protein index in proteome ---------------------------------------------------------------
             index_dir='data/subset/index' #140 gb zipped
@@ -241,10 +188,10 @@ if st.sidebar.checkbox('Protein structure predictions'):
             matching_paths = glob.glob(proteome_dir)
             # extract pdbs
             protein_pdb=pdb_dir[0].iloc[retrieved_index] #.pdb file
-            label3="Download protein structure prediction for " + protein
+            label4="Download protein structure prediction for " + protein
             with open(protein_pdb, "rb") as file:
                 st.download_button(
-                    label=label3,
+                    label=label4,
                     data=file,
                     file_name=af_protein + ".pdb",
                     icon=":material/download:",
