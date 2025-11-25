@@ -129,18 +129,24 @@ if st.sidebar.checkbox('Protein structure predictions'):
         if proteome == '':
             st.warning('Please input the UniProt proteome ID (i.e. UP000005640)')
         else:
-            st.info("Zipping the proteome predictions folder ... Please wait some seconds for the download button to appear :)")
             subset_dir='data/subset/subset'
             wild_proteome_dir = f"{subset_dir}/{proteome}_*"
-            proteome_dir = glob.glob(wild_proteome_dir)[0]
+            proteome_dirs = glob.glob(wild_proteome_dir)
+            if proteome_dirs:
+                proteome_dir = proteome_dirs[0]
+            else:
+                st.error(f"Error: Could not find any directory matching the pattern: {wild_proteome_dir}")
+                sys.exit(1)
             db_dir=f"{proteome_dir}/extracted_pdbs" 
             db_dir_path = Path(db_dir)
             zip_file_name = f"{proteome}_preds"
             label3="Download protein structure prediction for " + proteome
             if db_dir_path.exists(): #already unzipped pdbs
+                st.info("Zipping the proteome predictions folder ... Please wait a couple of seconds for the download button to appear :)")
                 matching_paths = [db_dir]
                 zip_download(matching_paths, zip_file_name, label3)
             else:
+                st.info("Zipping the proteome predictions folder ... Please wait a couple of minutes for the download button to appear :)")
                 os.makedirs(db_dir, exist_ok=True)
                 db_name_wild=f"{proteome_dir}/{proteome}_*"
                 db_name = glob.glob(db_name_wild)[0]
@@ -148,9 +154,6 @@ if st.sidebar.checkbox('Protein structure predictions'):
                     # Iterate through database
                     #pdb.set_trace()     #id = 'AF-Q3SXZ7-F1-model_v4.cif.gz'
                     for (name, pdb_dc) in db:
-                        # save entries as seperate pdb files      
-                        #tc+=1
-                        #print(name, tc)
                         name = name.split('.')[0]
                         with open(db_dir + "/" + name + ".pdb", "w") as pdb_file:
                             pdb_file.write(pdb_dc)
