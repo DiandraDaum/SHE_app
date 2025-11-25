@@ -60,6 +60,4 @@ scipy
 biotite
 itolapi
 plotly
-foldcomb
-
-
+foldcomp
