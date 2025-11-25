@@ -22,6 +22,7 @@ from IPython.display import HTML
 from scipy.spatial.distance import pdist, squareform
 from ete3 import Tree, TreeStyle, NodeStyle
 import plotly.graph_objects as go
+import plotly.express as px
 #from ete3.webplugin import WebTreeApplication
 #from ete3.treeview.web import WebTreeApplication
 from Bio import Phylo
@@ -702,7 +703,6 @@ if st.sidebar.checkbox('Find best Model organism'):
             
             compare_dir_id = species_map[species]
             #st.info(f"Processing {species}...")
-            
             csv_file = find_comparison_csv(target_dir, compare_dir_id)
             search_col = 'proteinA'
             
@@ -749,91 +749,49 @@ if st.sidebar.checkbox('Find best Model organism'):
             presence_list.append(row_data)
 
         df_presence = pd.DataFrame(presence_list)
-        df_rank.insert(0, 'Rank', df_rank.index + 1)
-        df_final = pd.merge(df_rank, df_presence, on='Organism', how='left')
+        # Filter target species out
+        target_species_row = df_rank[df_rank['Organism'] == target_species]
+        df_rank_filtered = df_rank[df_rank['Organism'] != target_species].copy()
+        df_rank_filtered.reset_index(drop=True, inplace=True)
+        df_rank_filtered.insert(0, 'Rank', df_rank_filtered.index + 1)
+        df_final = pd.merge(df_rank_filtered, df_presence, on='Organism', how='left')
+        csv_out = "results/model_trees/" + user + "/"
+        os.makedirs(csv_out, exist_ok=True)
+        csv_path = csv_out + "model_ranking.csv"
+        df_final.to_csv(csv_path, index=False)
         # 6. Display the Final Table in Streamlit
         st.write("\n" + "="*70)
         st.write("--- Organism Ranking ---")
-        #st.write(df_final)
+        st.write(f"{target_species_row }")
         st.write(df_final.to_html(index=False), unsafe_allow_html=True)
         top_model_organism = df_final.iloc[1]['Organism']
         st.write(f"🎉 **The top model organism for your study is: {top_model_organism}**")
         st.write("="*70)
 
-        #make tree-----------------------------------------------------------------------------------------------------------------------------
-        if st.sidebar.toggle('Build structural evolutionary tree'):
-            st.subheader('Structural tree for your proteins in the input model organisms')
-            st.info('b. Making structural phylogenetic tree from your input proteins...please wait some minutes')
-            # distance matrix
-            matrix_out="results/model_trees/" + user + "/"
-            if not os.path.exists(matrix_out):
-                os.makedirs(matrix_out) #mkdir
+        # show bar chart
+        df_final['Display_Organism'] = df_final['Organism'].strip('_')[:1]
+        # Create the horizontal bar chart figure
+        fig = px.bar(
+            df_final,
+            x='Total Bitscore',
+            y='Organism',
+            orientation='h', # Key for horizontal bars
+            color='Score', # Color bars based on score
+            color_continuous_scale=px.colors.sequential.Plasma,
+            title='Model Organism Ranking by Score',
+            labels={
+                'Score': 'Total Bitscore',
+                'Organism': 'Organism'
+            },
+            hover_data={'Score': ':.1f', 'Rank': True, 'Display_Organism': False} # Customize hover info
+        )
 
-            dmat_out, ids_out = generate_distance_matrix(tree_data, uniprot_ids, matrix_out)
-            distance_matrix=dmat_out
-            ids=ids_out
-            n_bootstraps=100
-            #st.info(f"id matrix file: {distance_matrix}, and ids: {ids}")
+        fig.update_layout(
+        yaxis={'categoryorder': 'array', 'categoryarray': df_final['Display_Organism'].tolist()[::-1]},
+        coloraxis_showscale=False)
 
-            #make tree----------------------------------
-            distance_matrix = np.load(distance_matrix)
-            ids = pd.read_csv(ids)['id'].values #Read from csv - keep the format consistens
-            # Verify number of IDs matches matrix dimensions
-            if len(ids) != len(distance_matrix):
-                st.error(f"Error: Number of IDs ({len(ids)}) doesn't match matrix dimensions ({len(distance_matrix)})")
-                sys.exit(1)
-            #print(f"Loaded {len(ids)} IDs and {distance_matrix.shape} distance matrix")
-            trees = []
-            bootstrap_matrices = []
-            #print("Creating original tree...")
-            original_tree = neighbor_joining(distance_matrix)
-            trees.append(parse_biotite_tree(original_tree, ids))
-            #print(f"Creating {n_bootstraps-1} bootstrap trees...")
-            for _ in tqdm(range(n_bootstraps-1)):
-                dmat = bootstrap_from_distance_matrix(distance_matrix)
-                bootstrap_matrices.append(dmat)
-                tree = neighbor_joining(dmat)
-                trees.append(parse_biotite_tree(tree, ids))
+        st.plotly_chart(fig, use_container_width=True)
 
-            #print("Calculating bootstrap support values...")
-            original_tree = trees[0]
-            bootstrap_replicates = trees[1:]
-            supported_tree = analyze_bootstrap_support(original_tree, bootstrap_replicates)
-
-            #print("Calculating support statistics...")
-            stats, support_df = get_support_statistics(supported_tree)
-            outdir="results/model_trees/" + user + "/"
-            support_df.to_csv(outdir+'support_per_clade.csv', index=None)
-            #print('Saved support metrics to', args.outdir+'support_per_clade.csv')
-            #print("Saving results...")
-            # Save bootstrap matrices
-            np.save(os.path.join(outdir, 'bootstrap_distance_matrices.npy'),
-                    np.array(bootstrap_matrices))
-            # Save supported tree
-            Phylo.write(supported_tree,
-                        os.path.join(outdir, 'bootstrap_tree.newick'),
-                        'newick')
-            # Save statistics
-            with open(os.path.join(outdir, 'bootstrap_stats.txt'), 'w') as f:
-                f.write("Bootstrap Support Statistics:\n")
-                for stat, value in stats.items():
-                    if 'support' in stat:
-                        f.write(f"{stat}: {value:.1f}%\n")
-                    else:
-                        f.write(f"{stat}: {value}\n")
-
-                f.write("\nInterpretation Guide:\n")
-                f.write("- Support values ≥70%: Strong support\n")
-                f.write("- Support values 50-69%: Moderate support\n")
-                f.write("- Support values <50%: Weak support\n")
-
-            # load tree ----------------------------------------------
-            model_tree= outdir + "bootstrap_tree.newick"
-            #loaded_tree = load_tree(model_tree)
-            display_interactive_tree(model_tree)
-            #svg_model = render_tree(model_tree, user)
-            #st.image(svg_model, caption='Best model organism tree', width='stretch')
-            
 
         # show protein structures --------------------------------------------------------------------------------------
         if st.sidebar.toggle('Show protein structure alignments'):

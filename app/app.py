@@ -52,15 +52,15 @@ st.title('SHE: Structural History of Eukarya')
 
 st.sidebar.success("Find more analysis options in the panels above.")
 
-st.subheader('Strucutral Phylogenetic Tree from proteome-wide structure alignments')
+st.subheader('StructUral Phylogenetic Tree from proteome-wide structure alignments')
 #st.image('data/tree/All/Intro.png', caption='Strucutral Phylogenetic Tree of Eukarya')
 
-st.write('Clasical phylogenetic trees constructed based on sequence alignments of a small set of genes (i.e. rRNAs) are hindered by limitations.')
+st.write('Classical phylogenetic trees constructed based on sequence alignments of a small set of genes (i.e. rRNAs) are hindered by limitations.')
 st.write('To capture more distant and detailed picture of evolution, here we constructed evolutionary relationships based on the comparison of all predicted protein structures in an organism (2.96x1014 structure alignments between 24.3 million proteins).')
 st.write('The Structural History of Eukarya (SHE) provides a comprehensive picture of proteome structural similarity and evolutionary rates across eukaryotes (1542 species).')
 
 st.write('Start exploring the new proteome-wide structural phylogenetic tree by selecting the panels in the sidebar!')
-st.write('1. Explore Tree: check the structrual phylogenetic tree for all Eukarya, a kingdom, a taxon, a species or a set of proteins. You will be able to change the tree visualisation style in the sidebar.')
+st.write('1. Explore Tree: check the structuRal phylogenetic tree for all Eukarya, a kingdom, a taxon, a species or a set of proteins. You will be able to change the tree visualisation style in the sidebar.')
 st.write('2. Model Organisms: find the best model organism for your study based on the structural comparison of the protein(s) in your pathway of interest.')
 st.write('3. Download: retrieve all the structural alignments scores, protein predictions and tree files.')
 

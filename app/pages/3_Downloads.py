@@ -40,8 +40,8 @@ st.write('Please, select the type of file you want to download from the sidebar.
 st.sidebar.subheader('Downloads', divider="yellow")
 
 
-if st.sidebar.checkbox('Complete Foldcomb results by Proteome'):
-    st.subheader('Foldcomb results for all Proteome')
+if st.sidebar.checkbox('Complete Foldseek results by Proteome'):
+    st.subheader('Foldseek results for all Proteome')
     st.write('Here it is possible to download the Foldseek results per Proteome')
     proteome = st.sidebar.text_input(
     'Which proteome: UniProt ID?', key="proteome")
@@ -83,7 +83,7 @@ if st.sidebar.checkbox('Complete Foldcomb results by Proteome'):
             st.error(f"Proteome {proteome} not found.")
 
 if st.sidebar.checkbox('Alignment scores by Organism'):
-    st.subheader('Protein-protein alignments by Organism')
+    st.subheader('Protein-protein alignment bitscores by Organism')
     st.write('Here it is possible to download the Foldseek proteome-proteome comparison bitscores (.csv) only by organism')
     proteome = st.sidebar.text_input(
     'Which proteome: UniProt ID?', key="proteome")
@@ -92,44 +92,43 @@ if st.sidebar.checkbox('Alignment scores by Organism'):
     if proteome == '':
         st.warning('Please input the UniProt proteome ID (i.e. UP000005640)')
     else: 
-        if st.sidebar.toggle('Bitscore only'):
-            root_dir_bitscores='data/decompressed' #350 gb
-            file_pattern= f"{root_dir_bitscores}/{proteome}_*"
-            matching_paths = glob.glob(file_pattern)
-            if matching_paths:
-                st.info("Zipping all the comparison bitscore csvs for your proteome ... Please wait some seconds for the download button to appear :)")
-                target_folder_path = matching_paths[0] 
-                zip_file_name = f"{proteome}_bitscores"
-                # output path: './temp_archives/UP000005640_bitscores.zip'
-                output_base_dir = "temp_archives" 
-                os.makedirs(output_base_dir, exist_ok=True) 
-                # results in 'temp_archives/UP000005640_bitscores.zip'
-                shutil.make_archive(
-                    base_name=os.path.join(output_base_dir, zip_file_name),
-                    format='zip',
-                    root_dir=os.path.dirname(target_folder_path), # Start zipping from the parent directory
-                    base_dir=os.path.basename(target_folder_path)  # Only include the target folder itself
+        root_dir_bitscores='data/decompressed' #350 gb
+        file_pattern= f"{root_dir_bitscores}/{proteome}_*"
+        matching_paths = glob.glob(file_pattern)
+        if matching_paths:
+            st.info("Zipping all the comparison bitscore csvs for your proteome ... Please wait some seconds for the download button to appear :)")
+            target_folder_path = matching_paths[0] 
+            zip_file_name = f"{proteome}_bitscores"
+            # output path: './temp_archives/UP000005640_bitscores.zip'
+            output_base_dir = "temp_archives" 
+            os.makedirs(output_base_dir, exist_ok=True) 
+            # results in 'temp_archives/UP000005640_bitscores.zip'
+            shutil.make_archive(
+                base_name=os.path.join(output_base_dir, zip_file_name),
+                format='zip',
+                root_dir=os.path.dirname(target_folder_path), # Start zipping from the parent directory
+                base_dir=os.path.basename(target_folder_path)  # Only include the target folder itself
+            )
+            # Get the full path to the newly created ZIP file and make download availabel
+            zip_file_path = os.path.join(output_base_dir, f"{zip_file_name}.zip")
+            with open(zip_file_path, "rb") as file:
+                st.download_button(
+                    label="Download all bitscores for " + proteome + " (.zip)",
+                    data=file, # The actual byte content of the zip file
+                    file_name=f"{zip_file_name}.zip", # The name the user will see
+                    mime="application/zip", # Critical: Set the correct MIME type for zip files
+                    icon=":material/download:",
                 )
-                # Get the full path to the newly created ZIP file and make download availabel
-                zip_file_path = os.path.join(output_base_dir, f"{zip_file_name}.zip")
-                with open(zip_file_path, "rb") as file:
-                    st.download_button(
-                        label="Download all bitscores for " + proteome + " (.zip)",
-                        data=file, # The actual byte content of the zip file
-                        file_name=f"{zip_file_name}.zip", # The name the user will see
-                        mime="application/zip", # Critical: Set the correct MIME type for zip files
-                        icon=":material/download:",
-                    )
-                # Clean up the generated zip file after use
-                os.remove(zip_file_path)
-            else:
-                st.error("Proteome not found.")
+            # Clean up the generated zip file after use
+            os.remove(zip_file_path)
+        else:
+            st.error("Proteome not found.")
 
 
 
 
 if st.sidebar.checkbox('Protein structure predictions'):
-    st.write('Here it is possible to download the predicted protein structures (.pdb) per Proteome')
+    st.write('Here it is possible to download the predicted protein structures (.pdb) by proteome or protein ID, originally retrieved from AFDB v4')
     proteome = st.sidebar.text_input(
     'Which proteome: UniProt ID?', key="proteome")
     st.write('Proteome selected for download: ', proteome)
@@ -172,7 +171,6 @@ if st.sidebar.checkbox('Protein structure predictions'):
             
     elif st.sidebar.toggle('By protein'):
         st.subheader('Protein structure predictions by protein')
-        st.write('Here it is possible to download a single protein structure prediction (.pdb), obtained from AFDB v4')
         protein = st.sidebar.text_input(
         'Which protein: UniProt ID?', key="protein")
         st.write('Protein structure selected for download: ', protein)
@@ -213,7 +211,7 @@ if st.sidebar.checkbox('Protein structure predictions'):
 
 if st.sidebar.checkbox('Tree by Kingdom'):
     st.subheader('Tree (newick file) by Kingdom')
-    st.write('Here it is possible to download the tree file (.newick) for each kigdom. To open it, try uploading it on iTOL (https://itol.embl.de/upload.cgi)!')
+    st.write('Here it is possible to download the tree file (.newick) for each kingdom. To open it, try uploading it on iTOL (https://itol.embl.de/upload.cgi)!')
     df = pd.DataFrame({
         'kingdom': ["All", "Opisthokonta", "Amoebozoa", "Sar", "Viridiplantae", "Discoba", "Rhodophyta"],
         'number_species': [10, 20, 30, 40, 50, 70, 80] # change to actual number of species

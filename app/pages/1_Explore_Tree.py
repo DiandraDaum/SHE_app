@@ -673,7 +673,7 @@ st.set_page_config(
 )
 st.title('SHE: Structural History of Eukarya')
 
-st.subheader('Strucutral Phylogenetic Tree')
+st.subheader('Structural Phylogenetic Tree')
 #, main_tree_out = load_main_tree()
 # Display the main_tree image
 st.image(
@@ -717,7 +717,7 @@ st.markdown(
 st.write('Close species in the tree share similar protein structures at the proteome level.')
 st.write('Start exploring the new structural tree by selecting a kingdom in the sidebar!')
 st.write('You can also choose the tree visualisation style in the sidebar.')
-st.write('Interested in discovering the new strucutural phylogenetics of specific species or taxa? Use the "Extract Taxonomic Group" section in the sidebar.')
+st.write('Interested in discovering the new structural phylogenetics of specific species or taxa? Use the "Extract Taxonomic Group" section in the sidebar.')
 st.write('Interested in discovering in which organisms a certain protein can be found? Use the "Look for a protein" section in the sidebar.')
 st.write("What about studying the evolution of your proteins of interest? Click on 'Protein Evolution > Study the structural evolution set of proteins' in the sidebar and start building your tree!")
 
