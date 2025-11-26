@@ -239,7 +239,7 @@ if st.sidebar.checkbox('Protein structure predictions'):
                         mime="application/octet-stream",
                         icon=":material/download:",
                     )
-            os.remove(db_dir)
+            shutil.rmtree(db_dir)
 
 
 if st.sidebar.checkbox('Tree by Kingdom'):
