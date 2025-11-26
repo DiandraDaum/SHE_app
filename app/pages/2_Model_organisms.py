@@ -716,170 +716,186 @@ if st.sidebar.checkbox('Find best Model organism'):
     st.title('Find the best model organism for your study according to the structural phylogenetic tree!')
     target = st.text_input(
     'Which organism would you like to study (empty = Default: Homo_sapiens_Human)', key="target")
-    protein_list = st.text_input(
-    'Which proteins are you studying in your target organism? (each Uniprot ID separated by a space, i.e: Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616)', key="protein_list")
+    
+    def add_model_organism():
+        st.session_state.model_count += 1 # Correctly increments the count
+        
     if 'model_count' not in st.session_state:
         st.session_state.model_count = 1 # Start with 1 mandatory model
+        
     model_organisms = []
+    # Loop renders the correct number of selectboxes based on model_count
     for i in range(1, st.session_state.model_count + 1):
-        # Use a unique key for each selectbox: f"model_{i}"
+        # Assuming proteomes_df is defined elsewhere
         selection = st.selectbox(
             f'Which model organism ({i}) do you have available (i.e: Saccharomyces cerevisiae, Arabidopsis thaliana, Drosophila melanogaster, Xenopus tropicalis, Danio rerio, Caenorhabditis elegans, Mus musculus)?',
             proteomes_df['Organism_formatted'],
             key=f"model_{i}"
         )
         model_organisms.append(selection)
-    st.button(" Add Another Model Organism", key="add_model_btn", on_click=lambda: st.session_state.model_count + 1)
+    # Use the defined function in on_click
+    st.button(
+        " Add Another Model Organism", 
+        key="add_model_btn", 
+        on_click=add_model_organism
+    )
+
     protein_list = st.text_input(
     'Which proteins are you studying in your target organism? (each Uniprot ID separated by a space, i.e: Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616)', key="protein_list")
 
-    while (protein_list == '') or not model_organisms:
+    if (protein_list == '') or not model_organisms:
             st.warning('Please input the Uniprot ID of the protein(s) to study, the organism to study (Defaul to Human), and the model organisms you can to choose from, to find the best model organism for you study.')
-    #else:
-    st.write('Selected Protein(s) to study: ', protein_list)
-    #st.write('Selected Model Organism(s): ', model) # 'Danio_rerio_Zebrafish_Brachydanio_rerio Caenorhabditis_elegans Mus_musculus_Mouse'
-    st.write('Selected Model Organism(s): ', ', '.join(model_organisms))
-    if target == '':
-        target_species='Homo_sapiens_Human'
-        st.write('Selected Target Organism: ', target_species) #"Homo_sapiens_Human"
     else:
-        target_species = target
-        st.write('Selected Target Organism: ', target_species) # not "Homo_sapiens_Human"
-
-    st.info('a. Ranking your model organisms...')
-    uniprot_ids=protein_list.split() # "Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616"
-    #compare_species=model.split()
-    compare_species = model_organisms
-    
-    root_dir='data/decompressed/' #350 gb
-    
-    # --- 1. Load Mapping ---
-    mapping='data/core/model/extracted_and_renamed.csv'    #Path to CSV file with columns id,proteome_id,species_name
-    species_map = load_mapping(mapping)
-    
-    # Get the directory ID for the target
-    #target_dir_id = species_map[target_species]
-    target_dir_id = species_map.get(target_species)
-    if not target_dir_id:
-        st.error("Target species not found in mapping.")
-        sys.exit(1)
-    target_dir = os.path.join(root_dir, target_dir_id)
-    
-    # Storage
-    ranking_scores = {}
-    itol_data = {}
-    tree_data = {} 
-    
-    # 1. Calculate Human (Target) Data first
-    # This ensures Human is in the tree!
-    human_score, human_vector = get_human_self_vector(target_dir, uniprot_ids)
-    ranking_scores[target_species] = human_score
-    tree_data[target_species] = human_vector
-    itol_data[target_species] = {uid: 1 for uid in uniprot_ids} # Human always has the proteins
-
-    # 2. Calculate Comparison Species
-    for species in compare_species:
-        if species not in species_map: continue
-        
-        compare_dir_id = species_map[species]
-        #st.info(f"Processing {species}...")
-        csv_file = find_comparison_csv(target_dir, compare_dir_id)
-        search_col = 'proteinA'
-        
-        if not csv_file:
-            reverse_dir = os.path.join(root_dir, compare_dir_id)
-            if os.path.isdir(reverse_dir):
-                csv_file = find_comparison_csv(reverse_dir, target_dir_id)
-                search_col = 'proteinB'
-
-        if csv_file:
-            score, presence, vector = process_orthologs(csv_file, uniprot_ids, search_col)
-            ranking_scores[species] = score
-            itol_data[species] = presence
-            tree_data[species] = vector
+        st.write('Selected Protein(s) to study: ', protein_list)
+        #st.write('Selected Model Organism(s): ', model) # 'Danio_rerio_Zebrafish_Brachydanio_rerio Caenorhabditis_elegans Mus_musculus_Mouse'
+        st.write('Selected Model Organism(s): ', ', '.join(model_organisms))
+        if target == '':
+            target_species='Homo_sapiens_Human'
+            st.write('Selected Target Organism: ', target_species) #"Homo_sapiens_Human"
         else:
-            ranking_scores[species] = 0.0
-            itol_data[species] = {uid: -1 for uid in uniprot_ids}
-            tree_data[species] = [0.0] * len(uniprot_ids)
+            target_species = target
+            st.write('Selected Target Organism: ', target_species) # not "Homo_sapiens_Human"
 
-    df_rank = pd.DataFrame.from_dict(ranking_scores, orient='index', columns=['Score'])
-    df_target = df_rank.loc[[target_species]]
-    df_other = df_rank.drop(target_species)
-    # Sort by Score in descending order (highest score is Rank 2)
-    df_other_sorted = df_other.sort_values(by='Score', ascending=False)
-    # The target species is guaranteed to be the first row (index 0)
-    df_rank_sorted = pd.concat([df_target, df_other_sorted])
-    df_rank = df_rank_sorted.reset_index()
-    df_rank.columns = ['Organism', 'Score']
-    presence_list = []
-    for sp, pres in itol_data.items():
-        # Start the dictionary for this row with the organism name
-        row_data = {'Organism': sp}
+        st.info('a. Ranking your model organisms...')
+        uniprot_ids=protein_list.split() # "Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616"
+        #compare_species=model.split()
+        compare_species = model_organisms
         
-        # Iterate through all UniProt IDs
-        for uid in uniprot_ids:
-            # Get the presence value (default to 0 if not found)
-            # Apply the -1/1 mapping: 1 if present, -1 if absent/missing
-            presence_val = 1 if pres.get(uid, 0) == 1 else 0 #else 0 or -1
+        root_dir='data/decompressed/' #350 gb
+        
+        # --- 1. Load Mapping ---
+        mapping='data/core/model/extracted_and_renamed.csv'    #Path to CSV file with columns id,proteome_id,species_name
+        species_map = load_mapping(mapping)
+        
+        # Get the directory ID for the target
+        #target_dir_id = species_map[target_species]
+        target_dir_id = species_map.get(target_species)
+        if not target_dir_id:
+            st.error("Target species not found in mapping.")
+            sys.exit(1)
+        target_dir = os.path.join(root_dir, target_dir_id)
+        
+        # Storage
+        ranking_scores = {}
+        itol_data = {}
+        tree_data = {} 
+        
+        # 1. Calculate Human (Target) Data first
+        # This ensures Human is in the tree!
+        human_score, human_vector = get_human_self_vector(target_dir, uniprot_ids)
+        ranking_scores[target_species] = human_score
+        tree_data[target_species] = human_vector
+        itol_data[target_species] = {uid: 1 for uid in uniprot_ids} # Human always has the proteins
+
+        # 2. Calculate Comparison Species
+        for species in compare_species:
+            if species not in species_map: continue
             
-            # Add a new key-value pair to the row_data dict: Key=UniProt ID, Value=Presence (-1 or 1)
-            row_data[uid] = presence_val
+            compare_dir_id = species_map[species]
+            #st.info(f"Processing {species}...")
+            csv_file = find_comparison_csv(target_dir, compare_dir_id)
+            search_col = 'proteinA'
+            
+            if not csv_file:
+                reverse_dir = os.path.join(root_dir, compare_dir_id)
+                if os.path.isdir(reverse_dir):
+                    csv_file = find_comparison_csv(reverse_dir, target_dir_id)
+                    search_col = 'proteinB'
+
+            if csv_file:
+                score, presence, vector = process_orthologs(csv_file, uniprot_ids, search_col)
+                ranking_scores[species] = score
+                itol_data[species] = presence
+                tree_data[species] = vector
+            else:
+                ranking_scores[species] = 0.0
+                itol_data[species] = {uid: -1 for uid in uniprot_ids}
+                tree_data[species] = [0.0] * len(uniprot_ids)
+
+        df_rank = pd.DataFrame.from_dict(ranking_scores, orient='index', columns=['Score'])
+        df_target = df_rank.loc[[target_species]]
+        df_other = df_rank.drop(target_species)
+        # Sort by Score in descending order (highest score is Rank 2)
+        df_other_sorted = df_other.sort_values(by='Score', ascending=False)
+        # The target species is guaranteed to be the first row (index 0)
+        df_rank_sorted = pd.concat([df_target, df_other_sorted])
+        df_rank = df_rank_sorted.reset_index()
+        df_rank.columns = ['Organism', 'Score']
+        presence_list = []
+        for sp, pres in itol_data.items():
+            # Start the dictionary for this row with the organism name
+            row_data = {'Organism': sp}
+            
+            # Iterate through all UniProt IDs
+            for uid in uniprot_ids:
+                # Get the presence value (default to 0 if not found)
+                # Apply the -1/1 mapping: 1 if present, -1 if absent/missing
+                presence_val = 1 if pres.get(uid, 0) == 1 else 0 #else 0 or -1
+                
+                # Add a new key-value pair to the row_data dict: Key=UniProt ID, Value=Presence (-1 or 1)
+                row_data[uid] = presence_val
+            
+            # Append the complete row data to the list
+            presence_list.append(row_data)
+
+        df_presence = pd.DataFrame(presence_list)
+        # Filter target species out
+        target_species_row = df_rank[df_rank['Organism'] == target_species]
+        df_rank_filtered = df_rank[df_rank['Organism'] != target_species].copy()
+        df_rank_filtered.reset_index(drop=True, inplace=True)
+        df_rank_filtered.insert(0, 'Rank', df_rank_filtered.index + 1)
+        df_final = pd.merge(df_rank_filtered, df_presence, on='Organism', how='left')
+        csv_out = "results/model_trees/" + user + "/"
+        os.makedirs(csv_out, exist_ok=True)
+        csv_path = csv_out + "model_ranking.csv"
+        df_final.to_csv(csv_path, index=False)
+        # 6. Display the Final Table in Streamlit
+        #st.write("\n" + "="*70)
+        st.write("--- Organism Ranking ---")
+        #st.write(f"Target: {target_species}")
+        #st.write(df_final.to_html(index=False), unsafe_allow_html=True)
+        top_model_organism = df_final.iloc[0]['Organism']
+        st.write(f"**The top model organism for your study is: {top_model_organism}**")
+        #st.write("="*70)
+
+        # show bar chart
+        df_final['Display_Organism'] = df_final['Organism'].str.split('_', n=2).str[:2].str.join('_')
+        df_final['Display_Organism'] = df_final['Display_Organism'].str.replace('_', ' ')
+
+        # add presence
+        fixed_cols = ['Rank', 'Organism', 'Score', 'Display_Organism']
+        uniprot_id_cols = [col for col in df_final.columns if col not in fixed_cols]
+        #Initialize the hover_data dictionary for px.bar
+        hover_data_config = {'Score': ':.1f', 'Rank': True, 'Display_Organism': False}
         
-        # Append the complete row data to the list
-        presence_list.append(row_data)
+        # Add all UniProt ID columns to the dictionary
+        for col in uniprot_id_cols:
+            hover_data_config[col] = True # Setting to True makes the column appear with its value
 
-    df_presence = pd.DataFrame(presence_list)
-    # Filter target species out
-    target_species_row = df_rank[df_rank['Organism'] == target_species]
-    df_rank_filtered = df_rank[df_rank['Organism'] != target_species].copy()
-    df_rank_filtered.reset_index(drop=True, inplace=True)
-    df_rank_filtered.insert(0, 'Rank', df_rank_filtered.index + 1)
-    df_final = pd.merge(df_rank_filtered, df_presence, on='Organism', how='left')
-    csv_out = "results/model_trees/" + user + "/"
-    os.makedirs(csv_out, exist_ok=True)
-    csv_path = csv_out + "model_ranking.csv"
-    df_final.to_csv(csv_path, index=False)
-    # 6. Display the Final Table in Streamlit
-    st.write("\n" + "="*70)
-    st.write("--- Organism Ranking ---")
-    st.write(f"Target: {target_species}")
-    #st.write(df_final.to_html(index=False), unsafe_allow_html=True)
-    top_model_organism = df_final.iloc[0]['Organism']
-    st.write(f"🎉 **The top model organism for your study is: {top_model_organism}**")
-    st.write("="*70)
+        #Create the horizontal bar chart figure, passing the complete hover_data_config
+        fig = px.bar(
+            df_final,
+            x='Score',
+            y='Display_Organism',
+            orientation='h',
+            color='Score',
+            color_continuous_scale=px.colors.sequential.Plasma,
+            title='Model Organism Ranking by Score',
+            labels={
+                'Score': 'Total Bitscore',
+                'Display_Organism': 'Organism'
+            },
+            # Use the merged dictionary, which now includes all UniProt IDs
+            hover_data=hover_data_config 
+        )
+        
+        # --- FIX ENDS HERE ---
 
-    # show bar chart
-    df_final['Display_Organism'] = df_final['Organism'].str.split('_', n=2).str[:2].str.join('_')
-    df_final['Display_Organism'] = df_final['Display_Organism'].str.replace('_', ' ')
+        fig.update_layout(
+        yaxis={'categoryorder': 'array', 'categoryarray': df_final['Display_Organism'].tolist()[::-1]},
+        coloraxis_showscale=False)
 
-    # add presence
-    fixed_cols = ['Rank', 'Organism', 'Score', 'Display_Organism']
-    uniprot_id_cols = [col for col in df_final.columns if col not in fixed_cols]
-    hover_data_config = {'Score': ':.1f', 'Rank': True, 'Display_Organism': False}
-    for col in uniprot_id_cols:
-        hover_data_config[col] = True # Shows the column name (UniProt ID) and the value (0 or 1)
-
-    # Create the horizontal bar chart figure
-    fig = px.bar(
-        df_final,
-        x='Score',
-        y='Organism',
-        orientation='h', # Key for horizontal bars
-        color='Score', # Color bars based on score
-        color_continuous_scale=px.colors.sequential.Plasma,
-        title='Model Organism Ranking by Score',
-        labels={
-            'Score': 'Total Bitscore',
-            'Display_Organism': 'Organism'
-        },
-        hover_data={'Score': ':.1f', 'Rank': True, 'Display_Organism': False} # Customize hover info
-    )
-
-    fig.update_layout(
-    yaxis={'categoryorder': 'array', 'categoryarray': df_final['Display_Organism'].tolist()[::-1]},
-    coloraxis_showscale=False)
-
-    st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True)
 
     # show protein structures --------------------------------------------------------------------------------------
     if st.sidebar.toggle('Show protein structure alignments'):
@@ -904,7 +920,7 @@ if st.sidebar.checkbox('Find best Model organism'):
             pdbs.append[target_pdb]
         for protein in pdbs.split():
             render_3dmol(pdbs) # render each protein for comparison
-
+    """
     # download button
     is_random_user = False
     if not user_email:
@@ -936,4 +952,3 @@ if st.sidebar.checkbox('Find best Model organism'):
     os.remove(zip_file_path)
     if is_random_user:
         os.remove(user_dir)
-    """
