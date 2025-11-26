@@ -52,7 +52,7 @@ st.title('SHE: Structural History of Eukarya')
 
 st.sidebar.success("Find more analysis options in the panels above.")
 
-st.subheader('StructUral Phylogenetic Tree from proteome-wide structure alignments')
+st.subheader('Structural Phylogenetic Tree from proteome-wide structure alignments')
 #st.image('data/tree/All/Intro.png', caption='Strucutral Phylogenetic Tree of Eukarya')
 
 st.write('Classical phylogenetic trees constructed based on sequence alignments of a small set of genes (i.e. rRNAs) are hindered by limitations.')

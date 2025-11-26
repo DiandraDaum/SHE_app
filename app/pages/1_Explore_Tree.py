@@ -305,6 +305,7 @@ def extract_subtree(csv_file, newick_file, taxonomic_group): #taxon
     else:
         print("The resulting subtree has no leaves. No file was written.")
     return output_file
+
 def load_extracted_tree(taxon, layout, taxon_out):
 # File paths
     taxon = taxon
@@ -617,6 +618,60 @@ def load_evotree(kingdom):
     
     return tree_out_c, tree_out_r
 
+def display_interactive_tree(tree_path):
+    
+    try:
+        # Load the tree from the Newick file
+        tree = Tree(tree_path, format=1)
+        
+        # Calculate coordinates
+        tree = get_tree_coordinates(tree)
+        
+        # Generate Plotly data lists
+        branch_lines_x, branch_lines_y, node_coords = create_plotly_data(tree)
+        
+    except Exception as e:
+        st.error(f"Error processing tree file: {e}")
+        return
+
+    # --- Create the Plotly Figure ---
+    # 1. Branch Traces (Lines)
+    trace_branches = go.Scatter(
+        x=branch_lines_x, y=branch_lines_y,
+        mode='lines',
+        line=dict(color='black', width=1),
+        hoverinfo='none', # Branches don't need hover
+        name='Branches'
+    )
+
+    # 2. Node Traces (Scatter Points)
+    trace_nodes = go.Scatter(
+        x=node_coords['x'], y=node_coords['y'],
+        mode='markers+text',
+        marker=dict(size=5, color='red'),
+        text=node_coords['name'], # Leaf/Node name displayed next to the point
+        textposition="middle right",
+        textfont=dict(size=10),
+        hovertext=node_coords['text'], # Custom hover text
+        hoverinfo='text',
+        name='Nodes'
+    )
+
+    # 3. Create the figure and layout
+    fig = go.Figure(data=[trace_branches, trace_nodes])
+
+    fig.update_layout(
+        title='Interactive Tree for model organism ranking',
+        xaxis=dict(showgrid=False, title='Branch length'),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False), # Hide y-axis labels
+        showlegend=False,
+        hovermode="closest",
+        plot_bgcolor='white',
+        margin=dict(l=20, r=20, t=40, b=20)
+    )
+    
+    # --- Display in Streamlit ---
+    st.plotly_chart(fig, use_container_width=True)
 
 # --- Function to generate the Mol* HTML viewer ---
 
@@ -924,25 +979,9 @@ if st.sidebar.checkbox('Find taxon'): #it does not handle two new taxa in the sa
         if taxon:
             what = taxon
             st.page_link("https://en.wikipedia.org/wiki/" + what, label="Wiki", icon="🌎")
-            extract_subtree(proteomes_path, main_tree_path, taxon)
-            #data_load_state = st.text('Retrieving Tree...')
-            layout = 'Linear' #default
-            taxon_out = 'results/extracted_trees/' + taxon +'_subtree.svg'
-            taxon_out = load_extracted_tree(taxon, layout, taxon_out)
-            svg_path = 'results/extracted_trees/'+ taxon +'_subtree.svg' 
-            # Wait up to 30 seconds for the file to be non-empty (adjust as needed)
-            timeout = 60
-            start_time = time.time()
-            # Wait until the file exists AND has content
-            while not (os.path.exists(svg_path) and os.path.getsize(svg_path) > 10) and (time.time() - start_time) < timeout:
-                time.sleep(1)
-            # Display the main_tree image
-            if taxon_out: #only display if the function worked
-                if os.path.exists(svg_path) and os.path.getsize(svg_path) > 1000:
-                    st.image(
-                        taxon_out, #extracted tree svg path
-                        caption= taxon + ' Phylogenetic Tree',
-                        width='stretch')
+            taxon_tree = extract_subtree(proteomes_path, main_tree_path, taxon)
+            display_interactive_tree(taxon_tree)
+            
 
 
 ############### Protein tree extraction -----------------------------------------------------------------------------------------

@@ -830,7 +830,16 @@ if st.sidebar.checkbox('Find best Model organism'):
         st.write("="*70)
 
         # show bar chart
-        df_final['Display_Organism'] = df_final['Organism'].str.split('_').str[:-1].str.join('_')
+        df_final['Display_Organism'] = df_final['Organism'].str.split('_', n=2).str[:2].str.join('_')
+        df_final['Display_Organism'] = df_final['Display_Organism'].str.replace('_', ' ')
+
+        # add presence
+        fixed_cols = ['Rank', 'Organism', 'Score', 'Display_Organism']
+        uniprot_id_cols = [col for col in df_final.columns if col not in fixed_cols]
+        hover_data_config = {'Score': ':.1f', 'Rank': True, 'Display_Organism': False}
+        for col in uniprot_id_cols:
+            hover_data_config[col] = True # Shows the column name (UniProt ID) and the value (0 or 1)
+
         # Create the horizontal bar chart figure
         fig = px.bar(
             df_final,
@@ -842,7 +851,7 @@ if st.sidebar.checkbox('Find best Model organism'):
             title='Model Organism Ranking by Score',
             labels={
                 'Score': 'Total Bitscore',
-                'Organism': 'Organism'
+                'Display_Organism': 'Organism'
             },
             hover_data={'Score': ':.1f', 'Rank': True, 'Display_Organism': False} # Customize hover info
         )
