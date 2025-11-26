@@ -20,6 +20,16 @@ from IPython.display import HTML
 import plotly.graph_objects as go
 import plotly.express as px
 
+from Bio import Phylo
+from Bio.Phylo import Consensus
+from biotite.sequence.phylo import neighbor_joining
+from io import StringIO
+import copy
+import shutil
+import glob
+from pathlib import Path
+import foldcomp as fc
+import random
 
 #github_path = '/' #change to your path
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
@@ -1382,9 +1392,10 @@ if st.sidebar.checkbox('5.Study the structural evolution set of proteins'):
         random_num = random.randint(100000, 999999)
         user = f"user_{random_num}"
         uniprot_ids=proteins.split()
+        target_species='Homo_sapiens_Human'
         organisms_list=[]
         for species in proteomes_df["Organism_formatted"]:
-            organism_list.append(species)
+            organisms_list.append(species)
         compare_species=organisms_list #all 1542 species
         root_dir='data/decompressed/' #350 gb
         # --- 1. Load Mapping ---
