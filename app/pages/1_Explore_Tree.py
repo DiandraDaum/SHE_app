@@ -882,9 +882,11 @@ if st.sidebar.checkbox('Find species'):
     st.title('Species subtree:')
     species = ''
     renamed_species = ''
+    proteomes_df_final['Display_Organism'] = proteomes_df['Organism_formatted'].str.split('_', n=2).str[:2].str.join('_')
+    proteomes_df_final['Display_Organism'] = proteomes_df_final['Display_Organism'].str.replace('_', ' ')
     species = st.sidebar.selectbox(
     'Which species (Proteome ID - i.e. UP000005640 or Taxon ID - i.e. 9606 or name - Homo_sapiens)?',
-    proteomes_df['Organism_formatted'],
+    proteomes_df_final['Display_Organism'],
     key = 'species_selector')
     #species = st.sidebar.text_input('Which species (Proteome ID - i.e. UP000005640 or Taxon ID - i.e. 9606 or name - Homo_sapiens)?', key="species").strip() #strip against whitespace
     st.write('Selected Species: ', species)
@@ -929,33 +931,8 @@ if st.sidebar.checkbox('Find species'):
                 species_out = ''
             else:
                 #species = renamed_species
-                if species_out != '':
-                    layout = 'Linear' #default
-                    svg_path = load_species_tree(renamed_species, layout, species_out) #svg_path = './results/species_trees/'+ species +'_subtree.svg' 
-                    # Wait up to 30 seconds for the file to be non-empty (adjust as needed)
-                    timeout = 30
-                    start_time = time.time()
-                    # Display tree
-                    if svg_path:
-                        if os.path.exists(svg_path) and os.path.getsize(svg_path) > 800: #bytes: 1 svg is usually 24 KB
-                            st.image(
-                                svg_path, #extracted tree svg path
-                                caption= renamed_species + ' Phylogenetic Tree',
-                                width='stretch')
-                            species = ''
-                            renamed_species = ''
-                            species_out = ''
-                        else:
-                            st.write(f'tree is ok, but svg is empty: species {species}, renamed_species {renamed_species}')
-                            svg_path2 = load_species_tree(renamed_species, layout, species_out)
-                            svg_path = svg_path2
-                            st.image(
-                                svg_path, #extracted tree svg path
-                                caption= renamed_species + ' Phylogenetic Tree',
-                                width='stretch')
-                            species = ''
-                            renamed_species = ''
-                            species_out = ''
+                display_interactive_tree(species_out)
+
 
 # find taxon --------------------------------------------------------------------------------------------------
 if st.sidebar.checkbox('Find taxon'): #it does not handle two new taxa in the same session
@@ -1017,17 +994,10 @@ if st.sidebar.checkbox('4.Find protein structural homologous'):
             
             # Extract the direct download link from the JSON response
             AFDB_DOWNLOAD_URL = data[0]['cifUrl']
-            #parsed_url = urlparse(AFDB_DOWNLOAD_URL)
-            #AFDB_ACCESSION_ID = os.path.splitext(os.path.basename(parsed_url.path))[0]
-            # Gets 'AF-P05023-F1-v4.cif' and removes the extension
-            #AFDB_ID = os.path.splitext(os.path.basename(parsed_url.path))[0]
             
             # Render the Mol* viewer
             render_3dmol(AFDB_DOWNLOAD_URL)
-            #molstar_html = get_molstar_html(AFDB_ACCESSION_ID)
-            #molstar_html = get_molstar_html(UNIPROT_ID)
-            #st.components.v1.html(molstar_html, height=550)
-            
+
             #st.success(f"Structure loaded successfully (AFDB ID: **{AFDB_ID}**).")
             st.caption(f"Source: [AlphaFold DB - {UNIPROT_ID}]({AFDB_DOWNLOAD_URL})")
         else:

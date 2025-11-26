@@ -700,6 +700,9 @@ if st.sidebar.button('Receive Results'):
             st.sidebar.success(f"Thank you! Your email: **{user_email}** .")
 
 ################analysis -------------------------------------------
+proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
+new_proteomes_path =  'data/core/merged_evo_rate.csv'
+proteomes_df = pd.read_csv(proteomes_path)
 
 st.sidebar.subheader('6. Model Organism Search', divider="violet")
 if st.sidebar.checkbox('Find best Model organism'):
@@ -714,13 +717,29 @@ if st.sidebar.checkbox('Find best Model organism'):
     'Which organism would you like to study (empty = Default: Homo_sapiens_Human)', key="target")
     protein_list = st.text_input(
     'Which proteins are you studying in your target organism? (each Uniprot ID separated by a space, i.e: Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616)', key="protein_list")
-    model = st.text_input(
-    'Which model organisms do you have available (each species separated by a space i.e: Saccharomyces_cerevisiae_strain_ATCC_204508_S288c_Baker_s_yeast Arabidopsis_thaliana_Mouse_ear_cress Drosophila_melanogaster_Fruit_fly Xenopus_tropicalis_Western_clawed_frog_Silurana_tropicalis Danio_rerio_Zebrafish_Brachydanio_rerio Caenorhabditis_elegans Mus_musculus_Mouse)?', key="model")
-    if (protein_list == '') | (model == ''):
+
+    if 'model_count' not in st.session_state:
+    st.session_state.model_count = 1 # Start with 1 mandatory model
+    model_organisms = []
+    for i in range(1, st.session_state.model_count + 1):
+        # Use a unique key for each selectbox: f"model_{i}"
+        selection = st.selectbox(
+            f'Which model organism #{i} do you have available (i.e: Saccharomyces cerevisiae, Arabidopsis thaliana, Drosophila melanogaster, Xenopus tropicalis, Danio rerio, Caenorhabditis elegans, Mus musculus)?',
+            proteomes_df['Organism_formatted'],
+            key=f"model_{i}"
+        )
+        model_organisms.append(selection)
+
+    # The button increases the count in the session state, which re-runs the script,
+    # and the loop (step 2) then renders one more select box.
+    st.button("+ Add Another Model Organism", key="add_model_btn", on_click=lambda: st.session_state.model_count + 1)
+    
+    if (protein_list == '') | not model_organisms:
         st.warning('Please input the Uniprot ID of the protein(s) to study, the organism to study (Defaul to Human), and the model organisms you can to choose from, to find the best model organism for you study.')
     else:
         st.write('Selected Protein(s) to study: ', protein_list)
-        st.write('Selected Model Organism(s): ', model) # 'Danio_rerio_Zebrafish_Brachydanio_rerio Caenorhabditis_elegans Mus_musculus_Mouse'
+        #st.write('Selected Model Organism(s): ', model) # 'Danio_rerio_Zebrafish_Brachydanio_rerio Caenorhabditis_elegans Mus_musculus_Mouse'
+        st.write('Selected Model Organism(s): ', ', '.join(model_organisms))
         if target == '':
             target_species='Homo_sapiens_Human'
             st.write('Selected Target Organism: ', target_species) #"Homo_sapiens_Human"
@@ -730,7 +749,8 @@ if st.sidebar.checkbox('Find best Model organism'):
 
         st.info('a. Ranking your model organisms...')
         uniprot_ids=protein_list.split() # "Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616"
-        compare_species=model.split()
+        #compare_species=model.split()
+        compare_species = model_organisms
         
         root_dir='data/decompressed/' #350 gb
         
@@ -916,5 +936,5 @@ if st.sidebar.checkbox('Find best Model organism'):
         # Clean up the generated zip file after use
         os.remove(zip_file_path)
         if is_random_user:
-                os.remove(user_dir)
+            os.remove(user_dir)
       
