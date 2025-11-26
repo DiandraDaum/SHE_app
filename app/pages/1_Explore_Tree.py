@@ -27,23 +27,24 @@ import plotly.express as px
 # for coloring the selectbox
 def kingdom_color(kingdom):
     if kingdom == 'Opisthokonta':
-        return "#bfdbfe" #Opisthokonta
+        return "#bfdbfe"
     elif kingdom == 'Viridiplantae':
-        return "#bbf7d0" #Viridiplantae
+        return "#bbf7d0"
     elif kingdom == 'Amoebozoa':
-        return "#fecdd3" #Amoebozoa
+        return "#fecdd3"
     elif kingdom == 'Sar':
-        return "#f3f4f6" #Sar
+        return "#f3f4f6"
     elif kingdom == 'Discoba':
-        return "#e9d5ff" #Discoba
+        return "#e9d5ff"
     elif kingdom == 'Rhodophyta':
-        return "#c3f8f1" #Rhodophyta
+        return "#c3f8f1"
     elif kingdom == 'Cryptophyceae':
-        return "#f6fad5" #Cryptophyceae
+        return "#f6fad5"
     elif kingdom == 'Apusozoa':
-        return "#ddd6fe" #Apusozoa
+        return "#ddd6fe"
     else:
-        return "#ffffff" #default white
+        # This will be used for internal nodes ('Unknown') or leaves with no match
+        return "#ffffff"
     
 #for find species
 def extract_closest_species(newick_file, input_species, num_neighbors): #species
@@ -646,6 +647,22 @@ def display_interactive_tree(tree_path):
         return
 
     # --- Create the Plotly Figure ---
+    proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
+    proteomes_df = pd.read_csv(proteomes_path)
+    proteomes_df.columns = proteomes_df.columns.str.strip().str.replace(' ', '_')
+    proteomes_df['Kingdom'] = proteomes_df['Taxonomic_lineage'].str.split(', ').str[1]
+    organism_to_kingdom = proteomes_df.set_index('Organism_formatted')['Kingdom'].to_dict()
+    # Generate the list of colors for the nodes based on the names in node_coords
+    node_colors = []
+    for node_name in node_coords['name']:
+        # Look up the kingdom. Use 'Unknown' if the name isn't found 
+        # (usually for internal tree nodes)
+        kingdom = organism_to_kingdom.get(node_name, 'Unknown') 
+        
+        # Determine the final color using the function
+        color = kingdom_color(kingdom)
+        node_colors.append(color)
+
     # 1. Branch Traces (Lines)
     trace_branches = go.Scatter(
         x=branch_lines_x, y=branch_lines_y,
@@ -659,7 +676,12 @@ def display_interactive_tree(tree_path):
     trace_nodes = go.Scatter(
         x=node_coords['x'], y=node_coords['y'],
         mode='markers+text',
-        marker=dict(size=5, color='red'),
+        #marker=dict(size=5, color='red'),
+        marker=dict(
+            size=10, 
+            color=node_colors, 
+            line=dict(width=1, color='Black') # Add a border for visibility
+        ),
         text=node_coords['name'], # Leaf/Node name displayed next to the point
         textposition="middle right",
         textfont=dict(size=10),
@@ -668,6 +690,22 @@ def display_interactive_tree(tree_path):
         name='Nodes'
     )
 
+    legend_traces = []
+    unique_kingdoms = sorted(proteomes_df['Kingdom'].unique()) # Get all unique kingdoms
+
+    for kingdom in unique_kingdoms:
+        color = kingdom_color(kingdom)
+        # Dummy trace for the legend entry
+        legend_traces.append(
+            go.Scatter(
+                x=[None], y=[None],
+                mode='markers',
+                marker=dict(size=10, color=color, line=dict(width=1, color='Black')),
+                name=kingdom,
+                legendgroup='kingdoms'
+            )
+        )
+
     # 3. Create the figure and layout
     fig = go.Figure(data=[trace_branches, trace_nodes])
 
@@ -675,7 +713,7 @@ def display_interactive_tree(tree_path):
         title='Interactive Tree for evolution visualisation',
         xaxis=dict(showgrid=False, title='Branch length'),
         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False), # Hide y-axis labels
-        showlegend=False,
+        showlegend=True, #False
         hovermode="closest",
         plot_bgcolor='white',
         margin=dict(l=20, r=20, t=40, b=20)
@@ -904,7 +942,7 @@ if st.sidebar.checkbox('Find species'):
         what= what[:2]
         what= ' '.join(what)
         st.page_link("https://en.wikipedia.org/wiki/" + what, label="Wiki", icon="🌎")
-        num_neighbors = st.slider("How many close species?", 2, 1542, 10)
+        num_neighbors = st.slider("How many close species?", 2, 1541, 10)
         #num_neighbors = 10
         species_out, renamed_species = extract_closest_species(main_tree_path, species, num_neighbors)
         #handle different input types
