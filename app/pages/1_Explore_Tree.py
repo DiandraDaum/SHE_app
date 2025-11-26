@@ -19,7 +19,7 @@ from stmol import *
 from IPython.display import HTML
 import plotly.graph_objects as go
 import plotly.express as px
-
+from scipy.spatial.distance import pdist, squareform
 from Bio import Phylo
 from Bio.Phylo import Consensus
 from biotite.sequence.phylo import neighbor_joining
@@ -30,6 +30,8 @@ import glob
 from pathlib import Path
 import foldcomp as fc
 import random
+from collections import defaultdict
+from tqdm import tqdm
 
 #github_path = '/' #change to your path
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
@@ -1450,9 +1452,8 @@ if st.sidebar.checkbox('5.Study the structural evolution set of proteins'):
 
         df_rank = pd.DataFrame.from_dict(ranking_scores, orient='index', columns=['Score'])
         # Sort by Score in descending order (highest score is Rank 2)
-        df_other_sorted = df_rank.sort_values(by='Score', ascending=False)
+        df_rank_sorted = df_rank.sort_values(by='Score', ascending=False)
         # The target species is guaranteed to be the first row (index 0)
-        df_rank_sorted = pd.concat([df_target, df_other_sorted])
         df_rank = df_rank_sorted.reset_index()
         df_rank.columns = ['Organism', 'Score']
         presence_list = []
