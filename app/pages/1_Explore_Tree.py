@@ -17,6 +17,8 @@ import py3Dmol
 from stmol import showmol
 from stmol import *
 from IPython.display import HTML
+import plotly.graph_objects as go
+import plotly.express as px
 
 
 #github_path = '/' #change to your path
@@ -73,63 +75,9 @@ def extract_closest_species(newick_file, input_species, num_neighbors): #species
     # so we search for a leaf name that starts with the target species name.
     target_node = None
     all_leaf_names = main_tree.get_leaf_names()
-
-
-# --- Step 2: Flexible Target Input Handling ---
-
     target_species = input_species # Assume it is the species name by default
-
     # Check if the input looks like an ID (UniProt starts with 'UP', Organism ID is digit-only)
-    if input_species.startswith('UP'):
-        is_proteome_id = True
-        is_organism_id = False
-    elif [(input_species.isdigit()) and (len(input_species) > 3) ]:
-        is_organism_id = True
-        is_proteome_id = False
-    else:
-        print("input_species is already a name")
-    
-    # Only perform lookup if we suspect the input is an ID AND the mapping data is available
-    if [(is_proteome_id == True) | (is_organism_id == True)]:
-        #new here
-        #load df
-        #proteomes_df = pd.DataFrame()
-        # Load the mapping DataFrame
-        proteomes_df = pd.read_csv('data/tree/selected_proteomes_above_25_formatted_organisms.csv')
-        proteomes_df.columns = proteomes_df.columns.str.strip().str.replace(' ', '_')
-        
-        # Determine the column to search based on the suspected ID type
-        if is_proteome_id:
-            search_col = "Proteome_Id"
-            # Ensure Organism_id in the DataFrame is treated as string for accurate match
-            proteomes_df["Proteome_Id"] = proteomes_df["Proteome_Id"].astype(str)
-            target_value = input_species
-        elif is_organism_id:
-            search_col = "Organism_Id"
-            # Ensure Organism_id in the DataFrame is treated as string for accurate match
-            proteomes_df["Organism_Id"] = proteomes_df["Organism_Id"].astype(str)
-            target_value = input_species
-        else:
-            # Should not happen
-            search_col = None
-            
-        if search_col:
-            # Look for a direct match in the identified column
-            match_row = proteomes_df[proteomes_df[search_col] == target_value]
-            
-            if not match_row.empty:
-                # Strip whitespace from the resulting name just in case
-                target_species = match_row["Organism_formatted"].iloc[0].strip()
-                print(f"Mapped ID '{input_species}' ({search_col}) to species: {target_species}")
-            else:
-                print(f"Warning: ID '{input_species}' not found in mapping data. Treating input as species name.")
-                return
-        else:
-            print(f"Input '{input_species}' is treated directly as the target species name.")
 
-    else:
-        print(f"Input '{input_species}' is treated directly as the target species name.")
-    
     # --- Step 3: Find the target species leaf node in the tree ---
 
     #target species could be leaf name, Uniprot ID or proteome ID
@@ -618,6 +566,69 @@ def load_evotree(kingdom):
     
     return tree_out_c, tree_out_r
 
+def get_tree_coordinates(tree):
+    # This function traverses the tree and assigns x, y coordinates
+    
+    # 1. Assign Y-coordinates (depth/level)
+    # The leaves will be at y=0, and the root will be at the max depth
+    leaves = tree.get_leaves()
+    max_depth = len(leaves)
+    
+    for i, leaf in enumerate(leaves):
+        leaf.y = i
+    
+    for node in tree.traverse("postorder"):
+        if node.is_leaf():
+            node.x = node.dist # X is the accumulated branch length
+        else:
+            # For internal nodes, Y is the mean of its children's Y coordinates
+            node.y = sum(child.y for child in node.children) / len(node.children)
+            # X is the max branch length of its children + its own branch length
+            node.x = max(child.x for child in node.children) + node.dist
+            
+    # Normalize X to be distance from root
+    root_x = tree.x
+    for node in tree.traverse("preorder"):
+        node.x = root_x - node.x
+
+    return tree
+
+def create_plotly_data(tree):
+    # This collects all the branch line segments and node scatter points
+    branch_lines_x = []
+    branch_lines_y = []
+    node_coords = {'x': [], 'y': [], 'text': [], 'name': []}
+
+    for node in tree.traverse():
+        # Add node coordinates for the scatter plot
+        node_coords['x'].append(node.x)
+        node_coords['y'].append(node.y)
+        node_coords['name'].append(node.name if node.name else f"Internal Node {node.x}")
+        
+        # Create custom hover text
+        hover_text = f"**Node:** {node.name if node.name else 'Internal Node'}<br>"
+        if not node.is_root():
+            hover_text += f"**Dist:** {node.dist:.3f}"
+        node_coords['text'].append(hover_text)
+        
+        # Create line segments for branches
+        if not node.is_root():
+            parent = node.up
+            # 1. Horizontal segment (from child X to parent X at child Y)
+            # Extends the X list: [Child_X, Parent_X, None]
+            branch_lines_x.extend([node.x, parent.x, None])
+            # Extends the Y list: [Child_Y, Child_Y, None]
+            branch_lines_y.extend([node.y, node.y, None])
+            
+            # 2. Vertical segment (from child Y to parent Y at Parent X)
+            # This segment connects the horizontal line to the parent node's vertical position
+            # Extends the X list: [Parent_X, Parent_X, None]
+            branch_lines_x.extend([parent.x, parent.x, None])
+            # Extends the Y list: [Child_Y, Parent_Y, None]
+            branch_lines_y.extend([node.y, parent.y, None])
+            
+    return branch_lines_x, branch_lines_y, node_coords
+
 def display_interactive_tree(tree_path):
     
     try:
@@ -661,7 +672,7 @@ def display_interactive_tree(tree_path):
     fig = go.Figure(data=[trace_branches, trace_nodes])
 
     fig.update_layout(
-        title='Interactive Tree for model organism ranking',
+        title='Interactive Tree for evolution visualisation',
         xaxis=dict(showgrid=False, title='Branch length'),
         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False), # Hide y-axis labels
         showlegend=False,
@@ -882,55 +893,31 @@ if st.sidebar.checkbox('Find species'):
     st.title('Species subtree:')
     species = ''
     renamed_species = ''
-    proteomes_df['Display_Organism'] = proteomes_df['Organism_formatted'].str.split('_', n=2).str[:2].str.join('_')
     species = st.sidebar.selectbox(
-    'Which species (Proteome ID - i.e. UP000005640 or Taxon ID - i.e. 9606 or name - Homo_sapiens)?',
-    proteomes_df['Organism_formatted'],
-    key = 'species')
-    #species = st.sidebar.text_input('Which species (Proteome ID - i.e. UP000005640 or Taxon ID - i.e. 9606 or name - Homo_sapiens)?', key="species").strip() #strip against whitespace
-    st.write('Selected Species: ', species)
-    st.write('Close species in the tree share similar protein structures at the proteome level.')
-    species_svg = pathlib.Path('results/species_trees/' + species +'_subtree.svg')
+    'Which species (name - Homo_sapiens)?', proteomes_df['Organism_formatted'], key = 'species_selector')
     if species == '':
         st.warning('Please enter species (i.e. Proteome ID - i.e. UP000005640 or Taxon ID - i.e. 9606 or name - Homo_sapiens) to extract a subtree.' \
             'Find all species names in "Show species branch rate in Kindom All"')
-    elif species_svg.exists():
-        # Display
+    else:
         what = species
         what = what.split('_')
         what= what[:2]
         what= ' '.join(what)
         st.page_link("https://en.wikipedia.org/wiki/" + what, label="Wiki", icon="🌎")
-        st.image(
-            species_svg, #extracted tree svg path
-            caption= species + ' Phylogenetic Tree',
-            width='stretch')
-        species = ''
-    else:
-        with st.spinner(f'Extracting and drawing tree for {species}...'):
-            # Call extraction function
-            num_neighbors = 10
-            species_out, renamed_species = extract_closest_species(main_tree_path, species, num_neighbors)
-            #handle different input types
-            if renamed_species != species:
-                st.write('Selected Species: ',renamed_species)
+        num_neighbors = st.slider("How many close species?", 2, 1542, 10)
+        #num_neighbors = 10
+        species_out, renamed_species = extract_closest_species(main_tree_path, species, num_neighbors)
+        #handle different input types
+        if renamed_species != species:
+            st.write('Selected Species: ',renamed_species)
             what=renamed_species
             what = what.split('_')
             what= what[:2]
             what= ' '.join(what)
             st.page_link("https://en.wikipedia.org/wiki/" + what, label="Wiki", icon="🌎")
-            species_svg2 = pathlib.Path('results/species_trees/' + renamed_species +'_subtree.svg')
-            if species_svg2.exists():
-                st.image(
-                    'results/species_trees/'+ renamed_species +'_subtree.svg', #extracted tree svg path
-                    caption= renamed_species + ' Phylogenetic Tree',
-                    width='stretch')
-                species = ''
-                renamed_species = ''
-                species_out = ''
-            else:
-                #species = renamed_species
-                display_interactive_tree(species_out)
+        #species = renamed_species
+        st.write('Close species in the tree share similar protein structures at the proteome level.')
+        display_interactive_tree(species_out)
 
 
 # find taxon --------------------------------------------------------------------------------------------------
@@ -943,20 +930,11 @@ if st.sidebar.checkbox('Find taxon'): #it does not handle two new taxa in the sa
     taxon_path = pathlib.Path('results/extracted_trees/' + taxon +'_subtree.svg')
     if taxon == '':
         st.warning('Please enter a taxon (i.e. Primates) to extract a subtree')
-    elif taxon_path.exists():
-        # Display the main_tree image
+    else:
         what = taxon
         st.page_link("https://en.wikipedia.org/wiki/" + what, label="Wiki", icon="🌎")
-        st.image(
-            'results/extracted_trees/'+ taxon +'_subtree.svg', #extracted tree svg path
-            caption= taxon + ' Phylogenetic Tree',
-            width='stretch')
-    else:
-        if taxon:
-            what = taxon
-            st.page_link("https://en.wikipedia.org/wiki/" + what, label="Wiki", icon="🌎")
-            taxon_tree = extract_subtree(proteomes_path, main_tree_path, taxon)
-            display_interactive_tree(taxon_tree)
+        taxon_tree = extract_subtree(proteomes_path, main_tree_path, taxon)
+        display_interactive_tree(taxon_tree)
             
 
 
