@@ -882,12 +882,11 @@ if st.sidebar.checkbox('Find species'):
     st.title('Species subtree:')
     species = ''
     renamed_species = ''
-    proteomes_df_final['Display_Organism'] = proteomes_df['Organism_formatted'].str.split('_', n=2).str[:2].str.join('_')
-    proteomes_df_final['Display_Organism'] = proteomes_df_final['Display_Organism'].str.replace('_', ' ')
+    proteomes_df['Display_Organism'] = proteomes_df['Organism_formatted'].str.split('_', n=2).str[:2].str.join('_')
     species = st.sidebar.selectbox(
     'Which species (Proteome ID - i.e. UP000005640 or Taxon ID - i.e. 9606 or name - Homo_sapiens)?',
-    proteomes_df_final['Display_Organism'],
-    key = 'species_selector')
+    proteomes_df['Organism_formatted'],
+    key = 'species')
     #species = st.sidebar.text_input('Which species (Proteome ID - i.e. UP000005640 or Taxon ID - i.e. 9606 or name - Homo_sapiens)?', key="species").strip() #strip against whitespace
     st.write('Selected Species: ', species)
     st.write('Close species in the tree share similar protein structures at the proteome level.')

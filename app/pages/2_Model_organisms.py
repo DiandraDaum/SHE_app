@@ -34,6 +34,7 @@ import shutil
 
 from pathlib import Path
 import foldcomp as fc
+import random
 
 #Code to analyse:
 # model organism search
@@ -598,8 +599,8 @@ def get_pdb(protein, proteome):
             if protein_index == retrieved_index:
                 target_name = name_full.split('.')[0] 
                 target_pdb_filepath = os.path.join(db_dir, target_name + ".pdb")
-                    with open(target_pdb_filepath, "w") as pdb_file:
-                        pdb_file.write(pdb_dc)
+                with open(target_pdb_filepath, "w") as pdb_file:
+                    pdb_file.write(pdb_dc)
                 protein_found = True
                 break # Stop iterating immediately after the target is found
             protein_index += 1
@@ -717,9 +718,9 @@ if st.sidebar.checkbox('Find best Model organism'):
     'Which organism would you like to study (empty = Default: Homo_sapiens_Human)', key="target")
     protein_list = st.text_input(
     'Which proteins are you studying in your target organism? (each Uniprot ID separated by a space, i.e: Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616)', key="protein_list")
-
     if 'model_count' not in st.session_state:
-    st.session_state.model_count = 1 # Start with 1 mandatory model
+        st.session_state.model_count = 1 # Start with 1 mandatory model
+    
     model_organisms = []
     for i in range(1, st.session_state.model_count + 1):
         # Use a unique key for each selectbox: f"model_{i}"
@@ -734,7 +735,7 @@ if st.sidebar.checkbox('Find best Model organism'):
     # and the loop (step 2) then renders one more select box.
     st.button("+ Add Another Model Organism", key="add_model_btn", on_click=lambda: st.session_state.model_count + 1)
     
-    if (protein_list == '') | not model_organisms:
+    if (protein_list == '') or not model_organisms:
         st.warning('Please input the Uniprot ID of the protein(s) to study, the organism to study (Defaul to Human), and the model organisms you can to choose from, to find the best model organism for you study.')
     else:
         st.write('Selected Protein(s) to study: ', protein_list)
@@ -887,6 +888,7 @@ if st.sidebar.checkbox('Find best Model organism'):
         if st.sidebar.toggle('Show protein structure alignments'):
             st.subheader('Structural comparison of your proteins between the input target and model organisms')
             st.info('c. Loading the protein-protein comparisons ...')
+            """
             output=csv_out + "structures"
             pdbs=[]
             for protein in uniprot_ids: #get target proteins structures
@@ -937,4 +939,4 @@ if st.sidebar.checkbox('Find best Model organism'):
         os.remove(zip_file_path)
         if is_random_user:
             os.remove(user_dir)
-      
+      """
