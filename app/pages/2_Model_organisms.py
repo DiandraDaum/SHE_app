@@ -926,6 +926,7 @@ if st.sidebar.checkbox('Find best Model organism'):
     if not user_email:
         is_random_user = True
     user_dir = os.path.join("results", "model_trees", user)
+    os.makedirs(user_dir, exist_ok=True) 
     target_folder_path=user_dir
     user_name=user.split('@')[0]
     zip_file_name = f"results_{user_name}" 
@@ -951,4 +952,4 @@ if st.sidebar.checkbox('Find best Model organism'):
     # Clean up the generated zip file after use
     os.remove(zip_file_path)
     if is_random_user:
-        os.remove(user_dir)
+        shutil.rmtree(user_dir)
