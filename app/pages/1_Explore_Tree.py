@@ -730,8 +730,6 @@ def display_interactive_tree(tree_path):
         plot_bgcolor='white',
         margin=dict(l=20, r=20, t=40, b=20)
     )
-    
-    # --- Display in Streamlit ---
     st.plotly_chart(fig, use_container_width=True)
 
 # --- Function to generate the Mol* HTML viewer ---
@@ -1384,7 +1382,7 @@ if st.sidebar.checkbox('4.Find protein structural homologous'):
 if st.sidebar.checkbox('5.Study the structural evolution set of proteins'):
     proteins = ''
     st.title('Tree built from your protein structures:')
-    st.warning('This function is going to be released soon')
+    #st.warning('This function is going to be released soon')
     proteins = st.sidebar.text_input(
     'Which proteins (each Uniprot ID separated by a space, i.e: Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616)?', key="proteins")
     st.write('Selected Proteins: ', proteins)
@@ -1480,13 +1478,16 @@ if st.sidebar.checkbox('5.Study the structural evolution set of proteins'):
         df_rank_filtered.reset_index(drop=True, inplace=True)
         df_rank_filtered.insert(0, 'Rank', df_rank_filtered.index + 1)
         df_final = pd.merge(df_rank_filtered, df_presence, on='Organism', how='left')
+        csv_out = "results/proteins_evolution/" + user + "/"
+        if not os.path.exists(csv_out):
+            os.makedirs(matrix_out) #mkdir
+        csv_path = csv_out + "organisms_ranking.csv"
+        df_final.to_csv(csv_path, index=False)
         
         # distance matrix---------------------------------------
-        matrix_out="results/proteins_evolution/" + user + "/"
-        if not os.path.exists(matrix_out):
-            os.makedirs(matrix_out) #mkdir
+        matrix_out=csv_out
         distance_matrix, ids = generate_distance_matrix(tree_data, uniprot_ids, matrix_out)
-        n_bootstraps=10
+        n_bootstraps=10000
         #make tree----------------------------------
         distance_matrix = np.load(distance_matrix)
         ids = pd.read_csv(ids)['id'].values #Read from csv - keep the format consistens
