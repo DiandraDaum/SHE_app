@@ -67,8 +67,6 @@ def zip_download2(matching_paths, zip_file_name, label):
             mime="application/zip", 
             icon=":material/download:",
         )
-    # Clean up the generated zip file after use
-    os.remove(zip_file_path)
 
 
 def zip_download3(output_base_dir, zip_file_name, label):
@@ -176,7 +174,8 @@ if st.sidebar.checkbox('Protein structure predictions'):
             else:
                 st.error(f"Error: Could not find any directory matching the pattern: {wild_proteome_dir}")
                 sys.exit(1)
-            output_base_dir = "temp_archives" 
+            output_base_dir = "temp_archives"
+            zip_file_name=f"{proteome}_preds"
             zip_dir= os.path.join(output_base_dir, f"{zip_file_name}.zip")
             label3="Download protein structure prediction for " + proteome
             if zip_dir.exists(): #already zipped pdbs
