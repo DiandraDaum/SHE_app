@@ -902,6 +902,8 @@ if st.sidebar.checkbox('Find best Model organism'):
         st.subheader('Structural comparison of your proteins between the input target and model organisms')
         st.info('c. Loading the protein-protein comparisons ...')
         """
+        for species in compare_species:
+            
         output=csv_out + "structures"
         pdbs=[]
         for protein in uniprot_ids: #get target proteins structures

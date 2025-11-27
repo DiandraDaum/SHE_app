@@ -46,6 +46,45 @@ def zip_download(matching_paths, zip_file_name, label):
     # Clean up the generated zip file after use
     os.remove(zip_file_path)
 
+def zip_download2(matching_paths, zip_file_name, label):
+    target_folder_path = matching_paths[0] 
+    #zip_file_name = f"{proteome}_foldseek"
+    output_base_dir = "temp_archives" 
+    os.makedirs(output_base_dir, exist_ok=True) 
+    shutil.make_archive(
+        base_name=os.path.join(output_base_dir, zip_file_name),
+        format='zip',
+        root_dir=os.path.dirname(target_folder_path), # Start zipping from the parent directory
+        base_dir=os.path.basename(target_folder_path)  # Only include the target folder itself
+    )
+    # Get the full path to the newly created ZIP file and make download availabel
+    zip_file_path = os.path.join(output_base_dir, f"{zip_file_name}.zip")
+    with open(zip_file_path, "rb") as file:
+        st.download_button(
+            label=label,
+            data=file, # The actual byte content of the zip file
+            file_name=f"{zip_file_name}.zip", # The name the user will see
+            mime="application/zip", 
+            icon=":material/download:",
+        )
+    # Clean up the generated zip file after use
+    os.remove(zip_file_path)
+
+
+def zip_download3(output_base_dir, zip_file_name, label):
+    # Get the full path to the newly created ZIP file and make download availabel
+    output_base_dir = "temp_archives"
+    os.makedirs(output_base_dir, exist_ok=True)
+    zip_file_path = os.path.join(output_base_dir, f"{zip_file_name}.zip")
+    with open(zip_file_path, "rb") as file:
+        st.download_button(
+            label=label,
+            data=file, # The actual byte content of the zip file
+            file_name=f"{zip_file_name}.zip", # The name the user will see
+            mime="application/zip", 
+            icon=":material/download:",
+        )
+
 
 
 
@@ -137,14 +176,12 @@ if st.sidebar.checkbox('Protein structure predictions'):
             else:
                 st.error(f"Error: Could not find any directory matching the pattern: {wild_proteome_dir}")
                 sys.exit(1)
-            db_dir=f"{proteome_dir}/extracted_pdbs" 
-            db_dir_path = Path(db_dir)
-            zip_file_name = f"{proteome}_preds"
+            output_base_dir = "temp_archives" 
+            zip_dir= os.path.join(output_base_dir, f"{zip_file_name}.zip")
             label3="Download protein structure prediction for " + proteome
-            if db_dir_path.exists(): #already unzipped pdbs
+            if zip_dir.exists(): #already zipped pdbs
                 st.info("Zipping the proteome predictions folder ... Please wait a couple of minutes for the download button to appear :)")
-                matching_paths = [db_dir]
-                zip_download(matching_paths, zip_file_name, label3)
+                zip_download3(output_base_dir, zip_file_name, label3)
             else:
                 st.info("Zipping the proteome predictions folder ... Please wait a couple of minutes for the download button to appear :)")
                 db_name_wild=f"{proteome_dir}/{proteome}_*"
@@ -156,7 +193,8 @@ if st.sidebar.checkbox('Protein structure predictions'):
                         with open(db_dir + "/" + name + ".pdb", "w") as pdb_file:
                             pdb_file.write(pdb_dc)
                 matching_paths = [db_dir]
-                zip_download(matching_paths, zip_file_name, label3)
+                zip_download2(matching_paths, zip_file_name, label3)
+                shutil.rmtree(db_dir)
             
     elif st.sidebar.toggle('By protein'):
         st.subheader('Protein structure predictions by protein')
@@ -224,7 +262,6 @@ if st.sidebar.checkbox('Protein structure predictions'):
                         
                         protein_found = True
                         break # Stop iterating immediately after the target is found
-                    
                     protein_index += 1
             
             if protein_found:

@@ -1480,7 +1480,7 @@ if st.sidebar.checkbox('5.Study the structural evolution set of proteins'):
         df_final = pd.merge(df_rank_filtered, df_presence, on='Organism', how='left')
         csv_out = "results/proteins_evolution/" + user + "/"
         if not os.path.exists(csv_out):
-            os.makedirs(matrix_out) #mkdir
+            os.makedirs(csv_out) #mkdir
         csv_path = csv_out + "organisms_ranking.csv"
         df_final.to_csv(csv_path, index=False)
         
