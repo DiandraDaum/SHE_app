@@ -12,6 +12,7 @@ import textwrap
 import time
 import os
 from datetime import datetime
+import base64
 
 #github_path = '/' #change to your path
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
@@ -41,12 +42,86 @@ def save_email(email):
     except Exception as e:
         st.error(f"An error occurred while saving: {e}")
         return False
+
+
+# background video
+def get_base64_of_bin_file(bin_file):
+    """
+    Reads a binary file and returns its Base64 encoded string.
+    """
+    try:
+        with open(bin_file, 'rb') as f:
+            data = f.read()
+        return base64.b64encode(data).decode()
+    except FileNotFoundError:
+        st.error(f"Error: Video file not found at path: {bin_file}. Please check the path.")
+        return None
+
+def embed_video_background(video_path):
+    """
+    Embeds a local MP4 video as a fixed background using Base64 encoding.
+    """
+    video_base64 = get_base64_of_bin_file(video_path)
+    
+    if video_base64 is None:
+        return # Stop execution if file wasn't found
+
+    # 1. Construct the Base64 URL for the video source
+    video_url = f"data:video/mp4;base64,{video_base64}"
+
+    # 2. Inject the HTML/CSS for the background video
+    st.markdown(
+        f"""
+        <style>
+        /* This hides all Streamlit content (which we will put back later) */
+        .stApp > header, .stApp > div:not(.video-container) {{
+            z-index: 10; /* Bring content above the video */
+            position: relative; 
+            background: none; /* Make content background transparent */
+        }}
+
+        /* Video element to cover the entire screen */
+        .video-background {{
+            position: fixed;
+            top: 0;
+            left: 0;
+            min-width: 100%;
+            min-height: 100%;
+            width: auto;
+            height: auto;
+            z-index: -100; /* Puts the video behind all other content */
+            overflow: hidden;
+        }}
+        </style>
+        
+        <div class="video-container">
+            <video class="video-background" autoplay muted loop>
+                <source src="{video_url}" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+# --- Example Usage with your specific path ---
+
+video_path_bg = "data/tree/final_tree.mp4" 
+
+# Call the function to set the background
+embed_video_background(video_path_bg)
+
+# --- App Content (will appear on top of the video) ---
+st.balloons()
+
 #### intro -----------------------------------------------------------------------------------------------------------------------------------
 st.set_page_config(
     page_title="SHE: Start page",
     page_icon= "data/tree/logo_tree.png", 
     layout="centered"
 )
+
+
 
 st.title('SHE: Structural History of Eukarya')
 

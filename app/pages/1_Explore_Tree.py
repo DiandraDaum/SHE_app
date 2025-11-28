@@ -32,6 +32,7 @@ import foldcomp as fc
 import random
 from collections import defaultdict
 from tqdm import tqdm
+import math
 
 #github_path = '/' #change to your path
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
@@ -728,9 +729,223 @@ def display_interactive_tree(tree_path):
         showlegend=True, #False
         hovermode="closest",
         plot_bgcolor='white',
-        margin=dict(l=20, r=20, t=40, b=20)
+        margin=dict(l=20, r=20, t=40, b=20),
+        height=800
     )
     st.plotly_chart(fig, use_container_width=True)
+
+
+
+# new plotly circular
+def polar_coordinates_transform_c(tree):
+    """
+    Transforms the Linear (X, Y) coordinates of the tree nodes 
+    into polar (Radius, Angle) coordinates for a Circular layout.
+    """
+    # Max Y coordinate (used for normalization to 360 degrees)
+    max_y = max(node.y for node in tree.get_leaves())
+    
+    for node in tree.traverse():
+        # 1. Radius (r) is the X-coordinate (accumulated branch length from root)
+        r = node.x
+        
+        # 2. Angle (theta) is based on the Y-coordinate (normalized leaf order)
+        # Normalize Y to 0-360 degrees (0 to 2*pi radians)
+        theta_rad = (node.y / max_y) * 2 * math.pi
+        
+        # Store polar coordinates on the node
+        node.r = r
+        node.theta_rad = theta_rad
+        
+        # Store Cartesian conversion for plotting (optional, but often helpful)
+        node.x_polar = r * math.cos(theta_rad)
+        node.y_polar = r * math.sin(theta_rad)
+    
+    return tree
+
+def create_plotly_data_c(tree, layout):
+    branch_lines_x = []
+    branch_lines_y = []
+    node_coords = {'x': [], 'y': [], 'text': [], 'name': []}
+
+    # Determine which coordinates to use
+    if layout == 'Circular':
+        x_attr = 'x_polar'
+        y_attr = 'y_polar'
+    else: # 'Linear'
+        x_attr = 'x'
+        y_attr = 'y'
+
+    for node in tree.traverse():
+        
+        # Get coordinates dynamically
+        node_x = getattr(node, x_attr)
+        node_y = getattr(node, y_attr)
+        
+        # Add node coordinates for the scatter plot
+        node_coords['x'].append(node_x)
+        node_coords['y'].append(node_y)
+        # ... (rest of node_coords dictionary population remains the same) ...
+        node_coords['name'].append(node.name if node.name else f"Internal Node {node_x}")
+        hover_text = f"**Node:** {node.name if node.name else 'Internal Node'}<br>"
+        if not node.is_root():
+            hover_text += f"**Dist:** {node.dist:.3f}"
+        node_coords['text'].append(hover_text)
+        
+        # Create line segments for branches
+        if not node.is_root():
+            parent = node.up
+            parent_x = getattr(parent, x_attr)
+            parent_y = getattr(parent, y_attr)
+            
+            if layout == 'Linear':
+                # 1. Horizontal segment (Child_X to Parent_X at Child_Y)
+                branch_lines_x.extend([node_x, parent_x, None])
+                branch_lines_y.extend([node_y, node_y, None])
+                
+                # 2. Vertical segment (Child_Y to Parent_Y at Parent_X)
+                branch_lines_x.extend([parent_x, parent_x, None])
+                branch_lines_y.extend([node_y, parent_y, None])
+            
+            elif layout == 'Circular':
+                # For Circular, we connect the child directly to the parent
+                # The curvature will depend on the projection, but the core 
+                # segments are the straight lines between nodes in the new space.
+                branch_lines_x.extend([node_x, parent_x, None])
+                branch_lines_y.extend([node_y, parent_y, None])
+            
+    return branch_lines_x, branch_lines_y, node_coords
+
+
+def display_interactive_tree_c(tree_path):
+    
+    # --- 1. Layout Selection ---
+    tree_layout = st.radio(
+        "Select Tree Layout:",
+        ('Linear', 'Circular'),
+        horizontal=True
+    )
+    
+    # Use the same key names as the radio button options
+    layout_key = tree_layout 
+
+    try:
+        # Load the tree and calculate base coordinates
+        tree = Tree(tree_path, format=1)
+        tree = get_tree_coordinates(tree) 
+        
+        # --- 2. Polar Conversion if necessary ---
+        if layout_key == 'Circular':
+            tree = polar_coordinates_transform_c(tree) 
+            
+        branch_lines_x, branch_lines_y, node_coords = create_plotly_data_c(tree, layout=layout_key)
+        
+    except Exception as e:
+        st.error(f"Error processing tree file: {e}")
+        return
+
+    # --- 3. Proteomes loading and Color Generation ---
+    # NOTE: This section is outside the try/except for tree loading.
+    # We must handle potential errors here too, and ensure node_colors is defined.
+    try:
+        proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
+        proteomes_df = pd.read_csv(proteomes_path)
+        proteomes_df.columns = proteomes_df.columns.str.strip().str.replace(' ', '_')
+        proteomes_df['Kingdom'] = proteomes_df['Taxonomic_lineage'].str.split(', ').str[1]
+        organism_to_kingdom = proteomes_df.set_index('Organism_formatted')['Kingdom'].to_dict()
+        unique_kingdoms = sorted(proteomes_df['Kingdom'].unique())
+        
+        # Generate the list of colors for the nodes
+        node_colors = []
+        for node_name in node_coords['name']:
+            kingdom = organism_to_kingdom.get(node_name, 'Unknown') 
+            color = kingdom_color(kingdom)
+            node_colors.append(color)
+
+    except Exception as e:
+        st.warning(f"Could not load proteome data for coloring ({e}). Nodes will be plotted in a default color.")
+        # Define a default color list if loading fails
+        node_colors = ['#1f77b4'] * len(node_coords['x'])
+        unique_kingdoms = ['Default']
+    
+    # --- 4. Define Plotly Traces ---
+    
+    # 1. Branch Traces (Lines)
+    trace_branches = go.Scatter(
+        x=branch_lines_x, y=branch_lines_y,
+        mode='lines',
+        line=dict(color='black', width=1),
+        hoverinfo='none', 
+        name='Branches'
+    )
+
+    # 2. Node Traces (Scatter Points)
+    trace_nodes = go.Scatter(
+        x=node_coords['x'], y=node_coords['y'],
+        mode='markers+text',
+        marker=dict(
+            size=10, 
+            color=node_colors, 
+            line=dict(width=1, color='Black') 
+        ),
+        text=node_coords['name'],
+        textposition="middle right",
+        textfont=dict(size=10),
+        hovertext=node_coords['text'],
+        hoverinfo='text',
+        name='Nodes'
+    )
+
+    # 3. Legend Traces (Dummy traces for color key)
+    legend_traces = []
+    for kingdom in unique_kingdoms:
+        color = kingdom_color(kingdom)
+        legend_traces.append(
+            go.Scatter(
+                x=[None], y=[None],
+                mode='markers',
+                marker=dict(size=10, color=color, line=dict(width=1, color='Black')),
+                name=kingdom,
+                legendgroup='kingdoms'
+            )
+        )
+
+    # --- 5. Create the Figure and Update Layout ---
+    fig = go.Figure(data=[trace_branches, trace_nodes] + legend_traces)
+
+    layout_params = dict(
+        title=f'{layout_key} Tree for evolution visualisation',
+        height=800, 
+        showlegend=True,
+        hovermode="closest",
+        plot_bgcolor='white',
+        margin=dict(l=20, r=20, t=40, b=20),
+        # Ensure aspect ratio is square for circular plot
+        autosize=True
+    )
+
+    if layout_key == 'Linear':
+        # Linear axes: show branch length, hide y-labels
+        layout_params.update(
+            xaxis=dict(showgrid=False, title='Branch length'),
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
+        )
+    else: # Circular
+        # Circular (polar) axes: Use equal and hidden axes for a perfect circle
+        layout_params.update(
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="y", scaleratio=1),
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            template='plotly_white'
+        )
+    
+    fig.update_layout(**layout_params)
+    st.plotly_chart(fig, use_container_width=True)
+
+
+
+
+
+
 
 # --- Function to generate the Mol* HTML viewer ---
 
@@ -1284,7 +1499,7 @@ if st.sidebar.checkbox('Find species'):
             st.page_link("https://en.wikipedia.org/wiki/" + what, label="Wiki", icon="🌎")
         #species = renamed_species
         st.write('Close species in the tree share similar protein structures at the proteome level.')
-        display_interactive_tree(species_out)
+        display_interactive_tree_c(species_out)
 
 
 # find taxon --------------------------------------------------------------------------------------------------
@@ -1301,7 +1516,7 @@ if st.sidebar.checkbox('Find taxon'): #it does not handle two new taxa in the sa
         what = taxon
         st.page_link("https://en.wikipedia.org/wiki/" + what, label="Wiki", icon="🌎")
         taxon_tree = extract_subtree(proteomes_path, main_tree_path, taxon)
-        display_interactive_tree(taxon_tree)
+        display_interactive_tree_c(taxon_tree)
             
 
 

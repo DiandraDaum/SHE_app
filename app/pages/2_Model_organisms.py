@@ -99,6 +99,7 @@ def process_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
     presence_map = {uid: -1 for uid in uniprot_ids}
     score_map = {uid: 0.0 for uid in uniprot_ids} # Default 0.0 if missing
 
+    best_hit_data=[]
     try:
         df = pd.read_csv(csv_file, header=None, usecols=[0, 1, 4], on_bad_lines='warn')
         df.columns = ['proteinA', 'proteinB', 'bit_score']
@@ -112,6 +113,11 @@ def process_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
             if not hits.empty:
                 best_score = hits['bit_score'].max()
                 total_score += best_score
+
+                # 2. Find the row(s) with the best score and take the first one
+                best_hit_row = hits[hits['bit_score'] == best_score].iloc[0]
+                # 3. Append the best hit row (which is a Series with 'proteinA', 'proteinB', 'bit_score' indices)
+                best_hit_data.append(best_hit_row)
                 
                 # For iTOL
                 if best_score > 0:
@@ -120,13 +126,15 @@ def process_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
                 # For Tree (Store actual score)
                 score_map[uniprot_id] = best_score
 
+
     except Exception as e:
         st.warning(f"Error processing {csv_file}: {e}")
         
     # Convert map to list (Vector) ensures order is identical for all species
     score_vector = [score_map[uid] for uid in uniprot_ids]
+    best_hits_df = best_hit_data
     
-    return total_score, presence_map, score_vector
+    return total_score, presence_map, score_vector, best_hits_df
 
 def get_human_self_vector(target_dir, uniprot_ids):
     """
@@ -787,6 +795,7 @@ if st.sidebar.checkbox('Find best Model organism'):
         tree_data[target_species] = human_vector
         itol_data[target_species] = {uid: 1 for uid in uniprot_ids} # Human always has the proteins
 
+        comparison_df=[]
         # 2. Calculate Comparison Species
         for species in compare_species:
             if species not in species_map: continue
@@ -803,7 +812,7 @@ if st.sidebar.checkbox('Find best Model organism'):
                     search_col = 'proteinB'
 
             if csv_file:
-                score, presence, vector = process_orthologs(csv_file, uniprot_ids, search_col)
+                score, presence, vector, best_hits_df = process_orthologs(csv_file, uniprot_ids, search_col)
                 ranking_scores[species] = score
                 itol_data[species] = presence
                 tree_data[species] = vector
@@ -811,6 +820,8 @@ if st.sidebar.checkbox('Find best Model organism'):
                 ranking_scores[species] = 0.0
                 itol_data[species] = {uid: -1 for uid in uniprot_ids}
                 tree_data[species] = [0.0] * len(uniprot_ids)
+
+        #comparison_df.append(best_hits_df)
 
         df_rank = pd.DataFrame.from_dict(ranking_scores, orient='index', columns=['Score'])
         df_target = df_rank.loc[[target_species]]
@@ -849,6 +860,8 @@ if st.sidebar.checkbox('Find best Model organism'):
         os.makedirs(csv_out, exist_ok=True)
         csv_path = csv_out + "model_ranking.csv"
         df_final.to_csv(csv_path, index=False)
+        csv_path2 = csv_out + "protein_ranking.csv"
+        #comparison_df.to_csv(csv_path2, index=False)
         # 6. Display the Final Table in Streamlit
         #st.write("\n" + "="*70)
         st.write("--- Organism Ranking ---")

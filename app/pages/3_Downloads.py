@@ -92,7 +92,7 @@ st.set_page_config(
     page_icon= "data/tree/logo_tree.png", 
     layout="centered"
 )
-
+st.snow()
 st.title('SHE: Structural History of Eukarya')
 #----sidebar-------
 st.sidebar.write("Do you like it?")
