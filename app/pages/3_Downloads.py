@@ -46,43 +46,6 @@ def zip_download(matching_paths, zip_file_name, label):
     # Clean up the generated zip file after use
     os.remove(zip_file_path)
 
-def zip_download2(matching_paths, zip_file_name, label):
-    target_folder_path = matching_paths[0] 
-    #zip_file_name = f"{proteome}_foldseek"
-    output_base_dir = "temp_archives" 
-    os.makedirs(output_base_dir, exist_ok=True) 
-    shutil.make_archive(
-        base_name=os.path.join(output_base_dir, zip_file_name),
-        format='zip',
-        root_dir=os.path.dirname(target_folder_path), # Start zipping from the parent directory
-        base_dir=os.path.basename(target_folder_path)  # Only include the target folder itself
-    )
-    # Get the full path to the newly created ZIP file and make download availabel
-    zip_file_path = os.path.join(output_base_dir, f"{zip_file_name}.zip")
-    with open(zip_file_path, "rb") as file:
-        st.download_button(
-            label=label,
-            data=file, # The actual byte content of the zip file
-            file_name=f"{zip_file_name}.zip", # The name the user will see
-            mime="application/zip", 
-            icon=":material/download:",
-        )
-
-
-def zip_download3(output_base_dir, zip_file_name, label):
-    # Get the full path to the newly created ZIP file and make download availabel
-    output_base_dir = "temp_archives"
-    os.makedirs(output_base_dir, exist_ok=True)
-    zip_file_path = os.path.join(output_base_dir, f"{zip_file_name}.zip")
-    with open(zip_file_path, "rb") as file:
-        st.download_button(
-            label=label,
-            data=file, # The actual byte content of the zip file
-            file_name=f"{zip_file_name}.zip", # The name the user will see
-            mime="application/zip", 
-            icon=":material/download:",
-        )
-
 
 
 
@@ -108,9 +71,9 @@ st.write('Please, select the type of file you want to download from the sidebar.
 st.sidebar.subheader('Downloads', divider="yellow")
 
 
-if st.sidebar.checkbox('Complete Foldseek results by Proteome'):
-    st.subheader('Foldseek results for all Proteome')
-    st.write('Here it is possible to download the Foldseek results per Proteome')
+if st.sidebar.checkbox('Complete Foldcomp results by Proteome'):
+    st.subheader('Foldcomp results for all Proteome')
+    st.write('Here it is possible to download the Foldseek results per Proteome. To read the files, see https://github.com/steineggerlab/foldcomp and our code on https://github.com/DiandraDaum/SHE_app/')
     proteome = st.sidebar.text_input(
     'Which proteome: UniProt ID?', key="proteome")
     st.write('Proteome selected for download: ', proteome)
@@ -156,46 +119,13 @@ if st.sidebar.checkbox('Alignment scores by Organism'):
 
 
 if st.sidebar.checkbox('Protein structure predictions'):
-    st.write('Here it is possible to download the predicted protein structures (.pdb) by proteome or protein ID, originally retrieved from AFDB v4')
+    st.write('Here it is possible to download the predicted protein structures (.pdb) by protein ID, originally retrieved from AFDB v4')
     proteome = st.sidebar.text_input(
     'Which proteome: UniProt ID?', key="proteome")
     st.write('Proteome selected for download: ', proteome)
     st.page_link("https://www.uniprot.org/proteomes/" + proteome, label="UniProt Proteomes", icon="🌎")
-    if st.sidebar.toggle('By proteome'):
-        st.subheader('Protein structure predictions for all Proteome')
-        if proteome == '':
-            st.warning('Please input the UniProt proteome ID (i.e. UP000005640)')
-        else:
-            subset_dir='data/subset/subset'
-            wild_proteome_dir = f"{subset_dir}/{proteome}_*"
-            proteome_dirs = glob.glob(wild_proteome_dir)
-            if proteome_dirs:
-                proteome_dir = proteome_dirs[0]
-            else:
-                st.error(f"Error: Could not find any directory matching the pattern: {wild_proteome_dir}")
-                sys.exit(1)
-            output_base_dir = "temp_archives"
-            zip_file_name=f"{proteome}_preds"
-            zip_dir= os.path.join(output_base_dir, f"{zip_file_name}.zip")
-            label3="Download protein structure prediction for " + proteome
-            if zip_dir.exists(): #already zipped pdbs
-                st.info("Zipping the proteome predictions folder ... Please wait a couple of minutes for the download button to appear :)")
-                zip_download3(output_base_dir, zip_file_name, label3)
-            else:
-                st.info("Zipping the proteome predictions folder ... Please wait a couple of minutes for the download button to appear :)")
-                db_name_wild=f"{proteome_dir}/{proteome}_*"
-                db_name = glob.glob(db_name_wild)[0]
-                with fc.open(db_name) as db: 
-                    os.makedirs(db_dir, exist_ok=True)
-                    for (name, pdb_dc) in db:
-                        name = name.split('.')[0]
-                        with open(db_dir + "/" + name + ".pdb", "w") as pdb_file:
-                            pdb_file.write(pdb_dc)
-                matching_paths = [db_dir]
-                zip_download2(matching_paths, zip_file_name, label3)
-                shutil.rmtree(db_dir)
             
-    elif st.sidebar.toggle('By protein'):
+    if st.sidebar.toggle('By protein'):
         st.subheader('Protein structure predictions by protein')
         protein = st.sidebar.text_input(
         'Which protein: UniProt ID?', key="protein")
