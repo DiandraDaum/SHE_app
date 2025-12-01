@@ -14,6 +14,8 @@ import os
 from datetime import datetime
 import base64
 
+# --- App Content (will appear on top of the video) ---
+st.balloons()
 #github_path = '/' #change to your path
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
 EMAIL_FILE = 'data/email_updates.csv'
@@ -104,15 +106,100 @@ def embed_video_background(video_path):
         unsafe_allow_html=True
     )
 
-# --- Example Usage with your specific path ---
-
-video_path_bg = "data/tree/final_tree.mp4" 
-
+video_path_bg = "data/tree/bg.mp4" 
 # Call the function to set the background
-embed_video_background(video_path_bg)
+embed_video_background(video_path_bg, autoplay=True, loop=True, muted=True)
+#st.sidebar.video(tree_bytes, autoplay=True, loop=True, muted=True)
 
-# --- App Content (will appear on top of the video) ---
-st.balloons()
+# htlm video
+def embed_html_background(html_file_path):
+    """
+    Reads a local HTML file and embeds its content as a fixed, full-screen background 
+    behind the Streamlit app content.
+    """
+    try:
+        with open(html_file_path, 'r', encoding='utf-8') as f:
+            html_content = f.read()
+
+    except FileNotFoundError:
+        st.error(f"Error: HTML file not found at path: {html_file_path}. Please check the path.")
+        return 
+
+    # Inject the HTML/CSS
+    st.markdown(
+        f"""
+        <style>
+        /* CSS styles here... */
+        .stApp {{ background: none; }}
+        .stApp > header, .stApp > div:not(.html-container) {{
+            z-index: 10;
+            position: relative; 
+            background: none;
+        }}
+        .html-background {{
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -100;
+            overflow: hidden;
+        }}
+        </style>
+        
+        <div class="html-container">
+            <div class="html-background">
+                {html_content}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+def embed_html_background_iframe(html_file_path):
+    """
+    Embeds a full HTML file (with its own <!DOCTYPE>, <html>, etc.) 
+    as a fixed, full-screen background using a robust iframe.
+    
+    NOTE: The HTML file must be accessible via Streamlit's static path.
+    """
+    # Use the HTML file path directly as the iframe source (src)
+    st.markdown(
+        f"""
+        <style>
+        /* 1. Ensure Streamlit content is on top and transparent */
+        .stApp > header, .stApp > div:not(.iframe-container) {{
+            z-index: 10;
+            position: relative; 
+            background: none;
+        }}
+
+        /* 2. CSS for the Fixed Background Layer using an iframe */
+        .iframe-background {{
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none; 
+            z-index: -100; /* Puts it behind all Streamlit content */
+            overflow: hidden;
+            pointer-events: none; /* Allows mouse clicks to reach Streamlit widgets on top */
+        }}
+        </style>
+        
+        <div class="iframe-container">
+            <iframe class="iframe-background" src="{html_file_path}">
+            </iframe>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+#html_path_bg = "background.html" 
+#embed_html_background_iframe(html_path_bg)
+
 
 #### intro -----------------------------------------------------------------------------------------------------------------------------------
 st.set_page_config(

@@ -55,7 +55,7 @@ st.set_page_config(
     page_icon= "data/tree/logo_tree.png", 
     layout="centered"
 )
-st.snow()
+
 st.title('SHE: Structural History of Eukarya')
 #----sidebar-------
 st.sidebar.write("Do you like it?")
@@ -88,6 +88,7 @@ if st.sidebar.checkbox('Complete Foldcomp results by Proteome'):
         matching_paths = glob.glob(proteome_dir)
         if matching_paths:
             st.info("Zipping ... Please wait some seconds for the download button to appear :)")
+            st.snow()
             zip_file_name = f"{proteome}_foldseek"
             label1="Download Foldseek results for " + proteome + " (.zip)"
             zip_download(matching_paths, zip_file_name, label1)
@@ -109,6 +110,7 @@ if st.sidebar.checkbox('Alignment scores by Organism'):
         matching_paths = glob.glob(file_pattern)
         if matching_paths:
             st.info("Zipping all the comparison bitscore csvs for your proteome ... Please wait some seconds for the download button to appear :)")
+            st.snow()
             label2="Download all bitscores for " + proteome + " (.zip)"
             zip_file_name = f"{proteome}_bitscores"
             zip_download(matching_paths, zip_file_name, label2)
@@ -172,6 +174,7 @@ if st.sidebar.checkbox('Protein structure predictions'):
             #st.info(f"Looking for protein {af_protein} (database index {retrieved_index}). Please wait...")
             protein_index = 0
             st.info("Please wait for the download button to appear :)")
+            st.snow()
             with fc.open(db_name) as db: 
                 # Iterate through the database entries
                 for (name_full, pdb_dc) in db:

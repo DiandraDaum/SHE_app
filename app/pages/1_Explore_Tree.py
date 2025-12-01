@@ -1702,7 +1702,7 @@ if st.sidebar.checkbox('5.Study the structural evolution set of proteins'):
         # distance matrix---------------------------------------
         matrix_out=csv_out
         distance_matrix, ids = generate_distance_matrix(tree_data, uniprot_ids, matrix_out)
-        n_bootstraps=10000
+        n_bootstraps=100
         #make tree----------------------------------
         distance_matrix = np.load(distance_matrix)
         ids = pd.read_csv(ids)['id'].values #Read from csv - keep the format consistens

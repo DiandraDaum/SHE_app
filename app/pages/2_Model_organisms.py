@@ -680,12 +680,28 @@ st.image(
     caption='Protein-protein structure comparison to rank the best model organism for your target organism'
 )
 
+
+
+row1 = st.columns(3)
+emojis = [":mouse:", ":fish:", ":herb:"]
+titles = ["#1", "#2", "#3"]
+for col, emoji, content in zip(row1, emojis, titles):
+    tile = col.container(height=120)
+    # The title method automatically centers the text
+    tile.title(f"{emoji} {content}")
+
+
 st.write("Here, you can look for the best model organism to use for your study based on the proteins involved in your pathway. Click on 'Find best Model Organism' in the sidebar to start you analysis!")
 st.write("Start by checking the 'Find best Model Organism' box in the sidebar. This will result in a ranking of your model organisms.")
 st.write("It is also possible to build a structural phylogenetic tree from the input proteins. To do so, switch on 'Build structural tree'.")
 st.write("If you wish to visualise the structural alignments of your input proteins, turn on 'Show protein structure alignments'.")
 
 st.warning("Please note that this analysis might require some time. It is possible to register your email in the sidebar, so that your results will be sent to you as soon as they are ready!")
+
+
+
+
+
 
 
 ###------sidebar sign up--------------------
