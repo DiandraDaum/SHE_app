@@ -681,11 +681,17 @@ st.image(
 )
 
 
+row1 = st.columns(1)
+for col in row1:
+    col.markdown('# Model Organisms search')
+    container = col.container(height=120, centered=True)
+    container.title(':person:')
 
-row1 = st.columns(3)
+
+row2 = st.columns(3)
 emojis = [":mouse:", ":fish:", ":herb:"]
 titles = ["#1", "#2", "#3"]
-for col, emoji, content in zip(row1, emojis, titles):
+for col, emoji, content in zip(row2, emojis, titles):
     tile = col.container(height=120)
     # The title method automatically centers the text
     tile.title(f"{emoji} {content}")
