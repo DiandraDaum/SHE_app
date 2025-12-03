@@ -15,7 +15,6 @@ from datetime import datetime
 import base64
 
 # --- App Content (will appear on top of the video) ---
-st.balloons()
 #github_path = '/' #change to your path
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
 EMAIL_FILE = 'data/email_updates.csv'
@@ -108,7 +107,7 @@ def embed_video_background(video_path):
 
 video_path_bg = "data/tree/bg.mp4" 
 # Call the function to set the background
-embed_video_background(video_path_bg, autoplay=True, loop=True, muted=True)
+embed_video_background(video_path_bg)
 #st.sidebar.video(tree_bytes, autoplay=True, loop=True, muted=True)
 
 # htlm video
@@ -217,15 +216,42 @@ st.sidebar.success("Find more analysis options in the panels above.")
 st.subheader('Structural Phylogenetic Tree from proteome-wide structure alignments')
 #st.image('data/tree/All/Intro.png', caption='Strucutral Phylogenetic Tree of Eukarya')
 
+
 st.write('Classical phylogenetic trees constructed based on sequence alignments of a small set of genes (i.e. rRNAs) are hindered by limitations.')
 st.write('To capture more distant and detailed picture of evolution, here we constructed evolutionary relationships based on the comparison of all predicted protein structures in an organism (2.96x1014 structure alignments between 24.3 million proteins).')
 st.write('The Structural History of Eukarya (SHE) provides a comprehensive picture of proteome structural similarity and evolutionary rates across eukaryotes (1542 species).')
 
 st.write('Start exploring the new proteome-wide structural phylogenetic tree by selecting the panels in the sidebar!')
-st.write('1. Explore Tree: check the structuRal phylogenetic tree for all Eukarya, a kingdom, a taxon, a species or a set of proteins. You will be able to change the tree visualisation style in the sidebar.')
-st.write('2. Model Organisms: find the best model organism for your study based on the structural comparison of the protein(s) in your pathway of interest.')
-st.write('3. Download: retrieve all the structural alignments scores, protein predictions and tree files.')
-
+row1 = st.columns(3)
+emojis = [":tree:", ":mouse:", ":download:"]
+titles = ["#1", "#2", "#3"]
+for col, emoji, content in zip(row1, emojis, titles):
+    tile = col.container(height=120)
+    tile.title(f"{emoji} {content}")
+    if content == "#1":
+        st.write('Explore Tree: check the structuRal phylogenetic tree for all Eukarya, a kingdom, a taxon, a species or a set of proteins. You will be able to change the tree visualisation style in the sidebar.')
+        st.page_link("pages/1_Explore_Tree.py", label="Page1", icon=":tree:")
+        #demo here
+        video_path_demo1 = "data/tree/app_demo3.mp4"
+        if os.path.exists(video_path_demo1):
+            with open(video_path_demo1, "rb") as video_intro:
+                video_bytes = video_intro.read()
+    elif content== "#2":
+        st.write('Model Organisms: find the best model organism for your study based on the structural comparison of the protein(s) in your pathway of interest.')
+        st.page_link("pages/2_Model_organisms.py", label="Page2", icon=":mouse:")
+        #demo here
+        video_path_demo2 = "data/tree/app_demo2.mp4"
+        if os.path.exists(video_path_demo2):
+            with open(video_path_demo2, "rb") as video_intro:
+                video_bytes = video_intro.read()
+    elif content == "#3":
+        st.write('Download: retrieve all the structural alignments scores, protein predictions and tree files.')
+        st.page_link("pages/3_Downloads.py", label="Page3", icon=":material/download:")
+        #demo here
+        video_path_demo3 = "data/tree/app_demo3.mp4"
+        if os.path.exists(video_path_demo3):
+            with open(video_path_demo3, "rb") as video_intro:
+                video_bytes = video_intro.read()
 
 st.sidebar.subheader('Updates', divider="rainbow")
 st.sidebar.write('Sign up for updates!')
@@ -239,6 +265,7 @@ if st.sidebar. button('Subscribe'):
     else:
         # If we reach here, the email is non-empty and we save it.
         if save_email(user_email):
+            st.balloons()
             # Updated success message
             st.sidebar.success(f"Thank you! **{user_email}** is where you will receive updates regarding SHE!")
             # Clear the input field after successful submission (updated key)
@@ -252,13 +279,13 @@ st.sidebar.video(tree_bytes, autoplay=True, loop=True, muted=True)
 
 st.subheader('Demo')
 st.write('Check up our demo to start exploring SHE')
-video_path1 = "data/tree/app_demo.mp4"
+video_path_demo = "data/tree/app_demo.mp4"
 
 try:
     # Check if the file exists using os.path.exists
-    if os.path.exists(video_path1): # local path
+    if os.path.exists(video_path_demo): # local path
         # If the file exists, open and read the bytes
-        with open(video_path1, "rb") as video_intro:
+        with open(video_path_demo, "rb") as video_intro:
             video_bytes = video_intro.read()
     
     st.video(video_bytes)

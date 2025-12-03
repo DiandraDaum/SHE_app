@@ -684,7 +684,7 @@ st.image(
 row1 = st.columns(1)
 for col in row1:
     col.markdown('# Model Organisms search')
-    container = col.container(height=120, centered=True)
+    container = col.container(height=120)
     container.title(':person:')
 
 
@@ -695,6 +695,21 @@ for col, emoji, content in zip(row2, emojis, titles):
     tile = col.container(height=120)
     # The title method automatically centers the text
     tile.title(f"{emoji} {content}")
+    for content in tile:
+        if content == '#1': #mouse
+            st.write("bitscore human vs domestic mouse: 2600")
+            #with st.container():
+                #load alignemnt here
+        elif content == '#2': #fish
+            st.write("bitscore human vs zebrafish: 1800")
+            #with st.container():
+                #load alignemnt here 
+        elif content == '#3': #arabidopsis
+            st.write("bitscore human vs zebrafish: 1800")
+            #with st.container():
+                #load alignemnt here 
+
+
 
 
 st.write("Here, you can look for the best model organism to use for your study based on the proteins involved in your pathway. Click on 'Find best Model Organism' in the sidebar to start you analysis!")
