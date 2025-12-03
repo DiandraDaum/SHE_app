@@ -223,35 +223,41 @@ st.write('The Structural History of Eukarya (SHE) provides a comprehensive pictu
 
 st.write('Start exploring the new proteome-wide structural phylogenetic tree by selecting the panels in the sidebar!')
 row1 = st.columns(3)
-emojis = [":tree:", ":mouse:", ":download:"]
-titles = ["#1", "#2", "#3"]
+emojis = [":herb:", ":mouse:", ":material/download:"]
+titles = ["Explore Tree", "Model Organism search", "Downloads"]
 for col, emoji, content in zip(row1, emojis, titles):
     tile = col.container(height=120)
     tile.title(f"{emoji} {content}")
-    if content == "#1":
-        st.write('Explore Tree: check the structuRal phylogenetic tree for all Eukarya, a kingdom, a taxon, a species or a set of proteins. You will be able to change the tree visualisation style in the sidebar.')
-        st.page_link("pages/1_Explore_Tree.py", label="Page1", icon=":tree:")
-        #demo here
-        video_path_demo1 = "data/tree/app_demo3.mp4"
-        if os.path.exists(video_path_demo1):
-            with open(video_path_demo1, "rb") as video_intro:
-                video_bytes = video_intro.read()
-    elif content== "#2":
-        st.write('Model Organisms: find the best model organism for your study based on the structural comparison of the protein(s) in your pathway of interest.')
-        st.page_link("pages/2_Model_organisms.py", label="Page2", icon=":mouse:")
-        #demo here
-        video_path_demo2 = "data/tree/app_demo2.mp4"
-        if os.path.exists(video_path_demo2):
-            with open(video_path_demo2, "rb") as video_intro:
-                video_bytes = video_intro.read()
-    elif content == "#3":
-        st.write('Download: retrieve all the structural alignments scores, protein predictions and tree files.')
-        st.page_link("pages/3_Downloads.py", label="Page3", icon=":material/download:")
-        #demo here
-        video_path_demo3 = "data/tree/app_demo3.mp4"
-        if os.path.exists(video_path_demo3):
-            with open(video_path_demo3, "rb") as video_intro:
-                video_bytes = video_intro.read()
+with st.container == :
+    st.write('Explore Tree: check the structuRal phylogenetic tree for all Eukarya, a kingdom, a taxon, a species or a set of proteins. You will be able to change the tree visualisation style in the sidebar.')
+    st.page_link("pages/1_Explore_Tree.py", label="Page1")
+    #demo here
+    video_path_demo1 = "data/tree/app_demo3.mp4"
+    if os.path.exists(video_path_demo1):
+        with open(video_path_demo1, "rb") as video_intro:
+            video_bytes = video_intro.read()
+    else:
+        pass
+with tile.title == ":mouse:" "Model Organisms":
+    st.write('Model Organisms: find the best model organism for your study based on the structural comparison of the protein(s) in your pathway of interest.')
+    st.page_link("pages/2_Model_organisms.py", label="Page2")
+    #demo here
+    video_path_demo2 = "data/tree/app_demo2.mp4"
+    if os.path.exists(video_path_demo2):
+        with open(video_path_demo2, "rb") as video_intro:
+            video_bytes = video_intro.read()
+    else:
+        pass
+with tile.title == ":material/download:" "Downloads":
+    st.write('Download: retrieve all the structural alignments scores, protein predictions and tree files.')
+    st.page_link("pages/3_Downloads.py", label="Page3")
+    #demo here
+    video_path_demo3 = "data/tree/app_demo3.mp4"
+    if os.path.exists(video_path_demo3):
+        with open(video_path_demo3, "rb") as video_intro:
+            video_bytes = video_intro.read()
+    else:
+        pass
 
 st.sidebar.subheader('Updates', divider="rainbow")
 st.sidebar.write('Sign up for updates!')
