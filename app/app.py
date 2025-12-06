@@ -216,48 +216,63 @@ st.sidebar.success("Find more analysis options in the panels above.")
 st.subheader('Structural Phylogenetic Tree from proteome-wide structure alignments')
 #st.image('data/tree/All/Intro.png', caption='Strucutral Phylogenetic Tree of Eukarya')
 
-
 st.write('Classical phylogenetic trees constructed based on sequence alignments of a small set of genes (i.e. rRNAs) are hindered by limitations.')
 st.write('To capture more distant and detailed picture of evolution, here we constructed evolutionary relationships based on the comparison of all predicted protein structures in an organism (2.96x1014 structure alignments between 24.3 million proteins).')
 st.write('The Structural History of Eukarya (SHE) provides a comprehensive picture of proteome structural similarity and evolutionary rates across eukaryotes (1542 species).')
 
 st.write('Start exploring the new proteome-wide structural phylogenetic tree by selecting the panels in the sidebar!')
 row1 = st.columns(3)
-emojis = [":herb:", ":mouse:", ":material/download:"]
+emojis = [":deciduous_tree:", ":mouse2:", ":material/download:"]
 titles = ["Explore Tree", "Model Organism search", "Downloads"]
+
+# Create the tiles and their content
 for col, emoji, content in zip(row1, emojis, titles):
-    tile = col.container(height=120)
-    tile.title(f"{emoji} {content}")
-with st.container == :
-    st.write('Explore Tree: check the structuRal phylogenetic tree for all Eukarya, a kingdom, a taxon, a species or a set of proteins. You will be able to change the tree visualisation style in the sidebar.')
-    st.page_link("pages/1_Explore_Tree.py", label="Page1")
-    #demo here
-    video_path_demo1 = "data/tree/app_demo3.mp4"
-    if os.path.exists(video_path_demo1):
-        with open(video_path_demo1, "rb") as video_intro:
-            video_bytes = video_intro.read()
-    else:
-        pass
-with tile.title == ":mouse:" "Model Organisms":
-    st.write('Model Organisms: find the best model organism for your study based on the structural comparison of the protein(s) in your pathway of interest.')
-    st.page_link("pages/2_Model_organisms.py", label="Page2")
-    #demo here
-    video_path_demo2 = "data/tree/app_demo2.mp4"
-    if os.path.exists(video_path_demo2):
-        with open(video_path_demo2, "rb") as video_intro:
-            video_bytes = video_intro.read()
-    else:
-        pass
-with tile.title == ":material/download:" "Downloads":
-    st.write('Download: retrieve all the structural alignments scores, protein predictions and tree files.')
-    st.page_link("pages/3_Downloads.py", label="Page3")
-    #demo here
-    video_path_demo3 = "data/tree/app_demo3.mp4"
-    if os.path.exists(video_path_demo3):
-        with open(video_path_demo3, "rb") as video_intro:
-            video_bytes = video_intro.read()
-    else:
-        pass
+    # 1. Create the container tile (this is the clickable/visible area)
+    with col:
+        tile = st.container(height=120)
+        tile.title(f"{emoji} {content}")
+        
+    # 2. Add the dynamic content below the tiles using a conditional block
+    # We use st.expander to hide the detailed content by default,
+    # as displaying all this text immediately below the small tiles would be cluttered.
+    with col.expander(f"**{content}**"):
+        
+        # --- Explore Tree Content ---
+        if content == "Explore Tree":
+            st.write('Explore Tree: check the **structural phylogenetic tree** for all Eukarya, a kingdom, a taxon, a species or a set of proteins. You will be able to change the tree visualisation style in the sidebar.')
+            st.page_link("pages/1_Explore_Tree.py", label="Go to Explore Tree Page", icon="🌳")
+            
+            # Demo Video Section
+            video_path_demo1 = "data/tree/app_demo3.mp4"
+            if os.path.exists(video_path_demo1):
+                st.markdown("---")
+                st.subheader("Demo")
+                st.video(video_path_demo1)
+            # You don't need the 'else: pass' here, but it's harmless
+            
+        # --- Model Organism Search Content ---
+        elif content == "Model Organism search":
+            st.write('Model Organisms: find the **best model organism** for your study based on the structural comparison of the protein(s) in your pathway of interest.')
+            st.page_link("pages/2_Model_organisms.py", label="Go to Model Organisms Page", icon=":mouse:")
+            
+            # Demo Video Section
+            video_path_demo2 = "data/tree/app_demo2.mp4"
+            if os.path.exists(video_path_demo2):
+                st.markdown("---")
+                st.subheader("Demo")
+                st.video(video_path_demo2)
+                
+        # --- Downloads Content ---
+        elif content == "Downloads":
+            st.write('Download: retrieve all the **structural alignments scores**, protein predictions and tree files.')
+            st.page_link("pages/3_Downloads.py", label="Go to Downloads Page", icon="📥")
+            
+            # Demo Video Section
+            video_path_demo3 = "data/tree/app_demo3.mp4"
+            if os.path.exists(video_path_demo3):
+                st.markdown("---")
+                st.subheader("Demo")
+                st.video(video_path_demo3)
 
 st.sidebar.subheader('Updates', divider="rainbow")
 st.sidebar.write('Sign up for updates!')
@@ -278,27 +293,9 @@ if st.sidebar. button('Subscribe'):
             #st.session_state.email = ""
 
 
-video_tree = open("data/tree/final_tree.mp4", "rb")
-tree_bytes = video_tree.read()
-st.sidebar.video(tree_bytes, autoplay=True, loop=True, muted=True)
-
-
-st.subheader('Demo')
-st.write('Check up our demo to start exploring SHE')
-video_path_demo = "data/tree/app_demo.mp4"
-
-try:
-    # Check if the file exists using os.path.exists
-    if os.path.exists(video_path_demo): # local path
-        # If the file exists, open and read the bytes
-        with open(video_path_demo, "rb") as video_intro:
-            video_bytes = video_intro.read()
-    
-    st.video(video_bytes)
-except:
-    # in case the file is not found
-    st.warning(f"Demo video could not be loaded")
-
+#video_tree = open("data/tree/final_tree.mp4", "rb")
+#tree_bytes = video_tree.read()
+#st.sidebar.video(tree_bytes, autoplay=True, loop=True, muted=True)
 
 
 st.subheader('Cite')

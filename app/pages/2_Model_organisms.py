@@ -675,35 +675,60 @@ st.set_page_config(
 
 
 st.title('SHE: Structural History of Eukarya')
-st.image(
-    'data/tree/model.png',
-    caption='Protein-protein structure comparison to rank the best model organism for your target organism'
-)
+#st.image('data/tree/model.png',ccaption='Protein-protein structure comparison to rank the best model organism for your target organism')
 
+st.title('Model Organisms search')
+st.subheader('Target organism: Homo sapiens')
+st.subheader('Target protein: Q9NVI1')
 
-row1 = st.columns(1)
-for col in row1:
-    col.markdown('# Model Organisms search')
-    container = col.container(height=120)
-    container.title('Target: Homo sapiens')
+COLOR_MOUSE = "#A6EFFF"  # Light Blue
+COLOR_FISH = "#EEF4AE"   # Light Green/Turquoise
+COLOR_PLANT = "#F8D7B2"  # Light Orange/Peach
 
+css = """
+.st-key-my_blue_container{
+    background: rgba(100, 100, 200, 0.3);
+}
+
+.st-key-my_blue_container .st-key-make_it_pink img{
+    background: linear-gradient(90deg,blue, blue, blue);
+}
+"""
+st.html(f"<style>{css}</style>")
 
 row2 = st.columns(3)
-emojis = [":mouse:", ":fish:", ":herb:"]
-titles = ["#1", "#2", "#3"]
-for col, emoji, content in zip(row2, emojis, titles):
-    tile = col.container(height=120)
-    # The title method automatically centers the text
-    tile.title(f"{emoji} {content}")
-    with content == '#1': #mouse
-        st.write("bitscore human vs domestic mouse: 2600")
-            #load alignemnt here
-    with content == '#2': #fish
-        st.write("bitscore human vs zebrafish: 1800")
-            #load alignemnt here 
-    with content == '#3': #arabidopsis
-        st.write("bitscore human vs zebrafish: 1800")
-            #load alignemnt here 
+emojis = [":mouse2:", ":tropical_fish:", ":seedling:"]
+titles = ["House Mouse", "Zebrafish", "Arabidopsis thaliana"]
+ranks = ["#1", "#2", "#3"]
+bitscores = ["7570", "504", "68"]
+# Define the custom heights for the *visible* title containers
+tile_heights = [120, 100, 80] 
+for col, emoji, title, score, height, rank in zip(row2, emojis, titles, bitscores, tile_heights, ranks):
+    with col:
+        #with st.container(key="my_blue_container")
+        # 1. Create the Visible Title Container with Custom Height
+        tile = st.container(height=height)
+        # Use a large markdown header for the title inside the container
+        tile.markdown(f"## {rank} {emoji} {title}")
+        
+        with st.expander("Click for structural alignment details"):
+            # Content that appears when the user clicks/expands
+            st.write(f"**Bitscore** human vs {title}: **{score}**")
+            st.write("---")
+            if title == "House Mouse":
+                alignment = open("data/subset/homo_mouse.mp4", "rb")
+                bytes = alignment.read()
+                st.video(bytes, autoplay=True, loop=True, muted=True)
+            elif title == "Zebrafish":
+                alignment = open("data/subset/homo_fish.mp4", "rb")
+                bytes = alignment.read()
+                st.video(bytes, autoplay=True, loop=True, muted=True)
+            elif title == "Arabidopsis thaliana":
+                alignment = open("data/subset/homo_arabidopsis.mp4", "rb")
+                bytes = alignment.read()
+                st.video(bytes, autoplay=True, loop=True, muted=True)
+
+
 
 
 
