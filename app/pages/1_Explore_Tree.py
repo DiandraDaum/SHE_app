@@ -147,6 +147,7 @@ def extract_closest_species(newick_file, input_species, num_neighbors): #species
         print("The resulting subtree has no leaves. No file was written.")
     
     return output_path, target_species
+
 def load_species_tree(species, layout, species_out):
 # File paths
     #species_out =  'SHE/species_trees/' + species +'_subtree.newick'
@@ -1324,12 +1325,51 @@ st.title('SHE: Structural History of Eukarya')
 st.subheader('Structural Phylogenetic Tree')
 #, main_tree_out = load_main_tree()
 # Display the main_tree image
-st.image(
-    'data/tree/precomputed.png',
-    caption='Strucutral Phylogenetic Tree of Eukarya'
-)
+#st.image('data/tree/precomputed.png', caption='Strucutral Phylogenetic Tree of Eukarya')
 
 
+row1 = st.columns(3)
+#emojis = [":deciduous_tree:", ":mouse2:", ":material/download:"]
+titles = ["1. Explore Kingdoms", "2. Proteome evolutionary rate", "3. Zoom on Species or Taxon"]
+
+# Create the tiles and their content
+for col, content in zip(row1,  titles):
+    #with col:   tile = st.container(height=120)   tile.title(f"{emoji} {content}")
+    with col.expander(f"**{content}**"):
+        # --- kingdoms ---
+        if content == "1. Explore Kingdoms":
+            st.write(':blue[Start exploring the new structural tree by selecting a kingdom in the sidebar!]')
+            st.write(':blue[You can also choose the tree visualisation style in the sidebar.]')
+            
+        # --- evorate ---
+        elif content == "2. Proteome evolutionary rate":
+            st.write(':green[Compare the innovative structural evolutionary rate of different proteomes across eukarya! Use the "Visualise Evolutionary Rate" section in the sidebar.]')
+                
+        # --- zoom ---
+        elif content == "3. Zoom on Species or Taxon":
+            st.write(':orange[Interested in discovering the new structural phylogenetics of specific species or taxa? Use the "Extract Taxonomic Group" section in the sidebar.]')
+
+
+row2 = st.columns(2)
+titles = ["4. Protein structural homologous", "5. Structural evolution of a set of proteins"]
+# Create the tiles and their content
+for col, content in zip(row2, titles):
+    #with col:   tile = st.container(height=120)   tile.title(f"{emoji} {content}")
+    with col.expander(f"**{content}**"):
+        # --- Explore Tree Content ---
+        if content == ":red[4. Protein structural homologous]":
+            st.write('Interested in discovering in which organisms a certain protein can be found? Use the "Look for a protein" section in the sidebar.')
+            
+        # --- Model Organism Search Content ---
+        elif content == "5. Structural evolution of a set of proteins":
+            st.write(":red[What about studying the evolution of your proteins of interest? Click on 'Protein Evolution > Study the structural evolution set of proteins' in the sidebar and start building your tree!]")
+                
+
+
+
+
+
+# Add sidebar ---------------------------------------------------------------------------------------------------------------------------
 #data
 df = pd.DataFrame({
     'kingdom': ["All", "Opisthokonta", "Amoebozoa", "Sar", "Viridiplantae", "Discoba", "Rhodophyta"],
@@ -1337,10 +1377,8 @@ df = pd.DataFrame({
     })
 
 
-
-# Add sidebar ---------------------------------------------------------------------------------------------------------------------------
 # Choose Taxon
-st.sidebar.subheader('1. Kingdoms', divider=True)
+st.sidebar.subheader('1. Visualise Kingdoms', divider=True)
 kingdom = st.sidebar.selectbox(
     'Which kingdom? (default: All)',
     df['kingdom'],
@@ -1361,13 +1399,6 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
-st.write('Close species in the tree share similar protein structures at the proteome level.')
-st.write('Start exploring the new structural tree by selecting a kingdom in the sidebar!')
-st.write('You can also choose the tree visualisation style in the sidebar.')
-st.write('Interested in discovering the new structural phylogenetics of specific species or taxa? Use the "Extract Taxonomic Group" section in the sidebar.')
-st.write('Interested in discovering in which organisms a certain protein can be found? Use the "Look for a protein" section in the sidebar.')
-st.write("What about studying the evolution of your proteins of interest? Click on 'Protein Evolution > Study the structural evolution set of proteins' in the sidebar and start building your tree!")
 
 
 ############################Visualization options --------------------------------------------------------

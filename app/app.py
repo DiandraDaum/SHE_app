@@ -58,6 +58,7 @@ def get_base64_of_bin_file(bin_file):
         st.error(f"Error: Video file not found at path: {bin_file}. Please check the path.")
         return None
 
+@st.cache_data
 def embed_video_background(video_path):
     """
     Embeds a local MP4 video as a fixed background using Base64 encoding.
@@ -227,34 +228,24 @@ titles = ["Explore Tree", "Model Organism search", "Downloads"]
 
 # Create the tiles and their content
 for col, emoji, content in zip(row1, emojis, titles):
-    # 1. Create the container tile (this is the clickable/visible area)
-    with col:
-        tile = st.container(height=120)
-        tile.title(f"{emoji} {content}")
-        
-    # 2. Add the dynamic content below the tiles using a conditional block
-    # We use st.expander to hide the detailed content by default,
-    # as displaying all this text immediately below the small tiles would be cluttered.
-    with col.expander(f"**{content}**"):
+    #with col:   tile = st.container(height=120)   tile.title(f"{emoji} {content}")
+    with col.expander(f"**{emoji} {content}**"):
         
         # --- Explore Tree Content ---
         if content == "Explore Tree":
             st.write('Explore Tree: check the **structural phylogenetic tree** for all Eukarya, a kingdom, a taxon, a species or a set of proteins. You will be able to change the tree visualisation style in the sidebar.')
-            st.page_link("pages/1_Explore_Tree.py", label="Go to Explore Tree Page", icon="🌳")
-            
+            st.page_link("pages/1_Explore_Tree.py", label="Go to Explore Tree Page") #icon="🌳"
             # Demo Video Section
             video_path_demo1 = "data/tree/app_demo3.mp4"
             if os.path.exists(video_path_demo1):
                 st.markdown("---")
                 st.subheader("Demo")
                 st.video(video_path_demo1)
-            # You don't need the 'else: pass' here, but it's harmless
             
         # --- Model Organism Search Content ---
         elif content == "Model Organism search":
             st.write('Model Organisms: find the **best model organism** for your study based on the structural comparison of the protein(s) in your pathway of interest.')
-            st.page_link("pages/2_Model_organisms.py", label="Go to Model Organisms Page", icon=":mouse:")
-            
+            st.page_link("pages/2_Model_organisms.py", label="Go to Model Organisms Page")
             # Demo Video Section
             video_path_demo2 = "data/tree/app_demo2.mp4"
             if os.path.exists(video_path_demo2):
@@ -265,8 +256,7 @@ for col, emoji, content in zip(row1, emojis, titles):
         # --- Downloads Content ---
         elif content == "Downloads":
             st.write('Download: retrieve all the **structural alignments scores**, protein predictions and tree files.')
-            st.page_link("pages/3_Downloads.py", label="Go to Downloads Page", icon="📥")
-            
+            st.page_link("pages/3_Downloads.py", label="Go to Downloads Page")
             # Demo Video Section
             video_path_demo3 = "data/tree/app_demo3.mp4"
             if os.path.exists(video_path_demo3):

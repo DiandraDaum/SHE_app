@@ -713,8 +713,8 @@ for col, emoji, title, score, height, rank in zip(row2, emojis, titles, bitscore
         
         with st.expander("Click for structural alignment details"):
             # Content that appears when the user clicks/expands
-            st.write(f"**Bitscore** human vs {title}: **{score}**")
-            st.write("---")
+            st.write(f"**Bitscore** human Q9NVI1 vs {title}: **{score}**")
+            #st.write("---")
             if title == "House Mouse":
                 alignment = open("data/subset/homo_mouse.mp4", "rb")
                 bytes = alignment.read()
