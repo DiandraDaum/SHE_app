@@ -137,66 +137,66 @@ if st.sidebar.checkbox('Protein structure predictions'):
             st.warning('Please input the UniProt proteome ID (i.e. UP000000226) and the UniProt protein ID (i.e. V7ATE2) in the respective spaces')
         else:
             #find protein index in proteome ---------------------------------------------------------------
-            index_dir='data/subset/index' #140 gb zipped
-            proteome_indexes= f"{index_dir}/{proteome}_*_fc_id_mapping.csv"
+            index_dir='data/subset/index' 
+            subset_dir='data/subset/subset'
+
+            # --- 1. Find the Index File and Retrieved Index ---
+            proteome_indexes = f"{index_dir}/{proteome}_*_fc_id_mapping.csv"
             matching_proteome = glob.glob(proteome_indexes)
             if not matching_proteome:
-                st.error(f"Error: No matching proteome file found for {proteome}")
+                st.error(f"Error: No matching proteome index file found for {proteome}")
             index_file_path = matching_proteome[0]
-            proteome_df = pd.read_csv(index_file_path) # columns: 'fc_db_index' and 'afdb_id'
-            af_protein=f"AF-{protein}-F1-model_v4"
+            
+            try:
+                proteome_df = pd.read_csv(index_file_path) # columns: 'fc_db_index' and 'afdb_id'
+            except Exception as e:
+                st.error(f"Error reading index file {index_file_path}: {e}")
+                
+            af_protein = f"AF-{protein}-F1-model_v4"
             matching_rows = proteome_df[proteome_df['afdb_id'] == af_protein]
+            
             if matching_rows.empty:
                 st.error(f"Structure prediction for protein {af_protein} not found in {proteome}.")
             
-            retrieved_index = matching_rows['fc_db_index'].iloc[0]     #index in 'fc_db_index' column of the first matching row
+            # This is the correct database index
+            retrieved_index = matching_rows['fc_db_index'].iloc[0] 
             
-            #from  index get protein pdb --------------------------------------------------------------------
-            subset_dir='data/subset/subset'
-            wild_proteome_dir = f"{subset_dir}/{proteome}_*"
+            # --- 2. Locate the Database Path ---
+            wild_proteome_dir = f"{subset_dir}/{proteome}_*" #no .file
             proteome_dirs = glob.glob(wild_proteome_dir)
-            if proteome_dirs:
-                proteome_dir = proteome_dirs[0]
-            else:
+            if not proteome_dirs:
                 st.error(f"Error: Could not find any directory matching the pattern: {wild_proteome_dir}")
-                sys.exit(1)
+                
+            proteome_dir = proteome_dirs[0]
             db_dir = f"{proteome_dir}/extracted_pdbs" 
-            db_dir_path = Path(db_dir)
-
-            # Locate the full database file
-            db_name_wild = f"{proteome_dir}/{proteome}_*"
-            db_name = glob.glob(db_name_wild)[0]
-            
             os.makedirs(db_dir, exist_ok=True)
-            target_name = None
-            target_pdb_filepath = None
+            full_proteome_id = Path(proteome_dir).name
+
+            # Locate the full database file (e.g., UP000005640_9606_fc_db)
+            db_name_wild = f"{proteome_dir}/{full_proteome_id}"
+            db_name_list = glob.glob(db_name_wild)
+            if not db_name_list:
+                st.error(f"Error: Could not find any database file matching: {db_name_wild}")
+            db_name = db_name_list[0]
+
+            # --- 3. Directly Retrieve PDB using the Index ---
+            st.info(f"c. Loading protein {af_protein} (database index {retrieved_index}). Please wait...")
             protein_found = False
-            #st.info(f"Looking for protein {af_protein} (database index {retrieved_index}). Please wait...")
-            protein_index = 0
-            st.info("Please wait for the download button to appear :)")
-            st.snow()
             with fc.open(db_name) as db: 
-                # Iterate through the database entries
-                for (name_full, pdb_dc) in db:
-                    if protein_index == retrieved_index:
-                        target_name = name_full.split('.')[0] 
-                        target_pdb_filepath = os.path.join(db_dir, target_name + ".pdb")
+                # Direct access using the index!
+                target_name, pdb_dc = db[retrieved_index] 
+            
+            target_name = target_name.split('.')[0] 
+            target_pdb_filepath = os.path.join(db_dir, target_name + ".pdb")
+
+            #st.info("Extracting and writing file to disk...")
+            with open(target_pdb_filepath, "w") as pdb_file:
+                pdb_file.write(pdb_dc)
                         
-                        # B. Check if the file already exists on disk
-                        if Path(target_pdb_filepath).exists():
-                            st.info("Protein file already exists. Preparing download...")
-                        else:
-                            # C. If it doesn't exist, extract and write it to the db_dir folder
-                            st.info("Extracting and writing file to disk...")
-                            # Note: The 'pdb_dc' content is assumed to be the PDB/structure text
-                            with open(target_pdb_filepath, "w") as pdb_file:
-                                pdb_file.write(pdb_dc)
-                        
-                        protein_found = True
-                        break # Stop iterating immediately after the target is found
-                    protein_index += 1
+            protein_found = True  # Stop iterating immediately after the target is found
             
             if protein_found:
+                st.snow()
                 target_pdb_filepath = os.path.join(db_dir, af_protein + ".pdb")
                 label4="Download protein structure prediction for " + protein
                 # Download the file using the dynamically determined path and name
@@ -208,7 +208,7 @@ if st.sidebar.checkbox('Protein structure predictions'):
                         mime="application/octet-stream",
                         icon=":material/download:",
                     )
-            shutil.rmtree(db_dir)
+                shutil.rmtree(db_dir)
 
 
 if st.sidebar.checkbox('Tree by Kingdom'):

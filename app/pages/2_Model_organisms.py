@@ -678,7 +678,7 @@ def get_pdb(protein, proteome):
                 target_name = name_full.split('.')[0] 
                 target_pdb_filepath = os.path.join(db_dir, target_name + ".pdb")
                 # C. If it doesn't exist, extract and write it to the db_dir folder
-                st.info("Extracting and writing file to disk...")
+                #st.info("Extracting and writing file to disk...")
                 # Note: The 'pdb_dc' content is assumed to be the PDB/structure text
                 with open(target_pdb_filepath, "w") as pdb_file:
                     pdb_file.write(pdb_dc)
@@ -695,6 +695,147 @@ def get_pdb(protein, proteome):
         return None
 
 
+
+def get_pdb2(protein, proteome):
+    index_dir='data/subset/index' 
+    subset_dir='data/subset/subset'
+
+    # --- 1. Find the Index File and Retrieved Index ---
+    proteome_indexes = f"{index_dir}/{proteome}_*_fc_id_mapping.csv"
+    matching_proteome = glob.glob(proteome_indexes)
+    if not matching_proteome:
+        st.error(f"Error: No matching proteome index file found for {proteome}")
+        return None
+    index_file_path = matching_proteome[0]
+    
+    try:
+        proteome_df = pd.read_csv(index_file_path) # columns: 'fc_db_index' and 'afdb_id'
+    except Exception as e:
+        st.error(f"Error reading index file {index_file_path}: {e}")
+        return None
+        
+    af_protein = f"AF-{protein}-F1-model_v4"
+    matching_rows = proteome_df[proteome_df['afdb_id'] == af_protein]
+    
+    if matching_rows.empty:
+        st.error(f"Structure prediction for protein {af_protein} not found in {proteome}.")
+        return None
+    
+    # This is the correct database index
+    retrieved_index = matching_rows['fc_db_index'].iloc[0] 
+    
+    # --- 2. Locate the Database Path ---
+    wild_proteome_dir = f"{subset_dir}/{proteome}_*" #no .file
+    proteome_dirs = glob.glob(wild_proteome_dir)
+    if not proteome_dirs:
+        st.error(f"Error: Could not find any directory matching the pattern: {wild_proteome_dir}")
+        return None
+        
+    proteome_dir = proteome_dirs[0]
+    db_dir = f"{proteome_dir}/extracted_pdbs" 
+    os.makedirs(db_dir, exist_ok=True)
+    full_proteome_id = Path(proteome_dir).name
+
+    # Locate the full database file (e.g., UP000005640_9606_fc_db)
+    db_name_wild = f"{proteome_dir}/{full_proteome_id}"
+    db_name_list = glob.glob(db_name_wild)
+    if not db_name_list:
+         st.error(f"Error: Could not find any database file matching: {db_name_wild}")
+         return None
+    db_name = db_name_list[0]
+
+    # --- 3. Directly Retrieve PDB using the Index ---
+    st.info(f"c. Loading protein {af_protein} (database index {retrieved_index}). Please wait...")
+
+    try:
+        with fc.open(db_name) as db: 
+            # Direct access using the index!
+            target_name, pdb_dc = db[retrieved_index] 
+        
+        target_name = target_name.split('.')[0] 
+        target_pdb_filepath = os.path.join(db_dir, target_name + ".pdb")
+
+        #st.info("Extracting and writing file to disk...")
+        with open(target_pdb_filepath, "w") as pdb_file:
+            pdb_file.write(pdb_dc)
+            
+        #st.success(f"Protein {af_protein} found and structure saved to {target_pdb_filepath}.")
+        return target_pdb_filepath
+        
+    except IndexError:
+        st.error(f"Error: Database index {retrieved_index} is out of bounds for the database file {db_name}.")
+        return None
+    except Exception as e:
+        st.error(f"An unexpected error occurred during FoldComp retrieval: {e}")
+        return None
+
+def render_3dmol_pdb(structure_path_or_url: str):
+    """
+    Loads and renders a protein structure, supporting both local file paths 
+    (PDB/CIF) and remote AlphaFold CIF URLs.
+    """
+    #st.info("Preparing protein structure for 3D rendering...")
+    structure_data = None
+    structure_format = None
+    
+    # 1. Determine source (URL vs. Local File) and load data
+    if structure_path_or_url.startswith(('http://', 'https://')):
+        # --- Handle Remote URL (Original Logic) ---
+        st.info("Fetching structure from remote URL...")
+        try:
+            cif_response = requests.get(structure_path_or_url, timeout=30)
+            cif_response.raise_for_status() 
+            structure_data = cif_response.text
+            structure_format = 'cif'
+        except requests.exceptions.RequestException as e:
+            st.error(f"Network error during structure download: {e}")
+            return
+            
+    else:
+        # --- Handle Local File Path ---
+        local_filepath = structure_path_or_url
+        if not os.path.exists(local_filepath):
+            st.error(f"Local file not found at path: {local_filepath}")
+            return
+
+        #st.info(f"Loading structure from local file: {local_filepath}")
+        
+        # Determine format based on extension
+        if local_filepath.lower().endswith(('.cif', '.mmcif')):
+            structure_format = 'cif'
+        elif local_filepath.lower().endswith('.pdb'):
+            structure_format = 'pdb' # Use 'pdb' format for py3Dmol
+        else:
+            st.error("Unsupported local file format. Must be .pdb or .cif.")
+            return
+
+        try:
+            # Read the content of the local file
+            with open(local_filepath, 'r') as f:
+                structure_data = f.read()
+        except Exception as e:
+            st.error(f"Error reading local structure file: {e}")
+            return
+    
+    if not structure_data:
+        st.error("Structure data is empty. Cannot render.")
+        return
+
+    # 2. Initialize the py3Dmol viewer object
+    view = py3Dmol.view(width=800, height=500, js='https://3dmol.org/build/3Dmol.js')
+
+    # 3. Add the model using the determined format
+    view.addModel(structure_data, structure_format) # Use the determined format
+
+    # 4. Set the coloring scheme (lDDT for AlphaFold)
+    view.setStyle({'cartoon': {'colorscheme': {'prop':'b','gradient': 'roygb','min':50,'max':90}}})
+    view.zoomTo() # Add a zoom to center the protein
+
+    # 5. Render the view using the stmol component
+    try:
+        showmol(view, height=510, width=800)
+    except Exception as e:
+         st.error(f"Error rendering 3Dmol viewer with stmol: {e}")
 # --- Function to generate the Mol* HTML viewer ---
 
 def render_3dmol(afdb_download_url: str):
@@ -1059,106 +1200,106 @@ if st.sidebar.checkbox('Find best Model organism'):
 
         st.plotly_chart(fig, use_container_width=True)
 
-    # show protein structures --------------------------------------------------------------------------------------
-    if st.sidebar.toggle('Show protein structure alignments'):
-        st.subheader('Structural comparison of your proteins between the input target and model organisms')
-        #st.info('c. Loading the protein-protein comparisons ...')
-        #comparison_df: proteinA, proteinB, bit_Score, Compared_Species
-        #target_species: usually human (protein A)
-        unique_target_proteins = comparison_df['proteinA'].unique()
-        selected_protein_A = st.radio(
-            "Select the **Target protein** to visualise:",
-            unique_target_proteins,
-            horizontal=True
-        )
-        selected_protein_df = comparison_df[comparison_df['proteinA'] == selected_protein_A]
-        if selected_protein_df.empty:
-            st.warning(f"No comparison hits found for {selected_protein_A}.")
-        else:
-            # Extract the human UniProt ID (AF-Q13616-F1-model_v4 -> Q13616)
-            try:
-                target_uniprot_id = selected_protein_A.split('-')[1]
-                mapping='data/core/model/extracted_and_renamed.csv'    #Path to CSV file with columns id,proteome_id,species_name
-                proteome_map = load_mapping_proteome(mapping)
-                proteome_target_id = proteome_map.get(target_species) #fix here to get proteome id
-                pdb_target = get_pdb(target_uniprot_id, proteome_target_id)
-                st.info(f"info: target_uniprot_id {target_uniprot_id}, proteome_target_id {proteome_target_id}, target species {target_species}, structure {pdb_target}.")
-            except Exception as e:
-                st.error(f"Parsing Error: {e}, for target uniprot id {target_uniprot_id}")
-                pdb_target = None
-            
-            # Check if the target (human) structure can be loaded
-            if not pdb_target:
-                st.error(f"Could not retrieve PDB file for the target protein {target_uniprot_id} from proteome {proteome_target_id}, structure {pdb_target}.")
-            
-            # --- 3. Iterate over the hits in all model organisms ---
-            st.write(f"## Structural protein Hits for: **{target_uniprot_id}** from {target_species} ({proteome_target_id}), structure {pdb_target}")
-            
-            # We now iterate over the rows of the filtered DataFrame
-            for index, row in selected_protein_df.iterrows():
-                
-                # Variables for the current comparison
-                hit_proteinB = row['proteinB']
-                hit_species = row['Compared_Species']
-                
-                st.markdown("---")
-                st.write(f"### {target_species} in blue vs. **{hit_species}** in yellow (Bit Score: {row['bit_score']:.0f})")
-                
-                # 3.1 Get PDB paths for the model organism hit
+        # show protein structures --------------------------------------------------------------------------------------
+        if st.sidebar.toggle('Show protein structure alignments'):
+            st.subheader('## Structural comparison of your proteins between the input target and model organisms')
+            #st.info('c. Loading the protein-protein comparisons ...')
+            #comparison_df: proteinA, proteinB, bit_Score, Compared_Species
+            #target_species: usually human (protein A)
+            unique_target_proteins = comparison_df['proteinA'].unique()
+            selected_protein_A = st.radio(
+                "Select the **Target protein** to visualise:",
+                unique_target_proteins,
+                horizontal=True
+            )
+            selected_protein_df = comparison_df[comparison_df['proteinA'] == selected_protein_A]
+            if selected_protein_df.empty:
+                st.warning(f"No comparison hits found for {selected_protein_A}.")
+            else:
+                # Extract the human UniProt ID (AF-Q13616-F1-model_v4 -> Q13616)
                 try:
-                    model_uniprot_id = hit_proteinB.split('-')[1]
-                    proteome_model_id = proteome_map.get(hit_species)
-                    pdb_model = get_pdb(model_uniprot_id, proteome_model_id)
-                except Exception:
-                    st.error(f"Could not parse UniProt ID from {hit_proteinB}.")
-                    pdb_model = None
+                    target_uniprot_id = selected_protein_A.split('-')[1]
+                    mapping='data/core/model/extracted_and_renamed.csv'    #Path to CSV file with columns id,proteome_id,species_name
+                    proteome_map = load_mapping_proteome(mapping)
+                    proteome_target_id = proteome_map.get(target_species) #fix here to get proteome id
+                    pdb_target = get_pdb2(target_uniprot_id, proteome_target_id)
+                    #st.info(f"info: target_uniprot_id {target_uniprot_id}, proteome_target_id {proteome_target_id}, target species {target_species}, structure {pdb_target}.")
+                except Exception as e:
+                    st.error(f"Parsing Error: {e}, for target uniprot id {target_uniprot_id}")
+                    pdb_target = None
+                
+                # Check if the target (human) structure can be loaded
+                if not pdb_target:
+                    st.error(f"Could not retrieve PDB file for the target protein {target_uniprot_id} from proteome {proteome_target_id}, structure {pdb_target}.")
+                
+                # --- 3. Iterate over the hits in all model organisms ---
+                st.write(f"Structural protein Hits for: **{target_uniprot_id}** from {target_species} ({proteome_target_id})")
+                
+                # We now iterate over the rows of the filtered DataFrame
+                for index, row in selected_protein_df.iterrows():
+                    
+                    # Variables for the current comparison
+                    hit_proteinB = row['proteinB']
+                    hit_species = row['Compared_Species']
+                    
+                    st.markdown("---")
+                    st.write(f"### **{hit_species}** (Bit Score: {row['bit_score']:.0f})")
+                    
+                    # 3.1 Get PDB paths for the model organism hit
+                    try:
+                        model_uniprot_id = hit_proteinB.split('-')[1]
+                        proteome_model_id = proteome_map.get(hit_species)
+                        pdb_model = get_pdb2(model_uniprot_id, proteome_model_id)
+                    except Exception:
+                        st.error(f"Could not parse UniProt ID from {hit_proteinB}.")
+                        pdb_model = None
 
-                if not pdb_model:
-                    st.warning(f"Skipping structure comparison: PDB file missing for {hit_species}.")
-                    continue
-                
-                # 3.2 Render structures side by side
-                st.write(f"**{target_species} ({selected_protein_A})** vs **{hit_species} ({hit_proteinB})**")
-                
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.write(f"**{target_species} Structure:**")
-                    render_3dmol(pdb_target) 
-                
-                with col2:
-                    st.write(f"**{hit_species} Structure:**")
-                    render_3dmol(pdb_model)             
+                    if not pdb_model:
+                        st.warning(f"Skipping structure comparison: PDB file missing for {hit_species}.")
+                        continue
+                    
+                    # 3.2 Render structures side by side
+                    st.write(f"**{target_species} ({selected_protein_A})** vs **{hit_species} ({hit_proteinB})**")
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.write(f"**{selected_protein_A} Structure:**")
+                        render_3dmol_pdb(pdb_target) 
+                    
+                    with col2:
+                        st.write(f"**{hit_proteinB} Structure:**")
+                        render_3dmol_pdb(pdb_model)             
 
-    # download button
-    is_random_user = False
-    if not user_email:
-        is_random_user = True
-    user_dir = os.path.join("results", "model_trees", user)
-    os.makedirs(user_dir, exist_ok=True) 
-    target_folder_path=user_dir
-    user_name=user.split('@')[0]
-    zip_file_name = f"results_{user_name}" 
-    output_base_dir = "temp_archives" 
-    os.makedirs(output_base_dir, exist_ok=True) 
-    # results in 'temp_archives/UP000005640_bitscores.zip'
-    shutil.make_archive(
-        base_name=os.path.join(output_base_dir, zip_file_name),
-        format='zip',
-        root_dir=os.path.dirname(target_folder_path), # Start zipping from the parent directory
-        base_dir=os.path.basename(target_folder_path)  # Only include the target folder itself
-    )
-    # Get the full path to the newly created ZIP file and make download availabel
-    zip_file_path = os.path.join(output_base_dir, f"{zip_file_name}.zip")
-    with open(zip_file_path, "rb") as file:
-        st.sidebar.download_button(
-            label="Download results now",
-            data=file, # The actual byte content of the zip file
-            file_name=f"{zip_file_name}.zip", # The name the user will see
-            mime="application/zip", # Critical: Set the correct MIME type for zip files
-            icon=":material/download:",
+        # download button
+        is_random_user = False
+        if not user_email:
+            is_random_user = True
+        user_dir = os.path.join("results", "model_trees", user)
+        os.makedirs(user_dir, exist_ok=True) 
+        target_folder_path=user_dir
+        user_name=user.split('@')[0]
+        zip_file_name = f"results_{user_name}" 
+        output_base_dir = "temp_archives" 
+        os.makedirs(output_base_dir, exist_ok=True) 
+        # results in 'temp_archives/UP000005640_bitscores.zip'
+        shutil.make_archive(
+            base_name=os.path.join(output_base_dir, zip_file_name),
+            format='zip',
+            root_dir=os.path.dirname(target_folder_path), # Start zipping from the parent directory
+            base_dir=os.path.basename(target_folder_path)  # Only include the target folder itself
         )
-    # Clean up the generated zip file after use
-    os.remove(zip_file_path)
-    if is_random_user:
-        shutil.rmtree(user_dir)
+        # Get the full path to the newly created ZIP file and make download availabel
+        zip_file_path = os.path.join(output_base_dir, f"{zip_file_name}.zip")
+        with open(zip_file_path, "rb") as file:
+            st.sidebar.download_button(
+                label="Download results now",
+                data=file, # The actual byte content of the zip file
+                file_name=f"{zip_file_name}.zip", # The name the user will see
+                mime="application/zip", # Critical: Set the correct MIME type for zip files
+                icon=":material/download:",
+            )
+        # Clean up the generated zip file after use
+        os.remove(zip_file_path)
+        if is_random_user:
+            shutil.rmtree(user_dir)
