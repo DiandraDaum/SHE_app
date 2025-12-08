@@ -129,7 +129,7 @@ def embed_video_background(video_path):
     )
 video_path_bg = "data/tree/bg2.mp4" 
 # Call the function to set the background
-embed_video_background(video_path_bg)
+#embed_video_background(video_path_bg)
 
 # find model organisms --------------------------------------------------------------------------------------------------------------------------
 @st.cache_data
@@ -137,6 +137,14 @@ def load_mapping(mapping_file):
     try:
         mapping_df = pd.read_csv(mapping_file)
         return dict(zip(mapping_df['species_name'], mapping_df['id']))
+    except Exception as e:
+        st.error(f"Error reading mapping file: {e}")
+        sys.exit(1)
+
+def load_mapping_proteome(mapping_file):
+    try:
+        mapping_df = pd.read_csv(mapping_file)
+        return dict(zip(mapping_df['species_name'], mapping_df['proteome_id']))
     except Exception as e:
         st.error(f"Error reading mapping file: {e}")
         sys.exit(1)
@@ -945,8 +953,6 @@ if st.sidebar.checkbox('Find best Model organism'):
             st.warning("No ortholog comparison data was generated.")
             comparison_df = pd.DataFrame() # Create an empty DataFrame
             
-        # Now you can use comparison_df for saving:
-        comparison_df.to_csv("path/to/save.csv", index=False)
 
         df_rank = pd.DataFrame.from_dict(ranking_scores, orient='index', columns=['Score'])
         df_target = df_rank.loc[[target_species]]
@@ -985,8 +991,8 @@ if st.sidebar.checkbox('Find best Model organism'):
         os.makedirs(csv_out, exist_ok=True)
         csv_path = csv_out + "model_ranking.csv"
         df_final.to_csv(csv_path, index=False)
-        csv_path2 = csv_out + "protein_ranking.csv"
-        #comparison_df.to_csv(csv_path2, index=False)
+        csv_path2 = csv_out + "protein_hits_ranking.csv"
+        comparison_df.to_csv(csv_path2, index=False)
         # 6. Display the Final Table in Streamlit
         #st.write("\n" + "="*70)
         st.write("--- Organism Ranking ---")
@@ -1039,28 +1045,72 @@ if st.sidebar.checkbox('Find best Model organism'):
     if st.sidebar.toggle('Show protein structure alignments'):
         st.subheader('Structural comparison of your proteins between the input target and model organisms')
         st.info('c. Loading the protein-protein comparisons ...')
-        """
-        for species in compare_species:
+        #comparison_df: proteinA, proteinB, bit_Score, Compared_Species
+        #target_species: usually human (protein A)
+        unique_target_proteins = comparison_df['proteinA'].unique()
+        selected_protein_A = st.radio(
+            "Select the **Target protein** to visualise:",
+            unique_target_proteins,
+            horizontal=True
+        )
+        selected_protein_df = comparison_df[comparison_df['proteinA'] == selected_protein_A]
+        if selected_protein_df.empty:
+            st.warning(f"No comparison hits found for {selected_protein_A}.")
+        else:
+            # Extract the human UniProt ID (AF-Q13616-F1-model_v4 -> Q13616)
+            try:
+                target_uniprot_id = selected_protein_A.split('-')[1]
+                mapping='data/core/model/extracted_and_renamed.csv'    #Path to CSV file with columns id,proteome_id,species_name
+                proteome_map = load_mapping_proteome(mapping)
+                proteome_target_id = proteome_map.get(target_species) #fix here to get proteome id
+                pdb_target = get_pdb(target_uniprot_id, proteome_target_id) 
+            except Exception:
+                st.error(f"Could not parse UniProt ID from {selected_protein_A}.")
+                pdb_target = None
             
-        output=csv_out + "structures"
-        pdbs=[]
-        for protein in uniprot_ids: #get target proteins structures
-            if target_species='Homo_sapiens_Human':
-                proteome = 'UP000005640'
-                target_pdb = get_pdb(protein, proteome)
-                pdbs.append[target_pdb]
-            else:
-                proteome = #match
-                target_pdb = get_pdb(protein, proteome)
-                pdbs.append[target_pdb]
-        #get top hit protein name
-        for homologous in uniprot_ids:
-            #proteome = match
-            target_pdb = get_pdb(protein, proteome)
-            pdbs.append[target_pdb]
-        for protein in pdbs.split():
-            render_3dmol(pdbs) # render each protein for comparison
-    """
+            # Check if the target (human) structure can be loaded
+            if not pdb_target:
+                st.error(f"Could not retrieve PDB file for the target protein {selected_protein_A}.")
+            
+            # --- 3. Iterate over the hits in all model organisms ---
+            st.markdown(f"## Structural protein Hits for: **{selected_protein_A}**")
+            
+            # We now iterate over the rows of the filtered DataFrame
+            for index, row in selected_protein_df.iterrows():
+                
+                # Variables for the current comparison
+                hit_proteinB = row['proteinB']
+                hit_species = row['Compared_Species']
+                
+                st.markdown("---")
+                st.write(f"### 🧬 Hit in: **{hit_species}** (Bit Score: {row['bit_score']:.0f})")
+                
+                # 3.1 Get PDB paths for the model organism hit
+                try:
+                    model_uniprot_id = hit_proteinB.split('-')[1]
+                    proteome_model_id = proteome_map.get(hit_species)
+                    pdb_model = get_pdb(model_uniprot_id, proteome_model_id)
+                except Exception:
+                    st.error(f"Could not parse UniProt ID from {hit_proteinB}.")
+                    pdb_model = None
+
+                if not pdb_target or not pdb_model:
+                    st.warning(f"Skipping structure comparison: PDB file missing for {hit_species}.")
+                    continue
+                
+                # 3.2 Render structures side by side
+                st.write(f"**{target_species} ({selected_protein_A})** vs **{hit_species} ({hit_proteinB})**")
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.write(f"**{target_species} Structure:**")
+                    render_3dmol(pdb_target) 
+                
+                with col2:
+                    st.write(f"**{hit_species} Structure:**")
+                    render_3dmol(pdb_model)             
+
     # download button
     is_random_user = False
     if not user_email:
