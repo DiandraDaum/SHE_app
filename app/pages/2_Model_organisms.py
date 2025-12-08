@@ -933,6 +933,16 @@ if st.sidebar.checkbox('Find best Model organism'):
             if csv_file:
                 score, presence, vector, best_hits_df = process_orthologs(csv_file, uniprot_ids, search_col)
 
+                if search_col == 'proteinB':
+                    # Create a temporary column to hold the original proteinA data
+                    temp_col = best_hits_df['proteinA'].copy()
+                    
+                    # Move the original proteinB data (the target) to proteinA
+                    best_hits_df['proteinA'] = best_hits_df['proteinB']
+                    
+                    # Move the temporary data (the hit) to proteinB
+                    best_hits_df['proteinB'] = temp_col
+                
                 # Add a column to identify the species for later filtering
                 best_hits_df['Compared_Species'] = species 
                 all_best_hits_dfs.append(best_hits_df)
@@ -1065,15 +1075,15 @@ if st.sidebar.checkbox('Find best Model organism'):
                 proteome_target_id = proteome_map.get(target_species) #fix here to get proteome id
                 pdb_target = get_pdb(target_uniprot_id, proteome_target_id) 
             except Exception:
-                st.error(f"Could not parse UniProt ID from {selected_protein_A}.")
+                st.error(f"Could not parse UniProt ID from {target_uniprot_id}, {target_species} {proteome_target_id}.")
                 pdb_target = None
             
             # Check if the target (human) structure can be loaded
             if not pdb_target:
-                st.error(f"Could not retrieve PDB file for the target protein {selected_protein_A}.")
+                st.error(f"Could not retrieve PDB file for the target protein {target_uniprot_id}.")
             
             # --- 3. Iterate over the hits in all model organisms ---
-            st.markdown(f"## Structural protein Hits for: **{selected_protein_A}**")
+            st.write(f"## Structural protein Hits for: **{target_uniprot_id}** from {target_species} ({proteome_target_id})")
             
             # We now iterate over the rows of the filtered DataFrame
             for index, row in selected_protein_df.iterrows():
