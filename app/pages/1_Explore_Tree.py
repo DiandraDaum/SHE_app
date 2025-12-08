@@ -820,34 +820,54 @@ def create_plotly_data_c(tree, layout):
 
 def display_interactive_tree_c(tree_path):
     
-    # --- 1. Layout Selection ---
-    tree_layout = st.radio(
-        "Select Tree Layout:",
-        ('Linear', 'Circular'),
-        horizontal=True
-    )
-    
-    # Use the same key names as the radio button options
-    layout_key = tree_layout 
-
     try:
-        # Load the tree and calculate base coordinates
+        # Load the tree and calculate base coordinates (needed for both layout checks and drawing)
         tree = Tree(tree_path, format=1)
         tree = get_tree_coordinates(tree) 
         
-        # --- 2. Polar Conversion if necessary ---
+        num_species = len(tree.get_leaves())
+        
+    except Exception as e:
+        st.error(f"Error processing tree file: {e}")
+        return
+
+    # --- 1. Layout Selection (Conditional) ---
+    available_layouts = ['Linear']
+    MIN_SPECIES_FOR_CIRCULAR = 400
+    # Only offer Circular if the species count is above the threshold
+    if num_species >= MIN_SPECIES_FOR_CIRCULAR:
+        available_layouts.append('Circular')
+    #st.info(f"The tree has **{num_species}** species. Circular layout is available for $\ge {MIN_SPECIES_FOR_CIRCULAR}$ species.")
+    tree_layout = st.radio(
+        "Select Tree Layout:",
+        available_layouts,
+        horizontal=True
+    )
+    layout_key = tree_layout
+
+    # --- 2. Labels Visibility Toggle ---
+    show_labels_option = st.radio(
+        "Show Species Names (Labels):",
+        ('Yes', 'No'),
+        index=0, # 'Yes' is the default
+        horizontal=True,
+        key='show_labels_toggle'
+    )
+    show_labels = (show_labels_option == 'Yes')
+    
+    # --- 3. Coordinate Calculation and Data Generation ---
+    try:
         if layout_key == 'Circular':
             tree = polar_coordinates_transform_c(tree) 
             
         branch_lines_x, branch_lines_y, node_coords = create_plotly_data_c(tree, layout=layout_key)
         
     except Exception as e:
-        st.error(f"Error processing tree file: {e}")
+        # This catch is mainly for polar/data generation errors, though less likely now
+        st.error(f"Error generating tree coordinates: {e}")
         return
-
-    # --- 3. Proteomes loading and Color Generation ---
-    # NOTE: This section is outside the try/except for tree loading.
-    # We must handle potential errors here too, and ensure node_colors is defined.
+        
+    # --- 4. Proteomes loading and Color Generation ---
     try:
         proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
         proteomes_df = pd.read_csv(proteomes_path)
@@ -856,7 +876,6 @@ def display_interactive_tree_c(tree_path):
         organism_to_kingdom = proteomes_df.set_index('Organism_formatted')['Kingdom'].to_dict()
         unique_kingdoms = sorted(proteomes_df['Kingdom'].unique())
         
-        # Generate the list of colors for the nodes
         node_colors = []
         for node_name in node_coords['name']:
             kingdom = organism_to_kingdom.get(node_name, 'Unknown') 
@@ -865,11 +884,10 @@ def display_interactive_tree_c(tree_path):
 
     except Exception as e:
         st.warning(f"Could not load proteome data for coloring ({e}). Nodes will be plotted in a default color.")
-        # Define a default color list if loading fails
         node_colors = ['#1f77b4'] * len(node_coords['x'])
         unique_kingdoms = ['Default']
     
-    # --- 4. Define Plotly Traces ---
+    # --- 5. Define Plotly Traces ---
     
     # 1. Branch Traces (Lines)
     trace_branches = go.Scatter(
@@ -879,6 +897,9 @@ def display_interactive_tree_c(tree_path):
         hoverinfo='none', 
         name='Branches'
     )
+    
+    # Determine the text to display: names or empty for no labels
+    node_text = node_coords['name'] if show_labels else [''] * len(node_coords['x'])
 
     # 2. Node Traces (Scatter Points)
     trace_nodes = go.Scatter(
@@ -889,7 +910,7 @@ def display_interactive_tree_c(tree_path):
             color=node_colors, 
             line=dict(width=1, color='Black') 
         ),
-        text=node_coords['name'],
+        text=node_text, # <--- Use the determined text list here
         textposition="middle right",
         textfont=dict(size=10),
         hovertext=node_coords['text'],
@@ -897,7 +918,7 @@ def display_interactive_tree_c(tree_path):
         name='Nodes'
     )
 
-    # 3. Legend Traces (Dummy traces for color key)
+    # 3. Legend Traces 
     legend_traces = []
     for kingdom in unique_kingdoms:
         color = kingdom_color(kingdom)
@@ -911,28 +932,25 @@ def display_interactive_tree_c(tree_path):
             )
         )
 
-    # --- 5. Create the Figure and Update Layout ---
+    # --- 6. Create the Figure and Update Layout ---
     fig = go.Figure(data=[trace_branches, trace_nodes] + legend_traces)
 
     layout_params = dict(
-        title=f'{layout_key} Tree for evolution visualisation',
+        title=f'{layout_key} Tree for evolution visualisation ({num_species} Species)',
         height=800, 
         showlegend=True,
         hovermode="closest",
         plot_bgcolor='white',
         margin=dict(l=20, r=20, t=40, b=20),
-        # Ensure aspect ratio is square for circular plot
         autosize=True
     )
 
     if layout_key == 'Linear':
-        # Linear axes: show branch length, hide y-labels
         layout_params.update(
             xaxis=dict(showgrid=False, title='Branch length'),
             yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
         )
     else: # Circular
-        # Circular (polar) axes: Use equal and hidden axes for a perfect circle
         layout_params.update(
             xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="y", scaleratio=1),
             yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
@@ -941,10 +959,6 @@ def display_interactive_tree_c(tree_path):
     
     fig.update_layout(**layout_params)
     st.plotly_chart(fig, use_container_width=True)
-
-
-
-
 
 
 
@@ -1357,8 +1371,8 @@ for col, content in zip(row2, titles):
     #with col:   tile = st.container(height=120)   tile.title(f"{emoji} {content}")
     with col.expander(f"**{content}**"):
         # --- Explore Tree Content ---
-        if content == ":red[4. Protein structural homologous]":
-            st.write('Interested in discovering in which organisms a certain protein can be found? Use the "Look for a protein" section in the sidebar.')
+        if content == "4. Protein structural homologous":
+            st.write(':red[Interested in discovering in which organisms a certain protein can be found? Use the "Look for a protein" section in the sidebar.]')
             
         # --- Model Organism Search Content ---
         elif content == "5. Structural evolution of a set of proteins":
