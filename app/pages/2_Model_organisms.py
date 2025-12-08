@@ -69,6 +69,68 @@ def save_email(email):
         st.error(f"An error occurred while saving: {e}")
         return False
 
+def get_base64_of_bin_file(bin_file):
+    """
+    Reads a binary file and returns its Base64 encoded string.
+    """
+    try:
+        with open(bin_file, 'rb') as f:
+            data = f.read()
+        return base64.b64encode(data).decode()
+    except FileNotFoundError:
+        st.error(f"Error: Video file not found at path: {bin_file}. Please check the path.")
+        return None
+@st.cache_data
+def embed_video_background(video_path):
+    """
+    Embeds a local MP4 video as a fixed background using Base64 encoding.
+    """
+    video_base64 = get_base64_of_bin_file(video_path)
+    
+    if video_base64 is None:
+        return # Stop execution if file wasn't found
+
+    # 1. Construct the Base64 URL for the video source
+    video_url = f"data:video/mp4;base64,{video_base64}"
+
+    # 2. Inject the HTML/CSS for the background video
+    st.markdown(
+        f"""
+        <style>
+        /* This hides all Streamlit content (which we will put back later) */
+        .stApp > header, .stApp > div:not(.video-container) {{
+            z-index: 10; /* Bring content above the video */
+            position: relative; 
+            background: none; /* Make content background transparent */
+        }}
+
+        /* Video element to cover the entire screen */
+        .video-background {{
+            position: fixed;
+            top: 0;
+            left: 0;
+            min-width: 100%;
+            min-height: 100%;
+            width: auto;
+            height: auto;
+            z-index: -100; /* Puts the video behind all other content */
+            overflow: hidden;
+        }}
+        </style>
+        
+        <div class="video-container">
+            <video class="video-background" autoplay muted loop>
+                <source src="{video_url}" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+video_path_bg = "data/tree/bg2.mp4" 
+# Call the function to set the background
+embed_video_background(video_path_bg)
+
 # find model organisms --------------------------------------------------------------------------------------------------------------------------
 @st.cache_data
 def load_mapping(mapping_file):
@@ -132,7 +194,7 @@ def process_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
         
     # Convert map to list (Vector) ensures order is identical for all species
     score_vector = [score_map[uid] for uid in uniprot_ids]
-    best_hits_df = best_hit_data
+    best_hits_df = pd.DataFrame(best_hit_data)
     
     return total_score, presence_map, score_vector, best_hits_df
 
@@ -729,20 +791,11 @@ for col, emoji, title, score, height, rank in zip(row2, emojis, titles, bitscore
                 st.video(bytes, autoplay=True, loop=True, muted=True)
 
 
-
-
-
-
 st.write("Here, you can look for the best model organism to use for your study based on the proteins involved in your pathway. Click on 'Find best Model Organism' in the sidebar to start you analysis!")
 st.write("Start by checking the 'Find best Model Organism' box in the sidebar. This will result in a ranking of your model organisms.")
-st.write("It is also possible to build a structural phylogenetic tree from the input proteins. To do so, switch on 'Build structural tree'.")
 st.write("If you wish to visualise the structural alignments of your input proteins, turn on 'Show protein structure alignments'.")
 
 st.warning("Please note that this analysis might require some time. It is possible to register your email in the sidebar, so that your results will be sent to you as soon as they are ready!")
-
-
-
-
 
 
 
@@ -845,6 +898,7 @@ if st.sidebar.checkbox('Find best Model organism'):
         ranking_scores = {}
         itol_data = {}
         tree_data = {} 
+        all_best_hits_dfs = [] #new list for homologous names
         
         # 1. Calculate Human (Target) Data first
         # This ensures Human is in the tree!
@@ -853,7 +907,6 @@ if st.sidebar.checkbox('Find best Model organism'):
         tree_data[target_species] = human_vector
         itol_data[target_species] = {uid: 1 for uid in uniprot_ids} # Human always has the proteins
 
-        comparison_df=[]
         # 2. Calculate Comparison Species
         for species in compare_species:
             if species not in species_map: continue
@@ -871,6 +924,11 @@ if st.sidebar.checkbox('Find best Model organism'):
 
             if csv_file:
                 score, presence, vector, best_hits_df = process_orthologs(csv_file, uniprot_ids, search_col)
+
+                # Add a column to identify the species for later filtering
+                best_hits_df['Compared_Species'] = species 
+                all_best_hits_dfs.append(best_hits_df)
+
                 ranking_scores[species] = score
                 itol_data[species] = presence
                 tree_data[species] = vector
@@ -879,7 +937,16 @@ if st.sidebar.checkbox('Find best Model organism'):
                 itol_data[species] = {uid: -1 for uid in uniprot_ids}
                 tree_data[species] = [0.0] * len(uniprot_ids)
 
-        #comparison_df.append(best_hits_df)
+        if all_best_hits_dfs:
+            # Use pandas.concat to merge the list of DataFrames into one large DataFrame
+            comparison_df = pd.concat(all_best_hits_dfs, ignore_index=True)
+        else:
+            # Handle the case where no comparisons were successfully processed
+            st.warning("No ortholog comparison data was generated.")
+            comparison_df = pd.DataFrame() # Create an empty DataFrame
+            
+        # Now you can use comparison_df for saving:
+        comparison_df.to_csv("path/to/save.csv", index=False)
 
         df_rank = pd.DataFrame.from_dict(ranking_scores, orient='index', columns=['Score'])
         df_target = df_rank.loc[[target_species]]
