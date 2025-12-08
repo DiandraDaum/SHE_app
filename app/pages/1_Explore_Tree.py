@@ -57,7 +57,7 @@ def kingdom_color(kingdom):
         return "#ddd6fe"
     else:
         # This will be used for internal nodes ('Unknown') or leaves with no match
-        return "#ffffff"
+        return "#080808"
     
 #for find species
 def extract_closest_species(newick_file, input_species, num_neighbors): #species

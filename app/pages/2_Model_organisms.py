@@ -634,7 +634,7 @@ def display_interactive_tree(tree_path):
 
 
 # reteive protein pdbs
-def get_pdb(protein, proteome, user):
+def get_pdb(protein, proteome):
     index_dir='data/subset/index' 
     proteome_indexes= f"{index_dir}/{proteome}_*_fc_id_mapping.csv"
     matching_proteome = glob.glob(proteome_indexes)
@@ -682,16 +682,16 @@ def get_pdb(protein, proteome, user):
                 # Note: The 'pdb_dc' content is assumed to be the PDB/structure text
                 with open(target_pdb_filepath, "w") as pdb_file:
                     pdb_file.write(pdb_dc)
-                
+                    st.success(f"Protein structure saved to {target_pdb_filepath}.")
                 protein_found = True
                 break # Stop iterating immediately after the target is found
             protein_index += 1
     if protein_found:
-        target_pdb_filepath = os.path.join(db_dir, af_protein + ".pdb")
+        #target_pdb_filepath = os.path.join(db_dir, af_protein + ".pdb")
         st.success(f"Protein {af_protein} found and saved to {target_pdb_filepath}.")
         return target_pdb_filepath
     else:
-        st.error(f"Error: Protein {af_protein} not found in the database.")
+        st.error(f"Protein with index {retrieved_index} not found in the database {target_pdb_filepath}.")
         return None
 
 
@@ -1082,9 +1082,9 @@ if st.sidebar.checkbox('Find best Model organism'):
                 proteome_map = load_mapping_proteome(mapping)
                 proteome_target_id = proteome_map.get(target_species) #fix here to get proteome id
                 pdb_target = get_pdb(target_uniprot_id, proteome_target_id)
-                #pdb_target = pdb_target[0]
-            except Exception:
-                st.error(f"Could not parse: target_uniprot_id {target_uniprot_id}, proteome_map {proteome_map}, proteome_target_id {proteome_target_id}, {target_species}, target species, {target_species}, structure {pdb_target}.")
+                st.info(f"info: target_uniprot_id {target_uniprot_id}, proteome_target_id {proteome_target_id}, target species {target_species}, structure {pdb_target}.")
+            except Exception as e:
+                st.error(f"Parsing Error: {e}, for target uniprot id {target_uniprot_id}")
                 pdb_target = None
             
             # Check if the target (human) structure can be loaded
@@ -1113,7 +1113,7 @@ if st.sidebar.checkbox('Find best Model organism'):
                     st.error(f"Could not parse UniProt ID from {hit_proteinB}.")
                     pdb_model = None
 
-                if not pdb_target or not pdb_model:
+                if not pdb_model:
                     st.warning(f"Skipping structure comparison: PDB file missing for {hit_species}.")
                     continue
                 

@@ -18,21 +18,20 @@ VIDEO_PATH_BG = "data/tree/bg.mp4"
 
 # Define navigation items for the custom header
 NAV_ITEMS = [
-    {"label": "Home", "icon": "🏠", "path": "Start_Page.py"},
+    {"label": "Home", "icon": "🏠", "path": "app.py"},
     {"label": "Tree Viewer", "icon": "🌳", "path": "pages/1_Explore_Tree.py"},
-    {"label": "Protein Search", "icon": "🔍", "path": "/protein-search"}, # Placeholder path
-    {"label": "Model Organisms", "icon": "📊", "path": "pages/2_Model_organisms.py"},
+    {"label": "Model Organisms", "icon": "🐁", "path": "pages/2_Model_organisms.py"},
     {"label": "Downloads", "icon": "⬇️", "path": "pages/3_Downloads.py"},
 ]
 
 # Define features for the main grid section
 FEATURES = [
-    {"icon": "🌳", "title": "Interactive Phylogeny", "description": "Explore circular and linear tree layouts with zoom, pan, and species highlighting capabilities.", "link_path": "pages/1_Explore_Tree.py"},
-    {"icon": "🧬", "title": "Kingdom Filtering", "description": "Focus on specific subkingdoms including Opisthokonta, Viridiplantae, SAR, Amoebozoa, Discoba, and Rhodophyta.", "link_path": "pages/1_Explore_Tree.py"},
-    {"icon": "🔎", "title": "Protein Search", "description": "Input UniProt IDs to analyze presence/absence of structural homologs across all eukaryotic organisms.", "link_path": "pages/2_Model_organisms.py"}, # Reusing Model Organisms page for search
-    {"icon": "📊", "title": "Model Organism Ranking", "description": "Select proteins of interest to find the best model organisms where they are most conserved.", "link_path": "pages/2_Model_organisms.py"},
-    {"icon": "🔬", "title": "Evolutionary Rate", "description": "Visualize and color branches by evolutionary rate to identify fast and slow-evolving lineages.", "link_path": "pages/1_Explore_Tree.py"},
-    {"icon": "💾", "title": "Data Downloads", "description": "Download FoldSeek comparisons, Newick files, and complete proteome-proteome alignment data.", "link_path": "pages/3_Downloads.py"},
+    {"icon": "🌳", "title": "Interactive Phylogeny", "description": "Explore the structural phylogenetic tree for the main subkingdoms including Opisthokonta, Viridiplantae, SAR, Amoebozoa, Discoba, and Rhodophyta.", "link_path": "pages/1_Explore_Tree.py"},
+    {"icon": "🔬", "title": "Evolutionary Rate", "description": "Visualize colored branches by evolutionary rate to identify fast and slow-evolving proteomes.", "link_path": "pages/1_Explore_Tree.py"},
+    {"icon": "🧬", "title": "Taxon Filtering", "description": "Zoom on specific taxa or species to discover new evolutionary relationships.", "link_path": "pages/1_Explore_Tree.py"},
+    {"icon": "🔎", "title": "Protein Search", "description": "Input UniProt IDs to analyze presence/absence of structural homologs across all eukaryotic organisms.", "link_path": "pages/1_Explore_Tree.py"}, # Reusing Model Organisms page for search
+    {"icon": "🐁", "title": "Model Organism Ranking", "description": "Select proteins of interest to find the best model organisms where they are most conserved.", "link_path": "pages/2_Model_organisms.py"},
+    {"icon": "⬇️", "title": "Data Downloads", "description": "Download FoldSeek comparison bitscores, Newick files, and predicted protein structures from each proteome.", "link_path": "pages/3_Downloads.py"},
 ]
 
 # Define methodology steps
@@ -226,6 +225,10 @@ st.set_page_config(
 # 2. Embed Background Video & Custom CSS
 #embed_video_background(VIDEO_PATH_BG)
 
+st.title('SHE: Structural History of Eukarya')
+
+st.sidebar.success("Find more analysis options in the panels above.")
+
 # 3. Custom Fixed Header (replicated from previous response)
 def create_custom_header(nav_items):
     nav_html_items = ""
@@ -257,62 +260,78 @@ def create_custom_header(nav_items):
         unsafe_allow_html=True
     )
 
-create_custom_header(NAV_ITEMS)
-
+#create_custom_header(NAV_ITEMS)
+video_tree = open("data/tree/final_tree.mp4", "rb")
+tree_bytes = video_tree.read()
+st.video(tree_bytes, autoplay=True, loop=True, muted=True)
 # 4. Main Content Container (starts below the fixed header)
 with st.container():
-    st.markdown('<div class="main-content-offset"></div>', unsafe_allow_html=True)
-    
-    # --- A. HERO SECTION ---
-    
-    st.markdown("""
-        <div style="text-align: center; max-width: 48rem; margin: 0 auto; padding-bottom: 5rem;">
-            <div class="glass-panel" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border-radius: 9999px; font-size: 0.875rem; margin-bottom: 2rem;">
-                <span style="width: 8px; height: 8px; border-radius: 9999px; background-color: var(--primary-color); animation: pulse 1.5s infinite;"></span>
-                <span style="color: var(--muted-foreground-color);">1,542 Eukaryotic Proteomes • 24.3 Million Proteins</span>
-            </div>
-
-            <h1 class="hero-title">
-                <span style="color: var(--foreground-color);">The Structural</span><br>
-                <span class="text-gradient">History of Eukarya</span>
-            </h1>
-
-            <p class="hero-subtitle">
-                A comprehensive phylogenetic resource based on complete structural comparison of protein structures across all eukaryotic life.
-            </p>
-        </div>
-    """, unsafe_allow_html=True)
 
     # CTA Buttons (using Streamlit components for functionality)
     cta_col1, cta_col2, cta_col3 = st.columns([1, 1, 1])
     with cta_col1:
-        st.page_link("pages/1_Explore_Tree.py", label="🌳 Explore the Tree", icon="👉", help="Start exploring the interactive phylogenetic tree.")
+        st.page_link("pages/1_Explore_Tree.py", label="🌳 Explore the Tree", icon="👉", help="explore the **structural phylogenetic tree** for all Eukarya, a kingdom, a taxon, a species or a set of proteins")
     with cta_col2:
-        st.page_link("pages/2_Model_organisms.py", label="🔍 Search Proteins", icon="👉", help="Find structural homologs across organisms.")
+        st.page_link("pages/2_Model_organisms.py", label="🐁 Model Organisms search", icon="👉", help="find the **best model organism** for your study based on the structural comparison of the protein(s) in your pathway of interest.")
     with cta_col3:
-        st.page_link("pages/3_Downloads.py", label="💾 Download Data", icon="👉", help="Access all raw alignment scores and files.")
+        st.page_link("pages/3_Downloads.py", label="⬇️ Download Data", icon="👉", help="Access all raw alignment scores and files.")
 
     st.markdown("<br><br>", unsafe_allow_html=True) # Spacer
+    # --- A. STATISTICS TILES SECTION ---
 
-    # Stats (replicated with Streamlit columns and custom CSS)
-    stat_col1, stat_col2, stat_col3, stat_col4 = st.columns(4)
-    stats_data = [
-        {"value": "1,542", "label": "Organisms"},
-        {"value": "24.3M", "label": "Proteins"},
-        {"value": "6", "label": "Kingdoms"},
-        {"value": "FoldSeek", "label": "Powered By"},
-    ]
-    
-    for col, stat in zip([stat_col1, stat_col2, stat_col3, stat_col4], stats_data):
-        with col:
-            st.markdown(f"""
-                <div class="glass-panel hero-stats-box">
-                    <div class="stat-value text-gradient">{stat["value"]}</div>
-                    <div style="font-size: 0.875rem; color: var(--muted-foreground-color);">{stat["label"]}</div>
-                </div>
-            """, unsafe_allow_html=True)
+    # Define your custom CSS with the GREEN color
+    css = """
+        .blue-tile-container {
+            /* ⭐ CHANGE MADE HERE: Using a light green RGBA value */
+            background: rgba(100, 200, 100, 0.3); 
+            min-height: 120px; 
+            padding: 10px;
+            border-radius: 8px; 
             
-    st.markdown("<hr style='margin: 4rem 0;'>", unsafe_allow_html=True) # Separator
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        /* Ensure markdown header (##) spacing is minimal inside the tile */
+        .blue-tile-container h2 {
+            margin: 0; 
+            padding: 0;
+            line-height: 1.2;
+        }
+        
+        /* Style the paragraph text (the title) */
+        .blue-tile-container p {
+            margin: 0;
+            padding: 0;
+            font-size: 16px; 
+            opacity: 0.8;
+        }
+        """
+    st.html(f"<style>{css}</style>")
+
+    # --- Application Logic ---
+
+    row1 = st.columns(4)
+    titles = ["Organisms", "Proteins", "Kingdoms", "Powered By"]
+    values = ["1542", "24.3M", "6", "FoldSeek"]
+
+    for i, (col, value, title) in enumerate(zip(row1, values, titles)):
+        with col:
+            unique_key = f"my_green_container_{i}" # Changed key name for clarity
+            
+            with st.container(key=unique_key):
+                
+                # Single st.markdown call for the entire tile.
+                st.markdown(
+                    f"""
+                    <div class="blue-tile-container">
+                        <h2>{value}</h2>
+                        <p>{title}</p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
 
     # --- B. FEATURES SECTION ---
@@ -399,7 +418,7 @@ with st.container():
 
     # --- D. CITATION AND UPDATES (Original content, slightly restyled) ---
 
-    st.subheader('Cite', divider=True)
+    st.subheader('Cite', divider="rainbow")
     st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
 
     st.sidebar.subheader('Updates', divider="rainbow")
@@ -410,8 +429,11 @@ with st.container():
         # Correctly reference the value using st.session_state
         user_email = st.session_state.email_input.strip()
         if not user_email:
+            # Only check remaining: must not be empty
             st.error("Please enter an email address.")
         else:
+            # If we reach here, the email is non-empty and we save it.
             if save_email(user_email):
                 st.balloons()
+                # Updated success message
                 st.sidebar.success(f"Thank you! **{user_email}** is where you will receive updates regarding SHE!")
