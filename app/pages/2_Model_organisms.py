@@ -634,7 +634,7 @@ def display_interactive_tree(tree_path):
 
 
 # reteive protein pdbs
-def get_pdb(protein, proteome):
+def get_pdb(protein, proteome, user):
     index_dir='data/subset/index' 
     proteome_indexes= f"{index_dir}/{proteome}_*_fc_id_mapping.csv"
     matching_proteome = glob.glob(proteome_indexes)
@@ -669,7 +669,7 @@ def get_pdb(protein, proteome):
     target_name = None
     target_pdb_filepath = None
     protein_found = False
-    #st.info(f"Looking for protein {af_protein} (database index {retrieved_index}). Please wait...")
+    st.info(f"c. Loading protein {af_protein} (database index {retrieved_index}). Please wait...")
     protein_index = 0
     with fc.open(db_name) as db: 
         # Iterate through the database entries
@@ -677,14 +677,22 @@ def get_pdb(protein, proteome):
             if protein_index == retrieved_index:
                 target_name = name_full.split('.')[0] 
                 target_pdb_filepath = os.path.join(db_dir, target_name + ".pdb")
+                # C. If it doesn't exist, extract and write it to the db_dir folder
+                st.info("Extracting and writing file to disk...")
+                # Note: The 'pdb_dc' content is assumed to be the PDB/structure text
                 with open(target_pdb_filepath, "w") as pdb_file:
                     pdb_file.write(pdb_dc)
+                
                 protein_found = True
                 break # Stop iterating immediately after the target is found
             protein_index += 1
     if protein_found:
         target_pdb_filepath = os.path.join(db_dir, af_protein + ".pdb")
-    return target_pdb_filepath
+        st.success(f"Protein {af_protein} found and saved to {target_pdb_filepath}.")
+        return target_pdb_filepath
+    else:
+        st.error(f"Error: Protein {af_protein} not found in the database.")
+        return None
 
 
 # --- Function to generate the Mol* HTML viewer ---
@@ -1054,7 +1062,7 @@ if st.sidebar.checkbox('Find best Model organism'):
     # show protein structures --------------------------------------------------------------------------------------
     if st.sidebar.toggle('Show protein structure alignments'):
         st.subheader('Structural comparison of your proteins between the input target and model organisms')
-        st.info('c. Loading the protein-protein comparisons ...')
+        #st.info('c. Loading the protein-protein comparisons ...')
         #comparison_df: proteinA, proteinB, bit_Score, Compared_Species
         #target_species: usually human (protein A)
         unique_target_proteins = comparison_df['proteinA'].unique()
@@ -1073,17 +1081,18 @@ if st.sidebar.checkbox('Find best Model organism'):
                 mapping='data/core/model/extracted_and_renamed.csv'    #Path to CSV file with columns id,proteome_id,species_name
                 proteome_map = load_mapping_proteome(mapping)
                 proteome_target_id = proteome_map.get(target_species) #fix here to get proteome id
-                pdb_target = get_pdb(target_uniprot_id, proteome_target_id) 
+                pdb_target = get_pdb(target_uniprot_id, proteome_target_id)
+                #pdb_target = pdb_target[0]
             except Exception:
-                st.error(f"Could not parse UniProt ID from {target_uniprot_id}, {target_species} {proteome_target_id}.")
+                st.error(f"Could not parse: target_uniprot_id {target_uniprot_id}, proteome_map {proteome_map}, proteome_target_id {proteome_target_id}, {target_species}, target species, {target_species}, structure {pdb_target}.")
                 pdb_target = None
             
             # Check if the target (human) structure can be loaded
             if not pdb_target:
-                st.error(f"Could not retrieve PDB file for the target protein {target_uniprot_id}.")
+                st.error(f"Could not retrieve PDB file for the target protein {target_uniprot_id} from proteome {proteome_target_id}, structure {pdb_target}.")
             
             # --- 3. Iterate over the hits in all model organisms ---
-            st.write(f"## Structural protein Hits for: **{target_uniprot_id}** from {target_species} ({proteome_target_id})")
+            st.write(f"## Structural protein Hits for: **{target_uniprot_id}** from {target_species} ({proteome_target_id}), structure {pdb_target}")
             
             # We now iterate over the rows of the filtered DataFrame
             for index, row in selected_protein_df.iterrows():
@@ -1093,7 +1102,7 @@ if st.sidebar.checkbox('Find best Model organism'):
                 hit_species = row['Compared_Species']
                 
                 st.markdown("---")
-                st.write(f"### 🧬 Hit in: **{hit_species}** (Bit Score: {row['bit_score']:.0f})")
+                st.write(f"### {target_species} in blue vs. **{hit_species}** in yellow (Bit Score: {row['bit_score']:.0f})")
                 
                 # 3.1 Get PDB paths for the model organism hit
                 try:

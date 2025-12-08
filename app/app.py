@@ -4,39 +4,59 @@ import numpy as np
 import time
 import csv
 from ete3 import Tree, TreeStyle, NodeStyle
-#from phytreeviz import TreeViz
 import sys
 import pathlib
 import base64
 import textwrap
-import time
 import os
 from datetime import datetime
-import base64
 
-# --- App Content (will appear on top of the video) ---
-#github_path = '/' #change to your path
-#FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
+# --- CONFIGURATION & CONSTANTS ---
 EMAIL_FILE = 'data/email_updates.csv'
+# NOTE: Placeholder path. Replace with your actual video file path if it exists.
+VIDEO_PATH_BG = "data/tree/bg.mp4" 
+
+# Define navigation items for the custom header
+NAV_ITEMS = [
+    {"label": "Home", "icon": "🏠", "path": "Start_Page.py"},
+    {"label": "Tree Viewer", "icon": "🌳", "path": "pages/1_Explore_Tree.py"},
+    {"label": "Protein Search", "icon": "🔍", "path": "/protein-search"}, # Placeholder path
+    {"label": "Model Organisms", "icon": "📊", "path": "pages/2_Model_organisms.py"},
+    {"label": "Downloads", "icon": "⬇️", "path": "pages/3_Downloads.py"},
+]
+
+# Define features for the main grid section
+FEATURES = [
+    {"icon": "🌳", "title": "Interactive Phylogeny", "description": "Explore circular and linear tree layouts with zoom, pan, and species highlighting capabilities.", "link_path": "pages/1_Explore_Tree.py"},
+    {"icon": "🧬", "title": "Kingdom Filtering", "description": "Focus on specific subkingdoms including Opisthokonta, Viridiplantae, SAR, Amoebozoa, Discoba, and Rhodophyta.", "link_path": "pages/1_Explore_Tree.py"},
+    {"icon": "🔎", "title": "Protein Search", "description": "Input UniProt IDs to analyze presence/absence of structural homologs across all eukaryotic organisms.", "link_path": "pages/2_Model_organisms.py"}, # Reusing Model Organisms page for search
+    {"icon": "📊", "title": "Model Organism Ranking", "description": "Select proteins of interest to find the best model organisms where they are most conserved.", "link_path": "pages/2_Model_organisms.py"},
+    {"icon": "🔬", "title": "Evolutionary Rate", "description": "Visualize and color branches by evolutionary rate to identify fast and slow-evolving lineages.", "link_path": "pages/1_Explore_Tree.py"},
+    {"icon": "💾", "title": "Data Downloads", "description": "Download FoldSeek comparisons, Newick files, and complete proteome-proteome alignment data.", "link_path": "pages/3_Downloads.py"},
+]
+
+# Define methodology steps
+STEPS = [
+    {"number": "01", "title": "Proteome Collection", "description": "1,542 complete eukaryotic proteomes from UniProt with predicted structures."},
+    {"number": "02", "title": "Structural Alignment", "description": "All-vs-all protein alignment using FoldSeek for rapid structure comparison."},
+    {"number": "03", "title": "Distance Matrix", "description": "Calculate proteome similarity from sum of bit scores between organisms."},
+    {"number": "04", "title": "Tree Construction", "description": "Phylogenetic inference using neighbour-joining with bootstrapping."},
+]
+
+
+# FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
 def save_email(email):
     """Saves the email and current timestamp to the CSV file. 
     It ensures the directory exists before attempting to write."""
     try:
-        # Ensure the directory exists (necessary for 'data/emails_results.csv')
         os.makedirs(os.path.dirname(EMAIL_FILE), exist_ok=True)
-        
-        # Check if the file exists to determine if we need to write headers
         file_exists = os.path.exists(EMAIL_FILE)
         
-        # Use 'a' (append mode) and 'newline=""' to prevent blank rows
         with open(EMAIL_FILE, 'a', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            
-            # Write header only if the file did not exist before opening
             if not file_exists:
                 writer.writerow(['email', 'timestamp'])
             
-            # Write the new email entry
             timestamp = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
             writer.writerow([email, timestamp])
         return True
@@ -44,56 +64,144 @@ def save_email(email):
         st.error(f"An error occurred while saving: {e}")
         return False
 
-
-# background video
 def get_base64_of_bin_file(bin_file):
-    """
-    Reads a binary file and returns its Base64 encoded string.
-    """
+    """Encodes a binary file (like a video) to base64 for embedding in HTML."""
     try:
         with open(bin_file, 'rb') as f:
             data = f.read()
         return base64.b64encode(data).decode()
     except FileNotFoundError:
-        st.error(f"Error: Video file not found at path: {bin_file}. Please check the path.")
         return None
 
 @st.cache_data
 def embed_video_background(video_path):
-    """
-    Embeds a local MP4 video as a fixed background using Base64 encoding.
-    """
+    """Embeds the video and custom CSS for styling the landing page."""
     video_base64 = get_base64_of_bin_file(video_path)
-    
     if video_base64 is None:
-        return # Stop execution if file wasn't found
+        # Don't fail the app if the video isn't there, just show a warning
+        st.warning(f"Warning: Background video file not found at path: {video_path}. Using plain background.")
+        video_url = "" # Set to empty if file is missing
+    else:
+        video_url = f"data:video/mp4;base64,{video_base64}"
 
-    # 1. Construct the Base64 URL for the video source
-    video_url = f"data:video/mp4;base64,{video_base64}"
-
-    # 2. Inject the HTML/CSS for the background video
     st.markdown(
         f"""
         <style>
-        /* This hides all Streamlit content (which we will put back later) */
+        /* BASE SETUP */
+        .stApp {{ background: none !important; }}
         .stApp > header, .stApp > div:not(.video-container) {{
-            z-index: 10; /* Bring content above the video */
-            position: relative; 
-            background: none; /* Make content background transparent */
+            z-index: 10; position: relative; background: none !important; 
+        }}
+        .video-background {{
+            position: fixed; top: 0; left: 0; min-width: 100%; min-height: 100%;
+            width: auto; height: auto; z-index: -100; overflow: hidden; object-fit: cover;
+        }}
+        
+        /* 1. CUSTOM THEME COLORS & EFFECTS */
+        :root {{
+            --primary-color: #10b981; /* Tailwind green-500 */
+            --secondary-color: #3b82f6; /* Tailwind blue-500 */
+            --foreground-color: #ffffff;
+            --muted-foreground-color: #a0a0a0;
+            --background-color: #0d0d0d;
+        }}
+        
+        .text-gradient {{
+            background: linear-gradient(90deg, var(--primary-color), var(--secondary-color)); 
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            color: transparent; 
         }}
 
-        /* Video element to cover the entire screen */
-        .video-background {{
-            position: fixed;
-            top: 0;
-            left: 0;
-            min-width: 100%;
-            min-height: 100%;
-            width: auto;
-            height: auto;
-            z-index: -100; /* Puts the video behind all other content */
-            overflow: hidden;
+        .glass-panel {{
+            background-color: rgba(255, 255, 255, 0.1); 
+            backdrop-filter: blur(8px); 
+            -webkit-backdrop-filter: blur(8px); 
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }}
+        
+        /* 2. FIXED HEADER STYLES */
+        .fixed-header {{
+            position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+            height: 64px; display: flex; align-items: center; justify-content: space-between;
+            padding: 0 1rem;
+        }}
+        .logo-container {{ display: flex; align-items: center; gap: 0.75rem; }}
+        .logo-title {{ font-size: 1.125rem; font-weight: 700; line-height: 1; }}
+        .logo-subtitle {{ font-size: 0.625rem; color: var(--muted-foreground-color); margin-top: -0.25rem; line-height: 1; }}
+        .nav-desktop {{ display: none; }}
+        @media (min-width: 768px) {{ .nav-desktop {{ display: flex; align-items: center; gap: 0.25rem; }} }}
+        .nav-button, .nav-button-active {{
+            display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.75rem; border-radius: 0.375rem; 
+            font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background-color 0.15s;
+            text-decoration: none; color: #e0e0e0;
+        }}
+        .nav-button:hover {{ background-color: rgba(255, 255, 255, 0.1); color: var(--foreground-color); }}
+        .nav-button-active {{ background-color: rgba(255, 255, 255, 0.2); color: var(--primary-color); font-weight: 600; }}
+        
+        /* 3. MAIN CONTENT OFFSET & HERO STYLES */
+        .main-content-offset {{ margin-top: 64px; padding-top: 5rem; }}
+        .hero-title {{ 
+            font-size: 4rem; line-height: 1; font-weight: 800; text-align: center; margin-bottom: 2rem;
+            color: var(--foreground-color);
+        }}
+        @media (min-width: 768px) {{ .hero-title {{ font-size: 5rem; }} }}
+        .hero-subtitle {{ color: var(--muted-foreground-color); text-align: center; max-width: 48rem; margin: 0 auto 3rem; font-size: 1.125rem; }}
+
+        .hero-stats-box {{
+            padding: 1rem; border-radius: 0.75rem; text-align: center;
+        }}
+        .stat-value {{ font-size: 1.5rem; font-weight: 700; }}
+        
+        /* 4. FEATURE GRID STYLES */
+        .feature-grid {{
+            display: grid; grid-template-columns: repeat(1, minmax(0, 1fr)); gap: 1.5rem;
+        }}
+        @media (min-width: 768px) {{ .feature-grid {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }} }}
+        @media (min-width: 1024px) {{ .feature-grid {{ grid-template-columns: repeat(3, minmax(0, 1fr)); }} }}
+        
+        .feature-tile {{
+            border-radius: 1rem; padding: 1.5rem; min-height: 220px;
+            display: flex; flex-direction: column; 
+            transition: all 0.3s ease;
+        }}
+        .feature-tile:hover {{
+            border-color: var(--primary-color);
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.3); /* subtle glow on hover */
+        }}
+        .feature-icon-box {{
+            width: 3rem; height: 3rem; border-radius: 0.75rem; 
+            display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;
+            background-color: rgba(16, 185, 129, 0.2); /* primary/10 */
+        }}
+        .feature-title {{ 
+            font-size: 1.125rem; font-weight: 600; color: var(--foreground-color); margin-bottom: 0.5rem;
+        }}
+        .feature-description {{
+            font-size: 0.875rem; color: var(--muted-foreground-color); line-height: 1.5;
+        }}
+        
+        /* 5. METHODOLOGY STYLES */
+        .method-step {{ text-align: center; position: relative; padding: 0 1rem; }}
+        .method-number-bubble {{
+            width: 4rem; height: 4rem; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem; 
+            position: relative; z-index: 10;
+        }}
+        .method-number {{ font-size: 1.25rem; font-weight: 700; }}
+        .method-line {{
+            position: absolute; top: 32px; left: 50%; right: 50%; height: 2px;
+            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+        }}
+        @media (min-width: 768px) {{
+            .method-line {{ left: 8px; right: 8px; }}
+            .method-step:not(:first-child) .method-line {{ left: -50%; }}
+            .method-step:not(:last-child) .method-line {{ right: -50%; }}
+        }}
+        .step-title {{ font-size: 1.125rem; font-weight: 600; color: var(--foreground-color); margin-bottom: 0.5rem; }}
+
         </style>
         
         <div class="video-container">
@@ -106,187 +214,204 @@ def embed_video_background(video_path):
         unsafe_allow_html=True
     )
 
-video_path_bg = "data/tree/bg.mp4" 
-# Call the function to set the background
-embed_video_background(video_path_bg)
-#st.sidebar.video(tree_bytes, autoplay=True, loop=True, muted=True)
+# --- APP EXECUTION ---
 
-# htlm video
-def embed_html_background(html_file_path):
-    """
-    Reads a local HTML file and embeds its content as a fixed, full-screen background 
-    behind the Streamlit app content.
-    """
-    try:
-        with open(html_file_path, 'r', encoding='utf-8') as f:
-            html_content = f.read()
-
-    except FileNotFoundError:
-        st.error(f"Error: HTML file not found at path: {html_file_path}. Please check the path.")
-        return 
-
-    # Inject the HTML/CSS
-    st.markdown(
-        f"""
-        <style>
-        /* CSS styles here... */
-        .stApp {{ background: none; }}
-        .stApp > header, .stApp > div:not(.html-container) {{
-            z-index: 10;
-            position: relative; 
-            background: none;
-        }}
-        .html-background {{
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: -100;
-            overflow: hidden;
-        }}
-        </style>
-        
-        <div class="html-container">
-            <div class="html-background">
-                {html_content}
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-
-def embed_html_background_iframe(html_file_path):
-    """
-    Embeds a full HTML file (with its own <!DOCTYPE>, <html>, etc.) 
-    as a fixed, full-screen background using a robust iframe.
-    
-    NOTE: The HTML file must be accessible via Streamlit's static path.
-    """
-    # Use the HTML file path directly as the iframe source (src)
-    st.markdown(
-        f"""
-        <style>
-        /* 1. Ensure Streamlit content is on top and transparent */
-        .stApp > header, .stApp > div:not(.iframe-container) {{
-            z-index: 10;
-            position: relative; 
-            background: none;
-        }}
-
-        /* 2. CSS for the Fixed Background Layer using an iframe */
-        .iframe-background {{
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            border: none; 
-            z-index: -100; /* Puts it behind all Streamlit content */
-            overflow: hidden;
-            pointer-events: none; /* Allows mouse clicks to reach Streamlit widgets on top */
-        }}
-        </style>
-        
-        <div class="iframe-container">
-            <iframe class="iframe-background" src="{html_file_path}">
-            </iframe>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-
-#html_path_bg = "background.html" 
-#embed_html_background_iframe(html_path_bg)
-
-
-#### intro -----------------------------------------------------------------------------------------------------------------------------------
+# 1. Set Page Config
 st.set_page_config(
-    page_title="SHE: Start page",
+    page_title="SHE: Structural History of Eukarya",
     page_icon= "data/tree/logo_tree.png", 
-    layout="centered"
+    layout="wide" # Use wide layout for the rich landing page design
 )
 
+# 2. Embed Background Video & Custom CSS
+#embed_video_background(VIDEO_PATH_BG)
 
+# 3. Custom Fixed Header (replicated from previous response)
+def create_custom_header(nav_items):
+    nav_html_items = ""
+    for item in nav_items:
+        is_active = item["label"] == "Home"
+        button_class = "nav-button-active" if is_active else "nav-button"
+        # The path links won't navigate correctly in the fixed header, but provide visual structure
+        nav_html_items += f"""
+        <a href="#" class="{button_class}">
+            {item["icon"]} {item["label"]}
+        </a>
+        """
 
-st.title('SHE: Structural History of Eukarya')
+    st.markdown(
+        f"""
+        <header class="glass-panel fixed-header">
+            <div class="logo-container">
+                <span style="color:var(--primary-color); font-size: 32px;">🌳</span>
+                <div class="logo-text">
+                    <span class="logo-title text-gradient">SHE</span>
+                    <span class="logo-subtitle">Structural History of Eukarya</span>
+                </div>
+            </div>
+            <nav class="nav-desktop">
+                {nav_html_items}
+            </nav>
+        </header>
+        """,
+        unsafe_allow_html=True
+    )
 
-st.sidebar.success("Find more analysis options in the panels above.")
+create_custom_header(NAV_ITEMS)
 
-st.subheader('Structural Phylogenetic Tree from proteome-wide structure alignments')
-#st.image('data/tree/All/Intro.png', caption='Strucutral Phylogenetic Tree of Eukarya')
+# 4. Main Content Container (starts below the fixed header)
+with st.container():
+    st.markdown('<div class="main-content-offset"></div>', unsafe_allow_html=True)
+    
+    # --- A. HERO SECTION ---
+    
+    st.markdown("""
+        <div style="text-align: center; max-width: 48rem; margin: 0 auto; padding-bottom: 5rem;">
+            <div class="glass-panel" style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border-radius: 9999px; font-size: 0.875rem; margin-bottom: 2rem;">
+                <span style="width: 8px; height: 8px; border-radius: 9999px; background-color: var(--primary-color); animation: pulse 1.5s infinite;"></span>
+                <span style="color: var(--muted-foreground-color);">1,542 Eukaryotic Proteomes • 24.3 Million Proteins</span>
+            </div>
 
-st.write('Classical phylogenetic trees constructed based on sequence alignments of a small set of genes (i.e. rRNAs) are hindered by limitations.')
-st.write('To capture more distant and detailed picture of evolution, here we constructed evolutionary relationships based on the comparison of all predicted protein structures in an organism (2.96x1014 structure alignments between 24.3 million proteins).')
-st.write('The Structural History of Eukarya (SHE) provides a comprehensive picture of proteome structural similarity and evolutionary rates across eukaryotes (1542 species).')
+            <h1 class="hero-title">
+                <span style="color: var(--foreground-color);">The Structural</span><br>
+                <span class="text-gradient">History of Eukarya</span>
+            </h1>
 
-st.write('Start exploring the new proteome-wide structural phylogenetic tree by selecting the panels in the sidebar!')
-row1 = st.columns(3)
-emojis = [":deciduous_tree:", ":mouse2:", ":material/download:"]
-titles = ["Explore Tree", "Model Organism search", "Downloads"]
+            <p class="hero-subtitle">
+                A comprehensive phylogenetic resource based on complete structural comparison of protein structures across all eukaryotic life.
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
 
-# Create the tiles and their content
-for col, emoji, content in zip(row1, emojis, titles):
-    #with col:   tile = st.container(height=120)   tile.title(f"{emoji} {content}")
-    with col.expander(f"**{emoji} {content}**"):
-        
-        # --- Explore Tree Content ---
-        if content == "Explore Tree":
-            st.write('Explore Tree: check the **structural phylogenetic tree** for all Eukarya, a kingdom, a taxon, a species or a set of proteins. You will be able to change the tree visualisation style in the sidebar.')
-            st.page_link("pages/1_Explore_Tree.py", label="Go to Explore Tree Page") #icon="🌳"
-            # Demo Video Section
-            video_path_demo1 = "data/tree/app_demo3.mp4"
-            if os.path.exists(video_path_demo1):
-                st.markdown("---")
-                st.subheader("Demo")
-                st.video(video_path_demo1)
+    # CTA Buttons (using Streamlit components for functionality)
+    cta_col1, cta_col2, cta_col3 = st.columns([1, 1, 1])
+    with cta_col1:
+        st.page_link("pages/1_Explore_Tree.py", label="🌳 Explore the Tree", icon="👉", help="Start exploring the interactive phylogenetic tree.")
+    with cta_col2:
+        st.page_link("pages/2_Model_organisms.py", label="🔍 Search Proteins", icon="👉", help="Find structural homologs across organisms.")
+    with cta_col3:
+        st.page_link("pages/3_Downloads.py", label="💾 Download Data", icon="👉", help="Access all raw alignment scores and files.")
+
+    st.markdown("<br><br>", unsafe_allow_html=True) # Spacer
+
+    # Stats (replicated with Streamlit columns and custom CSS)
+    stat_col1, stat_col2, stat_col3, stat_col4 = st.columns(4)
+    stats_data = [
+        {"value": "1,542", "label": "Organisms"},
+        {"value": "24.3M", "label": "Proteins"},
+        {"value": "6", "label": "Kingdoms"},
+        {"value": "FoldSeek", "label": "Powered By"},
+    ]
+    
+    for col, stat in zip([stat_col1, stat_col2, stat_col3, stat_col4], stats_data):
+        with col:
+            st.markdown(f"""
+                <div class="glass-panel hero-stats-box">
+                    <div class="stat-value text-gradient">{stat["value"]}</div>
+                    <div style="font-size: 0.875rem; color: var(--muted-foreground-color);">{stat["label"]}</div>
+                </div>
+            """, unsafe_allow_html=True)
             
-        # --- Model Organism Search Content ---
-        elif content == "Model Organism search":
-            st.write('Model Organisms: find the **best model organism** for your study based on the structural comparison of the protein(s) in your pathway of interest.')
-            st.page_link("pages/2_Model_organisms.py", label="Go to Model Organisms Page")
-            # Demo Video Section
-            video_path_demo2 = "data/tree/app_demo2.mp4"
-            if os.path.exists(video_path_demo2):
-                st.markdown("---")
-                st.subheader("Demo")
-                st.video(video_path_demo2)
-                
-        # --- Downloads Content ---
-        elif content == "Downloads":
-            st.write('Download: retrieve all the **structural alignments scores**, protein predictions and tree files.')
-            st.page_link("pages/3_Downloads.py", label="Go to Downloads Page")
-            # Demo Video Section
-            video_path_demo3 = "data/tree/app_demo3.mp4"
-            if os.path.exists(video_path_demo3):
-                st.markdown("---")
-                st.subheader("Demo")
-                st.video(video_path_demo3)
-
-st.sidebar.subheader('Updates', divider="rainbow")
-st.sidebar.write('Sign up for updates!')
-email = st.sidebar.text_input('Your email', key="email") #strip against whitespace
-if st.sidebar. button('Subscribe'):
-    # Retrieve the value from session state using the key "email" (updated from "user")
-    user_email = st.session_state.email.strip()
-    if not user_email:
-        # Only check remaining: must not be empty
-        st.error("Please enter an email address.")
-    else:
-        # If we reach here, the email is non-empty and we save it.
-        if save_email(user_email):
-            st.balloons()
-            # Updated success message
-            st.sidebar.success(f"Thank you! **{user_email}** is where you will receive updates regarding SHE!")
-            # Clear the input field after successful submission (updated key)
-            #st.session_state.email = ""
+    st.markdown("<hr style='margin: 4rem 0;'>", unsafe_allow_html=True) # Separator
 
 
-#video_tree = open("data/tree/final_tree.mp4", "rb")
-#tree_bytes = video_tree.read()
-#st.sidebar.video(tree_bytes, autoplay=True, loop=True, muted=True)
+    # --- B. FEATURES SECTION ---
+
+    st.markdown("""
+        <div style="text-align: center; max-width: 42rem; margin: 0 auto 3rem;">
+            <h2 style="font-size: 2rem; font-weight: 700; color: var(--foreground-color); margin-bottom: 1rem;">
+                Powerful Visualization Tools
+            </h2>
+            <p style="color: var(--muted-foreground-color);">
+                Explore the complete structural phylogeny of eukaryotes with our interactive analysis platform.
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+
+    # Features Grid (Using custom HTML/CSS for tiles, but st.page_link for navigation below the tile)
+    
+    # We use a wrapper to use the custom grid CSS class
+    st.markdown('<div class="feature-grid">', unsafe_allow_html=True)
+    
+    # Use st.columns inside the markdown wrapper for the content flow
+    # Since we have 6 features, we can use 3 columns and iterate through them twice
+    # This is a Streamlit-specific compromise for grid layout
+    
+    # Create the columns outside the loop
+    cols = st.columns(3)
+    
+    for i, feature in enumerate(FEATURES):
+        col_index = i % 3  # Distribute tiles across the 3 columns
+        with cols[col_index]:
+            st.markdown(f"""
+                <div class="glass-panel feature-tile">
+                    <div class="feature-icon-box" style="color: var(--primary-color);">
+                        {feature["icon"]}
+                    </div>
+                    <h3 class="feature-title">{feature["title"]}</h3>
+                    <p class="feature-description">{feature["description"]}</p>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            # CORRECTED LINE: Using single quotes for 'title' dictionary access
+            st.page_link(feature["link_path"], label=f"Go to {feature['title'].split()[0]} Page", icon="🔗")
+            st.markdown("<br>", unsafe_allow_html=True) # Small space between tiles
+            
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    st.markdown("<hr style='margin: 4rem 0;'>", unsafe_allow_html=True) # Separator
 
 
-st.subheader('Cite')
-st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
+    # --- C. METHODOLOGY SECTION ---
+
+    st.markdown("""
+        <div style="text-align: center; max-width: 42rem; margin: 0 auto 3rem;">
+            <h2 style="font-size: 2rem; font-weight: 700; color: var(--foreground-color); margin-bottom: 1rem;">
+                How It Works
+            </h2>
+            <p style="color: var(--muted-foreground-color);">
+                Our novel methodology compares entire proteomes based on 3D protein structure rather than sequence alone.
+            </p>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # Methodology Steps (Using 4 columns)
+    step_cols = st.columns(4)
+    
+    for i, step in enumerate(STEPS):
+        with step_cols[i]:
+            # The line requires complex CSS positioning. We will use the number bubble and a centered layout.
+            st.markdown(f"""
+                <div class="method-step">
+                    <div class="glass-panel method-number-bubble">
+                        <span class="method-number text-gradient">{step["number"]}</span>
+                    </div>
+                    <div class="step-content">
+                        <h3 class="step-title">{step["title"]}</h3>
+                        <p style="font-size: 0.875rem; color: var(--muted-foreground-color);">{step["description"]}</p>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+
+
+    st.markdown("<hr style='margin: 4rem 0;'>", unsafe_allow_html=True) # Separator
+
+
+    # --- D. CITATION AND UPDATES (Original content, slightly restyled) ---
+
+    st.subheader('Cite', divider=True)
+    st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
+
+    st.sidebar.subheader('Updates', divider="rainbow")
+    st.sidebar.write('Sign up for updates!')
+    # Use a unique key for the text input
+    email = st.sidebar.text_input('Your email', key="email_input") 
+    if st.sidebar.button('Subscribe'):
+        # Correctly reference the value using st.session_state
+        user_email = st.session_state.email_input.strip()
+        if not user_email:
+            st.error("Please enter an email address.")
+        else:
+            if save_email(user_email):
+                st.balloons()
+                st.sidebar.success(f"Thank you! **{user_email}** is where you will receive updates regarding SHE!")
