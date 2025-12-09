@@ -35,6 +35,11 @@ import shutil
 from pathlib import Path
 import foldcomp as fc
 import random
+import requests
+import subprocess
+import gzip
+from Bio.PDB import MMCIFParser, PDBParser, PDBIO, Structure, Model, PDBExceptions
+from Bio.SVDSuperimposer import SVDSuperimposer
 
 #Code to analyse:
 # model organism search
@@ -769,7 +774,7 @@ def get_pdb2(protein, proteome):
         st.error(f"An unexpected error occurred during FoldComp retrieval: {e}")
         return None
 
-def render_3dmol_pdb(structure_path_or_url: str):
+def render_3dmol_pdb(color, structure_path_or_url: str):
     """
     Loads and renders a protein structure, supporting both local file paths 
     (PDB/CIF) and remote AlphaFold CIF URLs.
@@ -798,8 +803,6 @@ def render_3dmol_pdb(structure_path_or_url: str):
             st.error(f"Local file not found at path: {local_filepath}")
             return
 
-        #st.info(f"Loading structure from local file: {local_filepath}")
-        
         # Determine format based on extension
         if local_filepath.lower().endswith(('.cif', '.mmcif')):
             structure_format = 'cif'
@@ -823,12 +826,20 @@ def render_3dmol_pdb(structure_path_or_url: str):
 
     # 2. Initialize the py3Dmol viewer object
     view = py3Dmol.view(width=800, height=500, js='https://3dmol.org/build/3Dmol.js')
-
+    view.setBackgroundColor('black')
     # 3. Add the model using the determined format
     view.addModel(structure_data, structure_format) # Use the determined format
 
     # 4. Set the coloring scheme (lDDT for AlphaFold)
-    view.setStyle({'cartoon': {'colorscheme': {'prop':'b','gradient': 'roygb','min':50,'max':90}}})
+    if color == "plDDT":
+        view.setStyle({'cartoon': {'colorscheme': {'prop':'b','gradient': 'roygb','min':50,'max':90}}})
+        #plot_plddt_legend().show()
+    elif color == "chain":
+        view.setStyle({'chain': 'A'}, {'cartoon': {'color': 'cyan'}})
+        view.setStyle({'chain': 'B'}, {'cartoon': {'color': 'yellow'}})
+        view.setStyle({'chain': 'C'}, {'cartoon': {'color': 'magenta'}})
+    
+    #view.resetView()
     view.zoomTo() # Add a zoom to center the protein
 
     # 5. Render the view using the stmol component
@@ -836,6 +847,166 @@ def render_3dmol_pdb(structure_path_or_url: str):
         showmol(view, height=510, width=800)
     except Exception as e:
          st.error(f"Error rendering 3Dmol viewer with stmol: {e}")
+
+
+# -----protein alignment viewer -----
+def run_foldseek_alignment_only(query_path, target_path):
+    """
+    Asks Foldseek for the SEQUENCE ALIGNMENT (qaln, taln), not the matrix.
+    """
+    temp_OUTPUT_DIR = "temp_archives/temp_protein_alignments"
+    if not os.path.exists(temp_OUTPUT_DIR):
+        os.makedirs(temp_OUTPUT_DIR)
+    temp_m8 = os.path.join(temp_OUTPUT_DIR, "temp_aln.m8")
+    
+    # We request qstart, qend (indices) and qaln, taln (sequence strings)
+    cmd = [
+        "foldseek", "easy-search",
+        query_path, target_path, temp_m8, "tmp_fs",
+        "--format-output", "qstart,tstart,qaln,taln,alntmscore",
+        "--threads", "1", "-v", "0"
+    ]
+    try:
+        subprocess.run(cmd, check=True)
+        df = pd.read_csv(temp_m8, sep="\t", names=["qstart", "tstart", "qaln", "taln", "tm"])
+        if df.empty: return None
+        return df.iloc[0] # Return the best match
+    except: return None
+
+def get_format_from_path(filepath):
+    """Simple helper to determine PDB/CIF format from file extension."""
+    if filepath.lower().endswith(('.cif', '.mmcif')):
+        return "cif"
+    elif filepath.lower().endswith('.pdb'):
+        return "pdb"
+    return None
+
+def calculate_svd_and_merge(target_file, target_fmt, query_file, query_fmt, aln_data, out_name):
+    """
+    Uses Bio.SVDSuperimposer to align the Query (moving) structure to the Target (fixed) structure 
+    based on Foldseek's alignment mapping.
+    """
+    # 1. Load Structures
+    p_t = MMCIFParser(QUIET=True) if target_fmt == "cif" else PDBParser(QUIET=True)
+    p_q = MMCIFParser(QUIET=True) if query_fmt == "cif" else PDBParser(QUIET=True)
+    
+    try:
+        s_t = p_t.get_structure("T", target_file) # Target (fixed)
+        s_q = p_q.get_structure("Q", query_file) # Query (moving)
+        
+        atoms_t = [r['CA'] for r in s_t.get_residues() if 'CA' in r]
+        atoms_q = [r['CA'] for r in s_q.get_residues() if 'CA' in r]
+
+        # 2. Map Atoms using Alignment Strings
+        qaln = aln_data['qaln'] # Query Sequence (moving)
+        taln = aln_data['taln'] # Target Sequence (fixed)
+        
+        # Start indices (Foldseek is 1-based, Python list is 0-based)
+        q_idx = int(aln_data['qstart']) - 1
+        t_idx = int(aln_data['tstart']) - 1
+        
+        ref_coords = [] # Fixed (Target)
+        mov_coords = [] # Moving (Query)
+        
+        for q_char, t_char in zip(qaln, taln):
+            current_q_atom = None
+            current_t_atom = None
+            
+            # Advance pointers for Query (moving)
+            if q_char != '-':
+                if q_idx < len(atoms_q): current_q_atom = atoms_q[q_idx]
+                q_idx += 1
+            
+            # Advance pointers for Target (fixed)
+            if t_char != '-':
+                if t_idx < len(atoms_t): current_t_atom = atoms_t[t_idx]
+                t_idx += 1
+            
+            # If both exist and are not gaps, they are an aligned pair!
+            if q_char != '-' and t_char != '-' and current_q_atom and current_t_atom:
+                ref_coords.append(current_t_atom.get_coord())
+                mov_coords.append(current_q_atom.get_coord())
+
+        # 3. Run SVD Superimposer
+        if len(ref_coords) < 3:
+            # print("  Error: Not enough aligned residues for SVD.")
+            return False, 0 # Return failure and 0 RMSD
+
+        sup = SVDSuperimposer()
+        sup.set(np.array(ref_coords), np.array(mov_coords))
+        sup.run()
+        rot, tra = sup.get_rotran()
+        rms = sup.get_rms()
+
+        # 4. Apply to Query (Whole structure)
+        # Note: AlphaFold PDB/CIFs often have only one chain
+        c_query = list(s_q.get_chains())[0]
+        for atom in c_query.get_atoms():
+            # SVDSuperimposer gives rot/tran suitable for: new = dot(old, rot) + tran
+            atom.set_coord(np.dot(atom.get_coord(), rot) + tra)
+
+        # 5. Save Merged (Target Chain A, Query Chain B)
+        merged = Structure.Structure("Merged")
+        model = Model.Model(0)
+        merged.add(model)
+        
+        c_target = list(s_t.get_chains())[0]; c_target.id = "A" # Fixed Chain
+        c_query.id = "B" # Moving Chain (now superimposed)
+        
+        model.add(c_target)
+        model.add(c_query)
+        
+        io = PDBIO()
+        io.set_structure(merged)
+        io.save(out_name)
+        return True, rms # Return success and RMSD
+
+    except Exception as e:
+        # st.error(f"SVD Error: {e}")
+        return False, 0
+    
+def render_3dmol_alignment(structure_path, target_name, query_name, tm_score, rmsd):
+    """
+    Renders the merged PDB file, applying different colors to the two chains 
+    (Target: light blue, Query/Model: yellow).
+    """
+    if not os.path.exists(structure_path):
+        st.error(f"Alignment file not found at path: {structure_path}")
+        return
+
+    # Load data from local file (format is always 'pdb' here after merge)
+    with open(structure_path, 'r') as f:
+        structure_data = f.read()
+    
+    # 1. Initialize the py3Dmol viewer object
+    view = py3Dmol.view(width=800, height=500, js='https://3dmol.org/build/3Dmol.js')
+
+    # 2. Add the model
+    view.addModel(structure_data, 'pdb')
+
+    # 3. Set styles and colors for Chain A (Target) and Chain B (Query)
+    # Target (Fixed) Structure: Chain A -> light blue
+    view.setStyle({'chain': 'A'}, {'cartoon': {'color': 'lightskyblue'}})
+    # Query/Model (Superimposed) Structure: Chain B -> yellow
+    view.setStyle({'chain': 'B'}, {'cartoon': {'color': 'yellow'}})
+
+    view.zoomTo() 
+
+    # 4. Add labels/info
+    st.markdown(f"""
+        **Alignment Details:**
+        * **TM-Score:** `{tm_score:.4f}` (Higher is better)
+        * **RMSD:** `{rmsd:.4f}` Å (Lower is better)
+        * **Color Key:** **{target_name}** (**Light Blue**) vs. **{query_name}** (**Yellow**)
+    """)
+
+    # 5. Render the view
+    try:
+        showmol(view, height=510, width=800)
+    except Exception as e:
+         st.error(f"Error rendering 3Dmol viewer with stmol: {e}")
+
+
 # --- Function to generate the Mol* HTML viewer ---
 
 def render_3dmol(afdb_download_url: str):
@@ -1265,11 +1436,67 @@ if st.sidebar.checkbox('Find best Model organism'):
                     
                     with col1:
                         st.write(f"**{selected_protein_A} Structure:**")
-                        render_3dmol_pdb(pdb_target) 
+                        color = st.radio(
+                        "Color by:",
+                        ('plDDT', 'chain'),
+                        index=0, # 'plDDT' is the default
+                        horizontal=True,
+                        key='target_toggle'
+                        )
+                        render_3dmol_pdb(color, pdb_target) 
                     
                     with col2:
                         st.write(f"**{hit_proteinB} Structure:**")
-                        render_3dmol_pdb(pdb_model)             
+                        color = st.radio(
+                        "Color by:",
+                        ('plDDT', 'chain'),
+                        index=0, # 'plDDT' is the default
+                        horizontal=True,
+                        key='model_toggle'
+                        )
+                        render_3dmol_pdb(color, pdb_model)
+
+
+                    #Structural Alignment and Superposition ---
+                    st.subheader(f"Structural Overlap {model_uniprot_id} blue vs. {target_uniprot_id} yellow")
+                    
+                    # Ensure PDB/CIF formats are correctly identified for the SVD/Foldseek functions
+                    target_fmt = get_format_from_path(pdb_target)
+                    model_fmt = get_format_from_path(pdb_model)
+
+                    # 1. Get Alignment MAP from Foldseek (Model is Query, Target is Target)
+                    aln_data = run_foldseek_alignment_only(query_path=pdb_model, target_path=pdb_target)
+                    st.info(f"Alignment data: {aln_data}")
+
+                    if aln_data is not None:
+                        
+                        # Define output path for the merged PDB file
+                        out_file_name = f"SVD_{model_uniprot_id}_vs_{target_uniprot_id}.pdb"
+                        out_file = os.path.join(csv_out, out_file_name)
+                        
+                        # 2. Calculate Superposition locally using SVD
+                        # Target (Fixed) is selected_protein_A, Query (Moving) is hit_proteinB
+                        success, rmsd = calculate_svd_and_merge(
+                            target_file=pdb_target, target_fmt=target_fmt, 
+                            query_file=pdb_model, query_fmt=model_fmt, 
+                            aln_data=aln_data, 
+                            out_name=out_file
+                        )
+                        
+                        if success:
+                            # 3. Render the Merged Structure
+                            render_3dmol_alignment(
+                                structure_path=out_file, 
+                                target_name=selected_protein_A, 
+                                query_name=hit_proteinB, 
+                                tm_score=aln_data.get('tm', 0.0), 
+                                rmsd=rmsd
+                            )
+                        else:
+                            st.warning(f"Could not perform SVD superposition for {hit_species}. Check console for details.")
+                            
+                    else:
+                        st.warning("Foldseek could not find a reliable alignment between the two structures.")     
 
         # download button
         is_random_user = False

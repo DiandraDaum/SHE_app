@@ -27,9 +27,9 @@ NAV_ITEMS = [
 # Define features for the main grid section
 FEATURES = [
     {"icon": "🌳", "title": "Interactive Phylogeny", "description": "Explore the structural phylogenetic tree for the main subkingdoms including Opisthokonta, Viridiplantae, SAR, Amoebozoa, Discoba, and Rhodophyta.", "link_path": "pages/1_Explore_Tree.py"},
-    {"icon": "🔬", "title": "Evolutionary Rate", "description": "Visualize colored branches by evolutionary rate to identify fast and slow-evolving proteomes.", "link_path": "pages/1_Explore_Tree.py"},
-    {"icon": "🧬", "title": "Taxon Filtering", "description": "Zoom on specific taxa or species to discover new evolutionary relationships.", "link_path": "pages/1_Explore_Tree.py"},
-    {"icon": "🔎", "title": "Protein Search", "description": "Input UniProt IDs to analyze presence/absence of structural homologs across all eukaryotic organisms.", "link_path": "pages/1_Explore_Tree.py"}, # Reusing Model Organisms page for search
+    {"icon": "📈", "title": "Evolutionary Rate", "description": "Visualize colored branches by evolutionary rate to identify fast and slow-evolving proteomes.", "link_path": "pages/1_Explore_Tree.py"},
+    {"icon": "🍄", "title": "Taxon Search", "description": "Zoom on specific taxa or species to discover new evolutionary relationships.", "link_path": "pages/1_Explore_Tree.py"},
+    {"icon": "🔎", "title": "Protein Structural Homologous", "description": "Input UniProt IDs to analyze presence/absence of structural homologs across all eukaryotic organisms.", "link_path": "pages/1_Explore_Tree.py"}, # Reusing Model Organisms page for search
     {"icon": "🐁", "title": "Model Organism Ranking", "description": "Select proteins of interest to find the best model organisms where they are most conserved.", "link_path": "pages/2_Model_organisms.py"},
     {"icon": "⬇️", "title": "Data Downloads", "description": "Download FoldSeek comparison bitscores, Newick files, and predicted protein structures from each proteome.", "link_path": "pages/3_Downloads.py"},
 ]
@@ -373,7 +373,8 @@ with st.container():
             """, unsafe_allow_html=True)
             
             # CORRECTED LINE: Using single quotes for 'title' dictionary access
-            st.page_link(feature["link_path"], label=f"Go to {feature['title'].split()[0]} Page", icon="🔗")
+            #st.page_link(feature["link_path"], label=f"Go to {feature['title'].split()[0]} function", icon="🔗")
+            st.page_link(feature["link_path"], label=f"Go to: {feature['title']} function", icon="🔗")
             st.markdown("<br>", unsafe_allow_html=True) # Small space between tiles
             
     st.markdown('</div>', unsafe_allow_html=True)
