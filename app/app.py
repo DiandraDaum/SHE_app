@@ -26,12 +26,12 @@ NAV_ITEMS = [
 
 # Define features for the main grid section
 FEATURES = [
-    {"icon": "🌳", "title": "Interactive Phylogeny", "description": "Explore the structural phylogenetic tree for the main subkingdoms including Opisthokonta, Viridiplantae, SAR, Amoebozoa, Discoba, and Rhodophyta.", "link_path": "pages/1_Explore_Tree.py"},
-    {"icon": "📈", "title": "Evolutionary Rate", "description": "Visualize colored branches by evolutionary rate to identify fast and slow-evolving proteomes.", "link_path": "pages/1_Explore_Tree.py"},
-    {"icon": "🍄", "title": "Taxon Search", "description": "Zoom on specific taxa or species to discover new evolutionary relationships.", "link_path": "pages/1_Explore_Tree.py"},
-    {"icon": "🔎", "title": "Protein Structural Homologous", "description": "Input UniProt IDs to analyze presence/absence of structural homologs across all eukaryotic organisms.", "link_path": "pages/1_Explore_Tree.py"}, # Reusing Model Organisms page for search
-    {"icon": "🐁", "title": "Model Organism Ranking", "description": "Select proteins of interest to find the best model organisms where they are most conserved.", "link_path": "pages/2_Model_organisms.py"},
-    {"icon": "⬇️", "title": "Data Downloads", "description": "Download FoldSeek comparison bitscores, Newick files, and predicted protein structures from each proteome.", "link_path": "pages/3_Downloads.py"},
+    {"icon": "🌳", "title": "Interactive Phylogeny", "description": "Explore the structural phylogenetic tree for the main subkingdoms including Opisthokonta, Viridiplantae, SAR, Amoebozoa, Discoba, and Rhodophyta.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/plant_Q9NXK8.mp4"}, #"demo": "data/demos/demo1.mp4"
+    {"icon": "📈", "title": "Evolutionary Rate", "description": "Visualize colored branches by evolutionary rate to identify fast and slow-evolving proteomes.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/plant_Q9NXK8.mp4"},
+    {"icon": "🍄", "title": "Taxon Search", "description": "Zoom on specific taxa or species to discover new evolutionary relationships.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/plant_Q9NXK8.mp4"},
+    {"icon": "🔎", "title": "Protein Structural Homologous", "description": "Input UniProt IDs to analyze presence/absence of structural homologs across all eukaryotic organisms.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/plant_Q9NXK8.mp4"}, # Reusing Model Organisms page for search
+    {"icon": "🐁", "title": "Model Organism Ranking", "description": "Select proteins of interest to find the best model organisms where they are most conserved.", "link_path": "pages/2_Model_organisms.py", "demo": "data/subset/figure_model/plant_Q9NXK8.mp4"},
+    {"icon": "⬇️", "title": "Data Downloads", "description": "Download FoldSeek comparison bitscores, Newick files, and predicted protein structures from each proteome.", "link_path": "pages/3_Downloads.py", "demo": "data/subset/figure_model/plant_Q9NXK8.mp4"},
 ]
 
 # Define methodology steps
@@ -358,10 +358,10 @@ with st.container():
     
     # Create the columns outside the loop
     cols = st.columns(3)
-    
     for i, feature in enumerate(FEATURES):
         col_index = i % 3  # Distribute tiles across the 3 columns
         with cols[col_index]:
+            # 1. The HTML Card
             st.markdown(f"""
                 <div class="glass-panel feature-tile">
                     <div class="feature-icon-box" style="color: var(--primary-color);">
@@ -372,13 +372,21 @@ with st.container():
                 </div>
             """, unsafe_allow_html=True)
             
-            # CORRECTED LINE: Using single quotes for 'title' dictionary access
-            #st.page_link(feature["link_path"], label=f"Go to {feature['title'].split()[0]} function", icon="🔗")
+            # 2. The Link
             st.page_link(feature["link_path"], label=f"Go to: {feature['title']} function", icon="🔗")
+        
+            # 3. THE VIDEO POPOVER
+            with st.popover(f"▶️ Watch Demo", use_container_width=True):
+                st.markdown(f"**Demo for {feature['title']}**")
+                
+                # Check for the video key in your dictionary
+                if "demo" in feature and feature["demo"]:
+                    # Autoplay and Muted create a "GIF-like" experience but with MP4 efficiency
+                    st.video(feature["demo"], autoplay=True, muted=True, loop=True)
+                else:
+                    st.warning("No video demo available for this feature yet.")
             st.markdown("<br>", unsafe_allow_html=True) # Small space between tiles
-            
     st.markdown('</div>', unsafe_allow_html=True)
-    
     st.markdown("<hr style='margin: 4rem 0;'>", unsafe_allow_html=True) # Separator
 
 

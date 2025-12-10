@@ -73,7 +73,7 @@ def extract_closest_species(newick_file, input_species, num_neighbors): #species
         output_file (str): Path to save the resulting subtree in Newick format.
     """
     # Step 1: Load the main tree.
-    newick_file = 'data/tree/All/kingdoms_All_tree.newick'
+    newick_file = 'data/tree/Eukarya/kingdoms_Eukarya_tree.newick'
     print(f"Loading tree from '{newick_file}'...")
     try:
         main_tree = Tree(newick_file, format=1)
@@ -343,7 +343,7 @@ def protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree
     protein: uniprot ID (i.e. P12345)
     families_csv_path: path to the protein families csv file (i.e. ./data/core/protein_families_238.csv)
     new_proteomes_path: path to the updated proteomes csv file (i.e. ./ data/core/merged_evo_rate.csv)
-    main_tree: path to the main tree newick file (i.e. ./data/tree/All/kingdoms_All_tree.newick)
+    main_tree: path to the main tree newick file (i.e. ./data/tree/Eukarya/kingdoms_Eukarya_tree.newick)
 
     Output:
     presence_tree_svg: path to the svg file of the tree with colored leaves
@@ -1386,7 +1386,7 @@ for col, content in zip(row2, titles):
 # Add sidebar ---------------------------------------------------------------------------------------------------------------------------
 #data
 df = pd.DataFrame({
-    'kingdom': ["All", "Opisthokonta", "Amoebozoa", "Sar", "Viridiplantae", "Discoba", "Rhodophyta"],
+    'kingdom': ["Eukarya", "Opisthokonta", "Amoebozoa", "Sar", "Viridiplantae", "Discoba", "Rhodophyta"],
     'number_species': [1000000, 10, 20, 30, 40, 50, 70] # change to actual number of species
     })
 
@@ -1394,7 +1394,7 @@ df = pd.DataFrame({
 # Choose Taxon
 st.sidebar.subheader('1. Visualise Kingdoms', divider=True)
 kingdom = st.sidebar.selectbox(
-    'Which kingdom? (default: All)',
+    'Which kingdom? (default: Eukarya)',
     df['kingdom'],
     key = 'kingdom_selector')
 
@@ -1459,7 +1459,7 @@ if st.session_state.show_tree:
     if kingdom == "Sar":
         what = kingdom + "_supergroup"
         st.page_link("https://en.wikipedia.org/wiki/" + what, label="Wiki", icon="🌎")
-    elif kingdom == "All":
+    elif kingdom == "Eukarya":
         st.page_link("https://en.wikipedia.org/wiki/Eukaryote", label="Wiki", icon="🌎")
     else: 
         what = kingdom
@@ -1509,7 +1509,7 @@ if st.sidebar.toggle('See tree with evolutionary rate'):
 
 
 ##############Extract taxonomic group ------------------------------------------------
-main_tree_path = 'data/tree/All/kingdoms_All_tree.newick'
+main_tree_path = 'data/tree/Eukarya/kingdoms_Eukarya_tree.newick'
 proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
 new_proteomes_path =  'data/core/merged_evo_rate.csv'
 proteomes_df = pd.read_csv(proteomes_path)
@@ -1524,7 +1524,7 @@ if st.sidebar.checkbox('Find species'):
     'Which species (name - Homo_sapiens)?', proteomes_df['Organism_formatted'], key = 'species_selector')
     if species == '':
         st.warning('Please enter species (i.e. Proteome ID - i.e. UP000005640 or Taxon ID - i.e. 9606 or name - Homo_sapiens) to extract a subtree.' \
-            'Find all species names in "Show species branch rate in Kindom All"')
+            'Find all species names in "Show species branch rate in Kindom Eukarya"')
     else:
         what = species
         what = what.split('_')
