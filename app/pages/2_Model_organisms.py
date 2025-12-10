@@ -829,6 +829,7 @@ def render_3dmol_pdb(color, structure_path_or_url: str):
     view.setBackgroundColor('black')
     # 3. Add the model using the determined format
     view.addModel(structure_data, structure_format) # Use the determined format
+    #view.zoomTo()
 
     # 4. Set the coloring scheme (lDDT for AlphaFold)
     if color == "plDDT":
@@ -839,12 +840,15 @@ def render_3dmol_pdb(color, structure_path_or_url: str):
         view.setStyle({'chain': 'B'}, {'cartoon': {'color': 'yellow'}})
         view.setStyle({'chain': 'C'}, {'cartoon': {'color': 'magenta'}})
     
+    #view.replicateModel() 
+    # --- The Fix for Centering ---
     #view.resetView()
-    view.zoomTo() # Add a zoom to center the protein
+    view.zoomTo()
 
     # 5. Render the view using the stmol component
     try:
-        showmol(view, height=510, width=800)
+        #showmol(view, height=510, width=800)
+        showmol(view, height=600, width=600)
     except Exception as e:
          st.error(f"Error rendering 3Dmol viewer with stmol: {e}")
 
@@ -965,7 +969,7 @@ def calculate_svd_and_merge(target_file, target_fmt, query_file, query_fmt, aln_
         # st.error(f"SVD Error: {e}")
         return False, 0
     
-def render_3dmol_alignment(structure_path, target_name, query_name, tm_score, rmsd):
+def render_3dmol_alignment(color, structure_path, target_name, query_name, tm_score, rmsd):
     """
     Renders the merged PDB file, applying different colors to the two chains 
     (Target: light blue, Query/Model: yellow).
@@ -980,18 +984,20 @@ def render_3dmol_alignment(structure_path, target_name, query_name, tm_score, rm
     
     # 1. Initialize the py3Dmol viewer object
     view = py3Dmol.view(width=800, height=500, js='https://3dmol.org/build/3Dmol.js')
-
+    view.setBackgroundColor('black')
     # 2. Add the model
     view.addModel(structure_data, 'pdb')
-
     # 3. Set styles and colors for Chain A (Target) and Chain B (Query)
-    # Target (Fixed) Structure: Chain A -> light blue
-    view.setStyle({'chain': 'A'}, {'cartoon': {'color': 'lightskyblue'}})
-    # Query/Model (Superimposed) Structure: Chain B -> yellow
-    view.setStyle({'chain': 'B'}, {'cartoon': {'color': 'yellow'}})
-
+    #view.setStyle({'chain': 'A'}, {'cartoon': {'color': 'lightskyblue'}})
+    #view.setStyle({'chain': 'B'}, {'cartoon': {'color': 'yellow'}})
+    if color == "plDDT":
+        view.setStyle({'cartoon': {'colorscheme': {'prop':'b','gradient': 'roygb','min':50,'max':90}}})
+    #plot_plddt_legend().show()
+    elif color == "chain":
+        view.setStyle({'chain': 'A'}, {'cartoon': {'color': 'cyan'}})
+        view.setStyle({'chain': 'B'}, {'cartoon': {'color': 'yellow'}})
+        view.setStyle({'chain': 'C'}, {'cartoon': {'color': 'magenta'}})
     view.zoomTo() 
-
     # 4. Add labels/info
     st.markdown(f"""
         **Alignment Details:**
@@ -1371,6 +1377,61 @@ if st.sidebar.checkbox('Find best Model organism'):
 
         st.plotly_chart(fig, use_container_width=True)
 
+        #radar plot---------------------------------------------------------
+        # 1. Create the cleaner display name for the proteinB (for hover data)
+        comparison_df['Display_Protein'] = comparison_df['proteinB'].str.split('-').str[1]
+        comparison_df['Display_Organism'] = comparison_df['Compared_Species'].str.split('_', n=2).str[:2].str.join('_')
+        comparison_df['Display_Organism'] = comparison_df['Display_Organism'].str.replace('_', ' ')
+        # 2. Create the color grouping based on proteinA (color parameter)
+        comparison_df['Color_Group'] = comparison_df['proteinA'].str.split('-').str[1]
+
+        # 3. Create a unique list of all Compared_Species names to define the angular axes (theta)
+        all_species = comparison_df['Compared_Species'].unique().tolist()
+
+        # --- Radar Chart Generation ---
+        radar_fig = px.line_polar(
+            comparison_df,
+            r='bit_score',         # Radial axis variable (score magnitude)
+            theta='Display_Organism', # <<< CHANGED: Angular axis uses the species name
+            color='Color_Group',     # Color based on the Target Protein (proteinA)
+            line_close=True,
+            color_discrete_sequence=px.colors.sequential.Plasma,
+            title=f'Individual Protein Hit Bitscores by Species for {top_model_organism}',
+            labels={
+                'bit_score': 'Bit Score',
+                'Compared_Species': 'Compared Species',
+                'Color_Group': 'Target Protein (UniProt ID)'
+            },
+            # <<< NEW: Add Display_Protein to hover data
+            hover_data={
+                'Display_Protein': True,  # Show the UniProt ID of the hit protein (proteinB)
+                'bit_score': ':.0f',      # Show the bitscore clearly
+                'Compared_Species': False # Already on the axis, no need to repeat
+            },
+            start_angle=0,
+            direction="clockwise", 
+        )
+
+        # Update the layout for better readability
+        radar_fig.update_traces(fill='toself')
+
+        # Customize the polar axis
+        radar_fig.update_polars(
+            radialaxis_showgrid=True,
+            angularaxis_showgrid=True,
+            # Ensure the angular axis uses the full list of unique species names
+            angularaxis_categoryorder='array', 
+            angularaxis_categoryarray=all_species,
+            radialaxis=dict(
+                visible=True,
+                # Set range based on the overall max score
+                range=[0, comparison_df['bit_score'].max() * 1.1] 
+            )
+        )
+
+        # Render the radar chart in Streamlit
+        st.plotly_chart(radar_fig, use_container_width=True)
+
         # show protein structures --------------------------------------------------------------------------------------
         if st.sidebar.toggle('Show protein structure alignments'):
             st.subheader('## Structural comparison of your proteins between the input target and model organisms')
@@ -1431,35 +1492,35 @@ if st.sidebar.checkbox('Find best Model organism'):
                     
                     # 3.2 Render structures side by side
                     st.write(f"**{target_species} ({selected_protein_A})** vs **{hit_species} ({hit_proteinB})**")
-                    
+                    target_key = f'target_toggle_{index}'
+                    model_key = f'model_toggle_{index}'
                     col1, col2 = st.columns(2)
-                    
                     with col1:
                         st.write(f"**{selected_protein_A} Structure:**")
-                        color = st.radio(
-                        "Color by:",
-                        ('plDDT', 'chain'),
-                        index=0, # 'plDDT' is the default
-                        horizontal=True,
-                        key='target_toggle'
+                        target_color = st.radio(
+                            "Color by:",
+                            ('plDDT', 'chain'),
+                            index=0, # 'plDDT' is the default
+                            horizontal=True,
+                            key=target_key
                         )
-                        render_3dmol_pdb(color, pdb_target) 
+                        render_3dmol_pdb(target_color, pdb_target) 
                     
                     with col2:
                         st.write(f"**{hit_proteinB} Structure:**")
-                        color = st.radio(
-                        "Color by:",
-                        ('plDDT', 'chain'),
-                        index=0, # 'plDDT' is the default
-                        horizontal=True,
-                        key='model_toggle'
+                        model_color = st.radio(
+                            "Color by:",
+                            ('plDDT', 'chain'),
+                            index=0, # 'plDDT' is the default
+                            horizontal=True,
+                            key=model_key
                         )
-                        render_3dmol_pdb(color, pdb_model)
+                        render_3dmol_pdb(model_color, pdb_model)
 
 
                     #Structural Alignment and Superposition ---
                     st.subheader(f"Structural Overlap {model_uniprot_id} blue vs. {target_uniprot_id} yellow")
-                    
+                    alignment_key = f'alignment_toggle_{index}'
                     # Ensure PDB/CIF formats are correctly identified for the SVD/Foldseek functions
                     target_fmt = get_format_from_path(pdb_target)
                     model_fmt = get_format_from_path(pdb_model)
@@ -1485,7 +1546,13 @@ if st.sidebar.checkbox('Find best Model organism'):
                         
                         if success:
                             # 3. Render the Merged Structure
-                            render_3dmol_alignment(
+                            alignment_color = st.radio(
+                                "Color by:",
+                                ('plDDT', 'chain'),
+                                index=0, # 'plDDT' is the default
+                                horizontal=True,
+                                key=alignment_key)
+                            render_3dmol_alignment(alignment_color,
                                 structure_path=out_file, 
                                 target_name=selected_protein_A, 
                                 query_name=hit_proteinB, 
