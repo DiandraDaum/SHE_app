@@ -1121,7 +1121,19 @@ st.title('SHE: Structural History of Eukarya')
 
 st.title('Model Organisms search')
 st.subheader('Target organism: Homo sapiens')
-st.subheader('Target protein: Q9NVI1')
+st.subheader('Target proteins: Q9NXK8, Q9NVI1')
+# Create two columns
+col1, col2 = st.columns(2)
+
+# Place the first image in the first column
+with col1:
+    st.image("data/subset/figure_model/ranking.png", caption="Organisms Ranking", use_container_width=True)
+
+# Place the second image in the second column
+with col2:
+    st.image("data/subset/figure_model/proteins.png", caption="Protein bitscores", use_container_width=True)
+
+
 
 COLOR_MOUSE = "#A6EFFF"  # Light Blue
 COLOR_FISH = "#EEF4AE"   # Light Green/Turquoise
@@ -1142,10 +1154,12 @@ row2 = st.columns(3)
 emojis = [":mouse2:", ":tropical_fish:", ":seedling:"]
 titles = ["House Mouse", "Zebrafish", "Arabidopsis thaliana"]
 ranks = ["#1", "#2", "#3"]
-bitscores = ["7570", "504", "68"]
+bitscores = ["10197", "869", "224"]
+score_1= ["2627", "365", "156"]
+score_2= ["7570", "504", "68"]
 # Define the custom heights for the *visible* title containers
 tile_heights = [120, 100, 80] 
-for col, emoji, title, score, height, rank in zip(row2, emojis, titles, bitscores, tile_heights, ranks):
+for col, emoji, title, bitscore, height, rank, score1, score2 in zip(row2, emojis, titles, bitscores, tile_heights, ranks, score_1, score_2):
     with col:
         #with st.container(key="my_blue_container")
         # 1. Create the Visible Title Container with Custom Height
@@ -1155,20 +1169,36 @@ for col, emoji, title, score, height, rank in zip(row2, emojis, titles, bitscore
         
         with st.expander("Click for structural alignment details"):
             # Content that appears when the user clicks/expands
-            st.write(f"**Bitscore** human Q9NVI1 vs {title}: **{score}**")
-            #st.write("---")
+            st.write(f"**Total Bitscore** human vs {title}: **{bitscore}**")
+            st.write("---")
+            st.write(f"**Bitscore** human Q9NXK8 vs {title}: **{score1}**")
             if title == "House Mouse":
-                alignment = open("data/subset/homo_mouse.mp4", "rb")
+                alignment = open("data/subset/figure_model/mouse_Q9NXK8.mp4", "rb")
                 bytes = alignment.read()
                 st.video(bytes, autoplay=True, loop=True, muted=True)
+                st.write("---")
+                st.write(f"**Bitscore** human Q9NVI1 vs {title}: **{score2}**")
+                alignment2 = open("data/subset/figure_model/mouse_Q9NVI1.mp4", "rb")
+                bytes2 = alignment2.read()
+                st.video(bytes2, autoplay=True, loop=True, muted=True)
             elif title == "Zebrafish":
-                alignment = open("data/subset/homo_fish.mp4", "rb")
+                alignment = open("data/subset/figure_model/fish_Q9NXK8.mp4", "rb")
                 bytes = alignment.read()
                 st.video(bytes, autoplay=True, loop=True, muted=True)
+                st.write("---")
+                st.write(f"**Bitscore** human Q9NVI1 vs {title}: **{score2}**")
+                alignment2 = open("data/subset/figure_model/fish_Q9NVI1.mp4", "rb")
+                bytes2 = alignment2.read()
+                st.video(bytes2, autoplay=True, loop=True, muted=True)
             elif title == "Arabidopsis thaliana":
-                alignment = open("data/subset/homo_arabidopsis.mp4", "rb")
+                alignment = open("data/subset/figure_model/plant_Q9NXK8.mp4", "rb")
                 bytes = alignment.read()
                 st.video(bytes, autoplay=True, loop=True, muted=True)
+                st.write("---")
+                st.write(f"**Bitscore** human Q9NVI1 vs {title}: **{score2}**")
+                alignment2 = open("data/subset/figure_model/plant_Q9NVI1.mp4", "rb")
+                bytes2 = alignment2.read()
+                st.video(bytes2, autoplay=True, loop=True, muted=True)
 
 
 st.write("Here, you can look for the best model organism to use for your study based on the proteins involved in your pathway. Click on 'Find best Model Organism' in the sidebar to start you analysis!")
@@ -1384,12 +1414,22 @@ if st.sidebar.checkbox('Find best Model organism'):
         #st.write(f"Target: {target_species}")
         #st.write(df_final.to_html(index=False), unsafe_allow_html=True)
         top_model_organism = df_final.iloc[0]['Organism']
+        top_model_organism = top_model_organism.split('_', maxsplit=2)[:2]
+        top_model_organism = ' '.join(top_model_organism)
         #st.write(f"**The top model organism for your study is: {top_model_organism}**")
         st.markdown(f":orange[**The top model organism for your study is: {top_model_organism}**]")
         status_placeholder.empty()
         # show bar chart
         df_final['Display_Organism'] = df_final['Organism'].str.split('_', n=2).str[:2].str.join('_')
         df_final['Display_Organism'] = df_final['Display_Organism'].str.replace('_', ' ')
+        comparison_df['Model_Protein'] = comparison_df['proteinB'].str.split('-').str[1]
+        comparison_df['Model_Organism'] = comparison_df['Compared_Species'].str.split('_', n=2).str[:2].str.join('_')
+        comparison_df['Model_Organism'] = comparison_df['Model_Organism'].str.replace('_', ' ')
+        # 2. Create the color grouping based on proteinA (color parameter)
+        comparison_df['Color_Group'] = comparison_df['proteinA'].str.split('-').str[1]
+        all_species = comparison_df['Model_Organism'].unique().tolist()
+        target_name = target_species.split('_', maxsplit=2)[:2]
+        target_name = ' '.join(target_name)
 
         # add presence
         fixed_cols = ['Rank', 'Organism', 'Score', 'Display_Organism']
@@ -1402,43 +1442,53 @@ if st.sidebar.checkbox('Find best Model organism'):
             hover_data_config[col] = True # Setting to True makes the column appear with its value
 
         #Create the horizontal bar chart figure, passing the complete hover_data_config
-        fig = px.bar(
+        # Create the Radial Bar Chart (Polar Bar)
+        fig = px.line_polar(
             df_final,
-            x='Score',
-            y='Display_Organism',
-            orientation='h',
-            color='Score',
-            color_continuous_scale=px.colors.sequential.Plasma,
-            title='Model Organism Ranking by Score',
-            labels={
-                'Score': 'Total Bitscore',
-                'Display_Organism': 'Organism'
-            },
-            # Use the merged dictionary, which now includes all UniProt IDs
-            hover_data=hover_data_config 
+            r='Score',                  # Length of the bar (formerly x)
+            theta='Display_Organism',   # Category around the circle (formerly y)
+            color_discrete_sequence=['#00CC96'],
+            line_close=True,
+            title='Model Organism Ranking by Bit score',
+            hover_data=hover_data_config,
+            # distinct start angle makes it easier to read
+            start_angle=0,
+            direction="clockwise", 
+            template='plotly_dark' # Optional: change direction if preferred
         )
+
+        fig.update_traces(
+            mode='lines+markers', # Ensures markers and lines are drawn
+            fill='toself',        # Ensures the area inside the closed line is filled (the polyshape)
+            opacity=0.7,      # OPTIONAL: Add opacity to see overlapping shapes
+            marker=dict(size=8))   # OPTIONAL: Make the markers visible
         
-        # --- FIX ENDS HERE ---
-
+        # Update layout for Polar specifics
         fig.update_layout(
-        yaxis={'categoryorder': 'array', 'categoryarray': df_final['Display_Organism'].tolist()[::-1]},
-        coloraxis_showscale=False)
-
+            polar=dict(
+                radialaxis=dict(
+                    visible=True,
+                    showticklabels=True, 
+                    showline=False,
+                    angle=90,   # Position the radial axis labels so they don't overlap data
+                    tickangle=90 # Rotate text for readability
+                ),
+                angularaxis=dict(
+                    # Apply the sorting here
+                    categoryorder='array',
+                    categoryarray=all_species 
+                )
+            ),
+            coloraxis_showscale=False,
+            # Optional: Add a hole to make it a "Donut" style radial plot for better label readability
+            # polar_hole=0.1 
+        )
         st.plotly_chart(fig, use_container_width=True)
-
         #radar plot---------------------------------------------------------
         # 1. Create the cleaner display name for the proteinB (for hover data)
-        comparison_df['Model_Protein'] = comparison_df['proteinB'].str.split('-').str[1]
-        comparison_df['Model_Organism'] = comparison_df['Compared_Species'].str.split('_', n=2).str[:2].str.join('_')
-        comparison_df['Model_Organism'] = comparison_df['Model_Organism'].str.replace('_', ' ')
-        # 2. Create the color grouping based on proteinA (color parameter)
-        comparison_df['Color_Group'] = comparison_df['proteinA'].str.split('-').str[1]
 
         # 3. Create a unique list of all Compared_Species names to define the angular axes (theta)
         #all_species = comparison_df['Compared_Species'].unique().tolist()
-        all_species = comparison_df['Model_Organism'].unique().tolist()
-        target_name = target_species.split('_', maxsplit=2)[:2]
-        target_name = ' '.join(target_name)
 
         # --- Radar Chart Generation ---
         radar_fig = px.line_polar(
@@ -1484,6 +1534,10 @@ if st.sidebar.checkbox('Find best Model organism'):
             angularaxis_categoryarray=all_species,
             radialaxis=dict(
                 visible=True,
+                showticklabels=True,
+                showline=False,
+                angle=90,   # Position the radial axis labels so they don't overlap data
+                tickangle=90, # Rotate text for readability
                 # Set range based on the overall max score
                 range=[0, comparison_df['bit_score'].max() * 1.1] 
             )
@@ -1491,6 +1545,8 @@ if st.sidebar.checkbox('Find best Model organism'):
 
         # Render the radar chart in Streamlit
         st.plotly_chart(radar_fig, use_container_width=True)
+
+
         color_map = {}
         for trace in radar_fig.data:
             # trace.name is the Color_Group (the protein ID part)
@@ -1528,7 +1584,8 @@ if st.sidebar.checkbox('Find best Model organism'):
                     title=f'Structural hits for {selected_protein_A} from {target_name}',
                     labels={
                         'bit_score': 'Bit Score',
-                        'Model_Organism': 'Model Organism'
+                        'Model_Organism': 'Model Organism',
+                        'Color_Group': 'Target Protein (UniProt ID)'
                     },
                     hover_data={
                         'Model_Protein': True,
@@ -1558,6 +1615,10 @@ if st.sidebar.checkbox('Find best Model organism'):
                     angularaxis_categoryarray=all_species,
                     radialaxis=dict(
                         visible=True,
+                        showticklabels=True,
+                        showline=False,
+                        angle=90,   # Position the radial axis labels so they don't overlap data
+                        tickangle=90,
                         range=[0, selected_protein_df['bit_score'].max() * 1.1] # Use max of the *filtered* data
                     )
                 )
@@ -1690,5 +1751,5 @@ if st.sidebar.checkbox('Find best Model organism'):
         os.remove(zip_file_path)
         if is_random_user:
             shutil.rmtree(user_dir)
-            temp_fs="tmp_fs"
-            shutil.rmtree(temp_fs)
+            #temp_fs="tmp_fs"
+            #shutil.rmtree(temp_fs)
