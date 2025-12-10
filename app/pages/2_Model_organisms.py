@@ -856,52 +856,89 @@ def render_3dmol_pdb(color, structure_path_or_url: str):
 
 
 # -----protein alignment viewer -----
+#FOLDSEEK_EXEC_PATH = "/opt/conda/bin/foldseek"
+system_foldseek = shutil.which("foldseek")
+# If found dynamically, use it. Otherwise, fall back to your hardcoded path.
+if system_foldseek:
+    FOLDSEEK_EXEC_PATH = system_foldseek
+else:
+    FOLDSEEK_EXEC_PATH = "/opt/conda/bin/foldseek"
 def run_foldseek_alignment_only(query_path, target_path):
     """
-    Asks Foldseek for the SEQUENCE ALIGNMENT (qaln, taln).
+    Runs Foldseek with absolute paths and high sensitivity to ensure alignment 
+    and avoid path errors.
     """
+    
     temp_OUTPUT_DIR = "temp_archives/temp_protein_alignments"
     if not os.path.exists(temp_OUTPUT_DIR):
         os.makedirs(temp_OUTPUT_DIR)
     temp_m8 = os.path.join(temp_OUTPUT_DIR, "temp_aln.m8")
     
-    # We request qstart, qend (indices) and qaln, taln (sequence strings)
+    # Ensure input PDB paths are absolute for the subprocess
+    abs_query_path = os.path.abspath(query_path)
+    abs_target_path = os.path.abspath(target_path)
+
+    # --- CRITICAL CHECKS ---
+    # We check if the path exists. If it's a broken symlink, this returns False.
+    if not os.path.exists(FOLDSEEK_EXEC_PATH):
+        # DIAGNOSTIC ERROR MESSAGE
+        st.error(f"""
+        **CRITICAL FILE ERROR: Foldseek binary not found.**
+        
+        Python attempted to look at: `{FOLDSEEK_EXEC_PATH}`
+        
+        **Troubleshooting:**
+        1. In your terminal, run: `ls -la /opt/conda/bin/foldseek`
+        2. If it is a symlink (starts with `l`), ensure the file it points to actually exists.
+        """)
+        return None
+        
+    if not os.access(FOLDSEEK_EXEC_PATH, os.X_OK):
+        st.error(f"CRITICAL PERMISSION ERROR: Found {FOLDSEEK_EXEC_PATH} but cannot execute it.")
+        return None
+    # --- END CRITICAL CHECKS ---
+    
     cmd = [
-        "foldseek", "easy-search",
-        query_path, target_path, temp_m8, "tmp_fs",
+        FOLDSEEK_EXEC_PATH, "easy-search", # Use the full path
+        abs_query_path, abs_target_path, temp_m8, "tmp_fs",
+        "-s", "7.5",  # HIGH SENSITIVITY: Critical for finding similar structures
         "--format-output", "qstart,tstart,qaln,taln,alntmscore",
         "--threads", "1", "-v", "0"
     ]
     
+    st.info(f"Running Foldseek command (PDBs: {os.path.basename(query_path)} vs {os.path.basename(target_path)})...")
+    
     try:
-        # Run Foldseek, capturing output for better error reporting
-        result = subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=300) # Added timeout
+        # Run Foldseek
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=300) 
         
-        # Check if output file exists and is not empty
+        # Check if output file exists and is not empty (Handles no hits)
         if not os.path.exists(temp_m8) or os.path.getsize(temp_m8) == 0:
-            # This handles cases where Foldseek runs but finds no hits (empty file) or fails silently
+            st.warning("Foldseek ran successfully but found **NO STRUCTURAL HITS**. This may indicate very low similarity, or that the sensitivity needs to be increased further.")
             return None
             
         df = pd.read_csv(temp_m8, sep="\t", names=["qstart", "tstart", "qaln", "taln", "tm"])
         if df.empty: 
+            st.warning("Foldseek returned an empty alignment table.")
             return None
             
+        st.success("Foldseek alignment completed successfully!")
         return df.iloc[0] # Return the best match
         
     except FileNotFoundError:
-        # Error 1: Foldseek executable is not found
-        st.error("FATAL ERROR: The 'foldseek' command was not found. Ensure Foldseek is installed and in your system's PATH.")
+        # This error is now 100% caused by a wrong FOLDSEEK_EXEC_PATH string
+        st.error(f"CRITICAL ERROR: The path to Foldseek, '{FOLDSEEK_EXEC_PATH}', is incorrect or inaccessible. Check Step 1 again.")
         return None
     except subprocess.CalledProcessError as e:
-        # Error 2: Foldseek ran but returned a non-zero exit code (an internal error)
+        # Fails if Foldseek runs but crashes (e.g., bad PDB format)
         st.error(f"FOLDSEEK EXECUTION FAILED. Command: {' '.join(cmd)}. Stderr: {e.stderr}. Stdout: {e.stdout}")
         return None
     except subprocess.TimeoutExpired:
-        # Error 3: Foldseek took too long to run
-        st.error("FOLDSEEK TIMEOUT: The alignment took longer than 5 minutes and was cancelled.")
+        # Fails if it takes too long
+        st.error("FOLDSEEK TIMEOUT: Alignment took longer than 5 minutes.")
         return None
     except Exception as e:
-        # Error 4: Any other generic error (like a Pandas read error)
+        # Any other generic error
         st.error(f"An unexpected error occurred during alignment process: {e}")
         return None
 
