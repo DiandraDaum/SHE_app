@@ -1156,10 +1156,12 @@ titles = ["House Mouse", "Zebrafish", "Arabidopsis thaliana"]
 ranks = ["#1", "#2", "#3"]
 bitscores = ["10197", "869", "224"]
 score_1= ["2627", "365", "156"]
+proteins1= ["Q9EPX5", "Q6PBJ7", "Q9FM90"]
+proteins2= ["Q8K368", "B3DJT4", "Q9LY34"]
 score_2= ["7570", "504", "68"]
 # Define the custom heights for the *visible* title containers
 tile_heights = [120, 100, 80] 
-for col, emoji, title, bitscore, height, rank, score1, score2 in zip(row2, emojis, titles, bitscores, tile_heights, ranks, score_1, score_2):
+for col, emoji, title, bitscore, height, rank, score1, score2, protein1, protein2 in zip(row2, emojis, titles, bitscores, tile_heights, ranks, score_1, score_2, proteins1, proteins2):
     with col:
         #with st.container(key="my_blue_container")
         # 1. Create the Visible Title Container with Custom Height
@@ -1171,13 +1173,13 @@ for col, emoji, title, bitscore, height, rank, score1, score2 in zip(row2, emoji
             # Content that appears when the user clicks/expands
             st.write(f"**Total Bitscore** human vs {title}: **{bitscore}**")
             st.write("---")
-            st.write(f"**Bitscore** human Q9NXK8 vs {title}: **{score1}**")
+            st.write(f"**Bitscore** human Q9NXK8 vs {title} {protein1}: **{score1}**")
             if title == "House Mouse":
                 alignment = open("data/subset/figure_model/mouse_Q9NXK8.mp4", "rb")
                 bytes = alignment.read()
                 st.video(bytes, autoplay=True, loop=True, muted=True)
                 st.write("---")
-                st.write(f"**Bitscore** human Q9NVI1 vs {title}: **{score2}**")
+                st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein2}: **{score2}**")
                 alignment2 = open("data/subset/figure_model/mouse_Q9NVI1.mp4", "rb")
                 bytes2 = alignment2.read()
                 st.video(bytes2, autoplay=True, loop=True, muted=True)
@@ -1186,7 +1188,7 @@ for col, emoji, title, bitscore, height, rank, score1, score2 in zip(row2, emoji
                 bytes = alignment.read()
                 st.video(bytes, autoplay=True, loop=True, muted=True)
                 st.write("---")
-                st.write(f"**Bitscore** human Q9NVI1 vs {title}: **{score2}**")
+                st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein2}: **{score2}**")
                 alignment2 = open("data/subset/figure_model/fish_Q9NVI1.mp4", "rb")
                 bytes2 = alignment2.read()
                 st.video(bytes2, autoplay=True, loop=True, muted=True)
@@ -1195,7 +1197,7 @@ for col, emoji, title, bitscore, height, rank, score1, score2 in zip(row2, emoji
                 bytes = alignment.read()
                 st.video(bytes, autoplay=True, loop=True, muted=True)
                 st.write("---")
-                st.write(f"**Bitscore** human Q9NVI1 vs {title}: **{score2}**")
+                st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein2}: **{score2}**")
                 alignment2 = open("data/subset/figure_model/plant_Q9NVI1.mp4", "rb")
                 bytes2 = alignment2.read()
                 st.video(bytes2, autoplay=True, loop=True, muted=True)
