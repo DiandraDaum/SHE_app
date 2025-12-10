@@ -693,7 +693,7 @@ def get_pdb(protein, proteome):
             protein_index += 1
     if protein_found:
         #target_pdb_filepath = os.path.join(db_dir, af_protein + ".pdb")
-        st.success(f"Protein {af_protein} found and saved to {target_pdb_filepath}.")
+        #st.success(f"Protein {af_protein} found and saved to {target_pdb_filepath}.")
         return target_pdb_filepath
     else:
         st.error(f"Protein with index {retrieved_index} not found in the database {target_pdb_filepath}.")
@@ -750,8 +750,11 @@ def get_pdb2(protein, proteome):
     db_name = db_name_list[0]
 
     # --- 3. Directly Retrieve PDB using the Index ---
-    st.info(f"c. Loading protein {af_protein} (database index {retrieved_index}). Please wait...")
-
+    #st.info(f"c. Loading protein {af_protein} (database index {retrieved_index}). Please wait...")
+    # Create a placeholder for the temporary message
+    status_placeholder = st.empty()
+    # Display the loading message in the placeholder
+    status_placeholder.info(f"c. Loading protein {af_protein} (database index {retrieved_index})...")
     try:
         with fc.open(db_name) as db: 
             # Direct access using the index!
@@ -763,15 +766,14 @@ def get_pdb2(protein, proteome):
         #st.info("Extracting and writing file to disk...")
         with open(target_pdb_filepath, "w") as pdb_file:
             pdb_file.write(pdb_dc)
-            
-        #st.success(f"Protein {af_protein} found and structure saved to {target_pdb_filepath}.")
+        status_placeholder.empty()
         return target_pdb_filepath
         
     except IndexError:
-        st.error(f"Error: Database index {retrieved_index} is out of bounds for the database file {db_name}.")
+        status_placeholder.error(f"Error: Database index {retrieved_index} is out of bounds for the database file {db_name}.")
         return None
     except Exception as e:
-        st.error(f"An unexpected error occurred during FoldComp retrieval: {e}")
+        status_placeholder.error(f"An unexpected error occurred during FoldComp retrieval: {e}")
         return None
 
 def render_3dmol_pdb(color, structure_path_or_url: str):
@@ -856,7 +858,7 @@ def render_3dmol_pdb(color, structure_path_or_url: str):
 # -----protein alignment viewer -----
 def run_foldseek_alignment_only(query_path, target_path):
     """
-    Asks Foldseek for the SEQUENCE ALIGNMENT (qaln, taln), not the matrix.
+    Asks Foldseek for the SEQUENCE ALIGNMENT (qaln, taln).
     """
     temp_OUTPUT_DIR = "temp_archives/temp_protein_alignments"
     if not os.path.exists(temp_OUTPUT_DIR):
@@ -870,12 +872,38 @@ def run_foldseek_alignment_only(query_path, target_path):
         "--format-output", "qstart,tstart,qaln,taln,alntmscore",
         "--threads", "1", "-v", "0"
     ]
+    
     try:
-        subprocess.run(cmd, check=True)
+        # Run Foldseek, capturing output for better error reporting
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=300) # Added timeout
+        
+        # Check if output file exists and is not empty
+        if not os.path.exists(temp_m8) or os.path.getsize(temp_m8) == 0:
+            # This handles cases where Foldseek runs but finds no hits (empty file) or fails silently
+            return None
+            
         df = pd.read_csv(temp_m8, sep="\t", names=["qstart", "tstart", "qaln", "taln", "tm"])
-        if df.empty: return None
+        if df.empty: 
+            return None
+            
         return df.iloc[0] # Return the best match
-    except: return None
+        
+    except FileNotFoundError:
+        # Error 1: Foldseek executable is not found
+        st.error("FATAL ERROR: The 'foldseek' command was not found. Ensure Foldseek is installed and in your system's PATH.")
+        return None
+    except subprocess.CalledProcessError as e:
+        # Error 2: Foldseek ran but returned a non-zero exit code (an internal error)
+        st.error(f"FOLDSEEK EXECUTION FAILED. Command: {' '.join(cmd)}. Stderr: {e.stderr}. Stdout: {e.stdout}")
+        return None
+    except subprocess.TimeoutExpired:
+        # Error 3: Foldseek took too long to run
+        st.error("FOLDSEEK TIMEOUT: The alignment took longer than 5 minutes and was cancelled.")
+        return None
+    except Exception as e:
+        # Error 4: Any other generic error (like a Pandas read error)
+        st.error(f"An unexpected error occurred during alignment process: {e}")
+        return None
 
 def get_format_from_path(filepath):
     """Simple helper to determine PDB/CIF format from file extension."""
@@ -1379,46 +1407,57 @@ if st.sidebar.checkbox('Find best Model organism'):
 
         #radar plot---------------------------------------------------------
         # 1. Create the cleaner display name for the proteinB (for hover data)
-        comparison_df['Display_Protein'] = comparison_df['proteinB'].str.split('-').str[1]
-        comparison_df['Display_Organism'] = comparison_df['Compared_Species'].str.split('_', n=2).str[:2].str.join('_')
-        comparison_df['Display_Organism'] = comparison_df['Display_Organism'].str.replace('_', ' ')
+        comparison_df['Model_Protein'] = comparison_df['proteinB'].str.split('-').str[1]
+        comparison_df['Model_Organism'] = comparison_df['Compared_Species'].str.split('_', n=2).str[:2].str.join('_')
+        comparison_df['Model_Organism'] = comparison_df['Model_Organism'].str.replace('_', ' ')
         # 2. Create the color grouping based on proteinA (color parameter)
         comparison_df['Color_Group'] = comparison_df['proteinA'].str.split('-').str[1]
 
         # 3. Create a unique list of all Compared_Species names to define the angular axes (theta)
-        all_species = comparison_df['Compared_Species'].unique().tolist()
+        #all_species = comparison_df['Compared_Species'].unique().tolist()
+        all_species = comparison_df['Model_Organism'].unique().tolist()
+        target_name = target_species.split('_', maxsplit=2)[:2]
+        target_name = ' '.join(target_name)
 
         # --- Radar Chart Generation ---
         radar_fig = px.line_polar(
             comparison_df,
             r='bit_score',         # Radial axis variable (score magnitude)
-            theta='Display_Organism', # <<< CHANGED: Angular axis uses the species name
+            theta='Model_Organism', # Angular axis uses the species name
             color='Color_Group',     # Color based on the Target Protein (proteinA)
+            #color_discrete_sequence=px.colors.qualitative.Set1, #Plasma, Dark2, Vidid
             line_close=True,
-            color_discrete_sequence=px.colors.sequential.Plasma,
-            title=f'Individual Protein Hit Bitscores by Species for {top_model_organism}',
+            title=f'Protein Hit Bitscores by Species compared to {target_name}',
             labels={
                 'bit_score': 'Bit Score',
-                'Compared_Species': 'Compared Species',
+                'Model_Organism': 'Model Organism',
                 'Color_Group': 'Target Protein (UniProt ID)'
             },
             # <<< NEW: Add Display_Protein to hover data
             hover_data={
-                'Display_Protein': True,  # Show the UniProt ID of the hit protein (proteinB)
+                'Model_Protein': True,  # Show the UniProt ID of the hit protein (proteinB)
                 'bit_score': ':.0f',      # Show the bitscore clearly
                 'Compared_Species': False # Already on the axis, no need to repeat
             },
             start_angle=0,
             direction="clockwise", 
+            template='plotly_dark'
         )
 
         # Update the layout for better readability
-        radar_fig.update_traces(fill='toself')
+        #radar_fig.update_traces(fill='toself')
+        radar_fig.update_traces(
+            mode='lines+markers', # Ensures markers and lines are drawn
+            fill='toself',        # Ensures the area inside the closed line is filled (the polyshape)
+            opacity=0.5,      # OPTIONAL: Add opacity to see overlapping shapes
+            marker=dict(size=5)   # OPTIONAL: Make the markers visible
+        )
 
         # Customize the polar axis
         radar_fig.update_polars(
             radialaxis_showgrid=True,
             angularaxis_showgrid=True,
+            bgcolor='#000000',
             # Ensure the angular axis uses the full list of unique species names
             angularaxis_categoryorder='array', 
             angularaxis_categoryarray=all_species,
@@ -1431,11 +1470,18 @@ if st.sidebar.checkbox('Find best Model organism'):
 
         # Render the radar chart in Streamlit
         st.plotly_chart(radar_fig, use_container_width=True)
+        color_map = {}
+        for trace in radar_fig.data:
+            # trace.name is the Color_Group (the protein ID part)
+            # trace.line.color is the actual color (e.g., 'rgba(31, 119, 180, 1)')
+            color = trace.line.color 
+            
+            if trace.name not in color_map and color:
+                color_map[trace.name] = color
 
         # show protein structures --------------------------------------------------------------------------------------
         if st.sidebar.toggle('Show protein structure alignments'):
-            st.subheader('## Structural comparison of your proteins between the input target and model organisms')
-            #st.info('c. Loading the protein-protein comparisons ...')
+            st.subheader('Structural comparison of your proteins between the input target and model organisms')
             #comparison_df: proteinA, proteinB, bit_Score, Compared_Species
             #target_species: usually human (protein A)
             unique_target_proteins = comparison_df['proteinA'].unique()
@@ -1448,7 +1494,55 @@ if st.sidebar.checkbox('Find best Model organism'):
             if selected_protein_df.empty:
                 st.warning(f"No comparison hits found for {selected_protein_A}.")
             else:
+                selected_group = selected_protein_df['Color_Group'].iloc[0]
                 # Extract the human UniProt ID (AF-Q13616-F1-model_v4 -> Q13616)
+                #plotly radial chart
+                radar_fig_alone = px.line_polar(
+                    selected_protein_df,  # <<< Use the FILTERED DataFrame
+                    r='bit_score',
+                    theta='Model_Organism',
+                    color='Color_Group', # REMOVED: Only one protein is being plotted
+                    color_discrete_map={selected_group: color_map[selected_group]},
+                    line_close=True,
+                    title=f'Structural hits for {selected_protein_A} from {target_name}',
+                    labels={
+                        'bit_score': 'Bit Score',
+                        'Model_Organism': 'Model Organism'
+                    },
+                    hover_data={
+                        'Model_Protein': True,
+                        'bit_score': ':.0f',
+                        'Compared_Species': False
+                    },
+                    start_angle=0,
+                    direction="clockwise",
+                    template='plotly_dark'
+                )
+
+                # Update the layout for better readability
+                radar_fig_alone.update_traces(
+                    mode='lines+markers',
+                    fill='toself',
+                    # Since there is only one trace, we can use a higher opacity for a cleaner look
+                    opacity=0.8,
+                    marker=dict(size=5)
+                )
+
+                # Customize the polar axis (keeping the dark mode customizations)
+                radar_fig_alone.update_polars(
+                    radialaxis_showgrid=True,
+                    angularaxis_showgrid=True,
+                    bgcolor='#000000', # Black background for the plot interior
+                    angularaxis_categoryorder='array',
+                    angularaxis_categoryarray=all_species,
+                    radialaxis=dict(
+                        visible=True,
+                        range=[0, selected_protein_df['bit_score'].max() * 1.1] # Use max of the *filtered* data
+                    )
+                )
+                # Render the radar chart in Streamlit
+                st.plotly_chart(radar_fig_alone, use_container_width=True)
+
                 try:
                     target_uniprot_id = selected_protein_A.split('-')[1]
                     mapping='data/core/model/extracted_and_renamed.csv'    #Path to CSV file with columns id,proteome_id,species_name
@@ -1465,7 +1559,7 @@ if st.sidebar.checkbox('Find best Model organism'):
                     st.error(f"Could not retrieve PDB file for the target protein {target_uniprot_id} from proteome {proteome_target_id}, structure {pdb_target}.")
                 
                 # --- 3. Iterate over the hits in all model organisms ---
-                st.write(f"Structural protein Hits for: **{target_uniprot_id}** from {target_species} ({proteome_target_id})")
+                #st.write(f"Structural protein Hits for: **{target_uniprot_id}** from {target_name} ({proteome_target_id})")
                 
                 # We now iterate over the rows of the filtered DataFrame
                 for index, row in selected_protein_df.iterrows():
@@ -1519,7 +1613,7 @@ if st.sidebar.checkbox('Find best Model organism'):
 
 
                     #Structural Alignment and Superposition ---
-                    st.subheader(f"Structural Overlap {model_uniprot_id} blue vs. {target_uniprot_id} yellow")
+                    st.write(f"Structural Overlap {target_species} {target_uniprot_id} in cyan vs. {hit_species} {model_uniprot_id} in yellow")
                     alignment_key = f'alignment_toggle_{index}'
                     # Ensure PDB/CIF formats are correctly identified for the SVD/Foldseek functions
                     target_fmt = get_format_from_path(pdb_target)
