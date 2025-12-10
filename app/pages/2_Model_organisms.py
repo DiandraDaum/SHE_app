@@ -674,7 +674,7 @@ def get_pdb(protein, proteome):
     target_name = None
     target_pdb_filepath = None
     protein_found = False
-    st.info(f"c. Loading protein {af_protein} (database index {retrieved_index}). Please wait...")
+    st.info(f"b. Loading protein {af_protein} (database index {retrieved_index}). Please wait...")
     protein_index = 0
     with fc.open(db_name) as db: 
         # Iterate through the database entries
@@ -750,11 +750,11 @@ def get_pdb2(protein, proteome):
     db_name = db_name_list[0]
 
     # --- 3. Directly Retrieve PDB using the Index ---
-    #st.info(f"c. Loading protein {af_protein} (database index {retrieved_index}). Please wait...")
+    #st.info(f"b. Loading protein {af_protein} (database index {retrieved_index}). Please wait...")
     # Create a placeholder for the temporary message
     status_placeholder = st.empty()
     # Display the loading message in the placeholder
-    status_placeholder.info(f"c. Loading protein {af_protein} (database index {retrieved_index})...")
+    status_placeholder.info(f"b. Loading protein {af_protein} (database index {retrieved_index})...")
     try:
         with fc.open(db_name) as db: 
             # Direct access using the index!
@@ -856,90 +856,65 @@ def render_3dmol_pdb(color, structure_path_or_url: str):
 
 
 # -----protein alignment viewer -----
-#FOLDSEEK_EXEC_PATH = "/opt/conda/bin/foldseek"
-system_foldseek = shutil.which("foldseek")
-# If found dynamically, use it. Otherwise, fall back to your hardcoded path.
-if system_foldseek:
-    FOLDSEEK_EXEC_PATH = system_foldseek
-else:
-    FOLDSEEK_EXEC_PATH = "/opt/conda/bin/foldseek"
+#FOLDSEEK_EXEC_PATH = "./foldseek_local"
+FOLDSEEK_EXEC_PATH = os.path.abspath("./foldseek_local")
 def run_foldseek_alignment_only(query_path, target_path):
     """
-    Runs Foldseek with absolute paths and high sensitivity to ensure alignment 
-    and avoid path errors.
+    Runs the standalone Foldseek binary.
     """
     
+    # 1. Setup Directories
     temp_OUTPUT_DIR = "temp_archives/temp_protein_alignments"
     if not os.path.exists(temp_OUTPUT_DIR):
         os.makedirs(temp_OUTPUT_DIR)
     temp_m8 = os.path.join(temp_OUTPUT_DIR, "temp_aln.m8")
     
-    # Ensure input PDB paths are absolute for the subprocess
     abs_query_path = os.path.abspath(query_path)
     abs_target_path = os.path.abspath(target_path)
 
-    # --- CRITICAL CHECKS ---
-    # We check if the path exists. If it's a broken symlink, this returns False.
+    # 2. Verify Binary Exists (Sanity Check)
     if not os.path.exists(FOLDSEEK_EXEC_PATH):
-        # DIAGNOSTIC ERROR MESSAGE
-        st.error(f"""
-        **CRITICAL FILE ERROR: Foldseek binary not found.**
-        
-        Python attempted to look at: `{FOLDSEEK_EXEC_PATH}`
-        
-        **Troubleshooting:**
-        1. In your terminal, run: `ls -la /opt/conda/bin/foldseek`
-        2. If it is a symlink (starts with `l`), ensure the file it points to actually exists.
-        """)
+        st.error("CRITICAL ERROR: 'foldseek_local' not found. Please run the 'wget' commands in the terminal to download it.")
         return None
-        
-    if not os.access(FOLDSEEK_EXEC_PATH, os.X_OK):
-        st.error(f"CRITICAL PERMISSION ERROR: Found {FOLDSEEK_EXEC_PATH} but cannot execute it.")
-        return None
-    # --- END CRITICAL CHECKS ---
-    
+
+    # 3. Define Command
     cmd = [
-        FOLDSEEK_EXEC_PATH, "easy-search", # Use the full path
+        FOLDSEEK_EXEC_PATH, "easy-search", 
         abs_query_path, abs_target_path, temp_m8, "tmp_fs",
-        "-s", "7.5",  # HIGH SENSITIVITY: Critical for finding similar structures
+        "-s", "7.5", 
         "--format-output", "qstart,tstart,qaln,taln,alntmscore",
         "--threads", "1", "-v", "0"
     ]
     
-    st.info(f"Running Foldseek command (PDBs: {os.path.basename(query_path)} vs {os.path.basename(target_path)})...")
+    #st.info(f"Running Foldseek alignment...")
+    status_placeholder = st.empty()
+    # Display the loading message in the placeholder
+    status_placeholder.info(f"Running Foldseek alignment...")
     
     try:
-        # Run Foldseek
+        # 4. Run Subprocess (No 'env' parameter needed for standalone binary)
         result = subprocess.run(cmd, check=True, capture_output=True, text=True, timeout=300) 
         
-        # Check if output file exists and is not empty (Handles no hits)
+        # 5. Check Results
         if not os.path.exists(temp_m8) or os.path.getsize(temp_m8) == 0:
-            st.warning("Foldseek ran successfully but found **NO STRUCTURAL HITS**. This may indicate very low similarity, or that the sensitivity needs to be increased further.")
+            status_placeholder.warning("Foldseek ran but found **NO STRUCTURAL HITS**.")
             return None
             
         df = pd.read_csv(temp_m8, sep="\t", names=["qstart", "tstart", "qaln", "taln", "tm"])
-        if df.empty: 
-            st.warning("Foldseek returned an empty alignment table.")
+        
+        if df.empty:
+            status_placeholder.warning("Foldseek returned an empty alignment table.")
             return None
             
-        st.success("Foldseek alignment completed successfully!")
-        return df.iloc[0] # Return the best match
+        #st.success("Foldseek alignment completed successfully!")
+        status_placeholder.empty()
+        return df.iloc[0]
         
-    except FileNotFoundError:
-        # This error is now 100% caused by a wrong FOLDSEEK_EXEC_PATH string
-        st.error(f"CRITICAL ERROR: The path to Foldseek, '{FOLDSEEK_EXEC_PATH}', is incorrect or inaccessible. Check Step 1 again.")
-        return None
     except subprocess.CalledProcessError as e:
-        # Fails if Foldseek runs but crashes (e.g., bad PDB format)
-        st.error(f"FOLDSEEK EXECUTION FAILED. Command: {' '.join(cmd)}. Stderr: {e.stderr}. Stdout: {e.stdout}")
-        return None
-    except subprocess.TimeoutExpired:
-        # Fails if it takes too long
-        st.error("FOLDSEEK TIMEOUT: Alignment took longer than 5 minutes.")
+        status_placeholder.error(f"FOLDSEEK FAILED.\n\nStderr: {e.stderr}")
         return None
     except Exception as e:
-        # Any other generic error
-        st.error(f"An unexpected error occurred during alignment process: {e}")
+        status_placeholder.error(f"An unexpected error occurred: {e}")
         return None
 
 def get_format_from_path(filepath):
@@ -1034,7 +1009,7 @@ def calculate_svd_and_merge(target_file, target_fmt, query_file, query_fmt, aln_
         # st.error(f"SVD Error: {e}")
         return False, 0
     
-def render_3dmol_alignment(color, structure_path, target_name, query_name, tm_score, rmsd):
+def render_3dmol_alignment(color, structure_path, target_name, query_name, tm_score, rmsd, spin_on=True):
     """
     Renders the merged PDB file, applying different colors to the two chains 
     (Target: light blue, Query/Model: yellow).
@@ -1063,12 +1038,18 @@ def render_3dmol_alignment(color, structure_path, target_name, query_name, tm_sc
         view.setStyle({'chain': 'B'}, {'cartoon': {'color': 'yellow'}})
         view.setStyle({'chain': 'C'}, {'cartoon': {'color': 'magenta'}})
     view.zoomTo() 
+    if spin_on:
+        # 'axis' can be 'x', 'y', or 'z'. 'speed' is the rotation speed.
+        view.spin(True) 
+    else:
+        view.spin(False)
     # 4. Add labels/info
     st.markdown(f"""
         **Alignment Details:**
-        * **TM-Score:** `{tm_score:.4f}` (Higher is better)
-        * **RMSD:** `{rmsd:.4f}` Å (Lower is better)
-        * **Color Key:** **{target_name}** (**Light Blue**) vs. **{query_name}** (**Yellow**)
+        * **TM-Score:** `{tm_score:.4f}` 
+        * **RMSD:** `{rmsd:.4f}` Å
+        * **Chain legend:** **{target_name}** (**cyan**) vs. **{query_name}** (**Yellow**)
+        * **plDDT legend: >90 (dark blue), 81-90 (cyan), 71-80 (green), 61-70 (yellow), 51-60 (orange), <51 (red)**
     """)
 
     # 5. Render the view
@@ -1274,7 +1255,10 @@ if st.sidebar.checkbox('Find best Model organism'):
             target_species = target
             st.write('Selected Target Organism: ', target_species) # not "Homo_sapiens_Human"
 
-        st.info('a. Ranking your model organisms...')
+        status_placeholder = st.empty()
+        # Display the loading message in the placeholder
+        status_placeholder.info(f"a. Ranking your model organisms...")
+        #st.info('a. Ranking your model organisms...')
         uniprot_ids=protein_list.split() # "Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616"
         #compare_species=model.split()
         compare_species = model_organisms
@@ -1390,19 +1374,19 @@ if st.sidebar.checkbox('Find best Model organism'):
         df_final = pd.merge(df_rank_filtered, df_presence, on='Organism', how='left')
         csv_out = "results/model_trees/" + user + "/"
         os.makedirs(csv_out, exist_ok=True)
-        csv_path = csv_out + "model_ranking.csv"
-        df_final.to_csv(csv_path, index=False)
-        csv_path2 = csv_out + "protein_hits_ranking.csv"
-        comparison_df.to_csv(csv_path2, index=False)
+        csv_path = csv_out + "model_ranking.txt"
+        df_final.to_csv(csv_path, index=False, sep='\t')
+        csv_path2 = csv_out + "protein_hits_ranking.txt"
+        comparison_df.to_csv(csv_path2, index=False, sep='\t')
         # 6. Display the Final Table in Streamlit
         #st.write("\n" + "="*70)
         st.write("--- Organism Ranking ---")
         #st.write(f"Target: {target_species}")
         #st.write(df_final.to_html(index=False), unsafe_allow_html=True)
         top_model_organism = df_final.iloc[0]['Organism']
-        st.write(f"**The top model organism for your study is: {top_model_organism}**")
-        #st.write("="*70)
-
+        #st.write(f"**The top model organism for your study is: {top_model_organism}**")
+        st.markdown(f":orange[**The top model organism for your study is: {top_model_organism}**]")
+        status_placeholder.empty()
         # show bar chart
         df_final['Display_Organism'] = df_final['Organism'].str.split('_', n=2).str[:2].str.join('_')
         df_final['Display_Organism'] = df_final['Display_Organism'].str.replace('_', ' ')
@@ -1518,7 +1502,7 @@ if st.sidebar.checkbox('Find best Model organism'):
 
         # show protein structures --------------------------------------------------------------------------------------
         if st.sidebar.toggle('Show protein structure alignments'):
-            st.subheader('Structural comparison of your proteins between the input target and model organisms')
+            st.subheader(f'Structural comparison of input proteins between {target_name} and model organisms')
             #comparison_df: proteinA, proteinB, bit_Score, Compared_Species
             #target_species: usually human (protein A)
             unique_target_proteins = comparison_df['proteinA'].unique()
@@ -1620,37 +1604,9 @@ if st.sidebar.checkbox('Find best Model organism'):
                     if not pdb_model:
                         st.warning(f"Skipping structure comparison: PDB file missing for {hit_species}.")
                         continue
-                    
-                    # 3.2 Render structures side by side
-                    st.write(f"**{target_species} ({selected_protein_A})** vs **{hit_species} ({hit_proteinB})**")
-                    target_key = f'target_toggle_{index}'
-                    model_key = f'model_toggle_{index}'
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.write(f"**{selected_protein_A} Structure:**")
-                        target_color = st.radio(
-                            "Color by:",
-                            ('plDDT', 'chain'),
-                            index=0, # 'plDDT' is the default
-                            horizontal=True,
-                            key=target_key
-                        )
-                        render_3dmol_pdb(target_color, pdb_target) 
-                    
-                    with col2:
-                        st.write(f"**{hit_proteinB} Structure:**")
-                        model_color = st.radio(
-                            "Color by:",
-                            ('plDDT', 'chain'),
-                            index=0, # 'plDDT' is the default
-                            horizontal=True,
-                            key=model_key
-                        )
-                        render_3dmol_pdb(model_color, pdb_model)
-
 
                     #Structural Alignment and Superposition ---
-                    st.write(f"Structural Overlap {target_species} {target_uniprot_id} in cyan vs. {hit_species} {model_uniprot_id} in yellow")
+                    st.write(f"Structural Overlap {target_species} {target_uniprot_id} vs. {hit_species} {model_uniprot_id}")
                     alignment_key = f'alignment_toggle_{index}'
                     # Ensure PDB/CIF formats are correctly identified for the SVD/Foldseek functions
                     target_fmt = get_format_from_path(pdb_target)
@@ -1658,12 +1614,12 @@ if st.sidebar.checkbox('Find best Model organism'):
 
                     # 1. Get Alignment MAP from Foldseek (Model is Query, Target is Target)
                     aln_data = run_foldseek_alignment_only(query_path=pdb_model, target_path=pdb_target)
-                    st.info(f"Alignment data: {aln_data}")
+                    #st.info(f"Alignment data: {aln_data}")
 
                     if aln_data is not None:
                         
                         # Define output path for the merged PDB file
-                        out_file_name = f"SVD_{model_uniprot_id}_vs_{target_uniprot_id}.pdb"
+                        out_file_name = f"foldseek_{target_uniprot_id}_vs_{model_uniprot_id}.pdb"
                         out_file = os.path.join(csv_out, out_file_name)
                         
                         # 2. Calculate Superposition locally using SVD
@@ -1679,16 +1635,22 @@ if st.sidebar.checkbox('Find best Model organism'):
                             # 3. Render the Merged Structure
                             alignment_color = st.radio(
                                 "Color by:",
-                                ('plDDT', 'chain'),
+                                ('chain', 'plDDT'),
                                 index=0, # 'plDDT' is the default
                                 horizontal=True,
                                 key=alignment_key)
+                            enable_spin = st.checkbox(
+                                "Spin Structure", 
+                                value=True, 
+                                key=f"spin_{alignment_key}"
+                            )
                             render_3dmol_alignment(alignment_color,
                                 structure_path=out_file, 
                                 target_name=selected_protein_A, 
                                 query_name=hit_proteinB, 
                                 tm_score=aln_data.get('tm', 0.0), 
-                                rmsd=rmsd
+                                rmsd=rmsd,
+                                spin_on=enable_spin
                             )
                         else:
                             st.warning(f"Could not perform SVD superposition for {hit_species}. Check console for details.")
@@ -1728,3 +1690,5 @@ if st.sidebar.checkbox('Find best Model organism'):
         os.remove(zip_file_path)
         if is_random_user:
             shutil.rmtree(user_dir)
+            temp_fs="tmp_fs"
+            shutil.rmtree(temp_fs)
