@@ -1118,21 +1118,26 @@ st.set_page_config(
 
 st.title('SHE: Structural History of Eukarya')
 #st.image('data/tree/model.png',ccaption='Protein-protein structure comparison to rank the best model organism for your target organism')
-st.title(':violet[Model Organisms ranking]')
+st.title('Model Organisms ranking')
 st.write("Discover the best model organism to use for your study based on the proteins involved in your pathway")
+st.subheader(":violet[Follow the steps for an example usage]")
 st.subheader(':green[Step 1. Choose target organism]')
+st.selectbox('Target organism:', 'Homo sapiens', key = 'ex1')
 st.write('Target organism: Homo sapiens')
 st.subheader(':green[Step 2. Select Model Organims]')
+st.selectbox('Model organisms:', 'Mus musculus, Saccharomyces cerevisiae, Arabidopsis thaliana, Xenopus tropicalis, Danio rerio, Caenorhabditis elegans', key = 'ex2')
 st.write('Model organisms: Mus musculus, Saccharomyces cerevisiae, Arabidopsis thaliana, Xenopus tropicalis, Danio rerio, Caenorhabditis elegans')
 st.subheader(':green[Step 3. Choose target proteins]')
+st.selectbox('Target proteins:', 'Q9NXK8, Q9Y2M0, Q9NVI1', key = 'ex3')
 st.write('Target proteins (FA pathway): Q9NXK8, Q9Y2M0, Q9NVI1')
 st.subheader(':green[Step 4. Check Model Organism ranking based on protein structure similarity to the target proteins]')
+st.markdown(f":orange[**The top model organism for your study is: Mus musculus**]")
 st.image("data/subset/figure_model/ranking.png", caption="Organisms Ranking based on bitscore (the higher, the better)", use_container_width=True)
 
 row2 = st.columns(3)
 emojis = [":mouse2:", ":tropical_fish:", ":seedling:"]
 titles = ["House Mouse", "Zebrafish", "Arabidopsis thaliana"]
-ranks = ["#1", "#2", "#3"]
+ranks = ["1st", "2nd", "3rd"]
 bitscores = ["14527", "3894", "1463"]
 score_1= ["2627", "365", "156"]
 score_2= ["4330", "3025", "1239"]
@@ -1197,8 +1202,6 @@ for col, emoji, title, bitscore, height, rank, score1, score2, score3, protein1,
                 alignment3 = open("data/subset/figure_model/plant_Q9NVI1.mp4", "rb")
                 bytes3 = alignment3.read()
                 st.video(bytes3, autoplay=True, loop=True, muted=True)
-
-
 
 st.subheader("Start your analysis by checking the 'Rank Model Organisms' box!")
 st.warning("Please note that this analysis might require some time. It is possible to register your email in the sidebar, so that your results will be sent to you as soon as they are ready!")
