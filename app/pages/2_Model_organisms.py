@@ -1121,47 +1121,23 @@ st.title('SHE: Structural History of Eukarya')
 st.write("Discover the best model organism to use for your study based on the proteins involved in your pathway")
 st.title('Model Organisms search')
 st.subheader('Target organism: Homo sapiens')
-st.subheader('Target proteins: Q9NXK8, Q9NVI1')
-# Create two columns
-col1, col2 = st.columns(2)
+st.subheader('Target proteins: Q9NXK8, Q9Y2M0, Q9NVI1')
 
-# Place the first image in the first column
-with col1:
-    st.image("data/subset/figure_model/ranking.png", caption="Organisms Ranking", use_container_width=True)
-
-# Place the second image in the second column
-with col2:
-    st.image("data/subset/figure_model/proteins.png", caption="Protein bitscores", use_container_width=True)
-
-
-
-COLOR_MOUSE = "#A6EFFF"  # Light Blue
-COLOR_FISH = "#EEF4AE"   # Light Green/Turquoise
-COLOR_PLANT = "#F8D7B2"  # Light Orange/Peach
-
-css = """
-.st-key-my_blue_container{
-    background: rgba(100, 100, 200, 0.3);
-}
-
-.st-key-my_blue_container .st-key-make_it_pink img{
-    background: linear-gradient(90deg,blue, blue, blue);
-}
-"""
-st.html(f"<style>{css}</style>")
-
+st.image("data/subset/figure_model/ranking.png", caption="Organisms Ranking based on protein structure similarity", use_container_width=True)
 row2 = st.columns(3)
 emojis = [":mouse2:", ":tropical_fish:", ":seedling:"]
 titles = ["House Mouse", "Zebrafish", "Arabidopsis thaliana"]
 ranks = ["#1", "#2", "#3"]
-bitscores = ["10197", "869", "224"]
+bitscores = ["14527", "3894", "1463"]
 score_1= ["2627", "365", "156"]
+score_2= ["4330", "3025", "1239"]
+score_3= ["7570", "504", "68"]
 proteins1= ["Q9EPX5", "Q6PBJ7", "Q9FM90"]
-proteins2= ["Q8K368", "B3DJT4", "Q9LY34"]
-score_2= ["7570", "504", "68"]
+proteins2= ["Q69ZT1", "Q1LWH4", "Q5XVJ4"]
+proteins3= ["Q8K368", "B3DJT4", "Q9LY34"]
 # Define the custom heights for the *visible* title containers
-tile_heights = [120, 100, 80] 
-for col, emoji, title, bitscore, height, rank, score1, score2, protein1, protein2 in zip(row2, emojis, titles, bitscores, tile_heights, ranks, score_1, score_2, proteins1, proteins2):
+tile_heights = [150, 130, 110] 
+for col, emoji, title, bitscore, height, rank, score1, score2, score3, protein1, protein2, protein3 in zip(row2, emojis, titles, bitscores, tile_heights, ranks, score_1, score_2, score_3, proteins1, proteins2, proteins3):
     with col:
         #with st.container(key="my_blue_container")
         # 1. Create the Visible Title Container with Custom Height
@@ -1180,27 +1156,42 @@ for col, emoji, title, bitscore, height, rank, score1, score2, protein1, protein
                 st.video(bytes, autoplay=True, loop=True, muted=True)
                 st.write("---")
                 st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein2}: **{score2}**")
-                alignment2 = open("data/subset/figure_model/mouse_Q9NVI1.mp4", "rb")
+                alignment2 = open("data/subset/figure_model/mouse_Q9Y2M0.mp4", "rb")
                 bytes2 = alignment2.read()
                 st.video(bytes2, autoplay=True, loop=True, muted=True)
+                st.write("---")
+                st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein3}: **{score3}**")
+                alignment3 = open("data/subset/figure_model/mouse_Q9NVI1.mp4", "rb")
+                bytes3 = alignment3.read()
+                st.video(bytes3, autoplay=True, loop=True, muted=True)
             elif title == "Zebrafish":
                 alignment = open("data/subset/figure_model/fish_Q9NXK8.mp4", "rb")
                 bytes = alignment.read()
                 st.video(bytes, autoplay=True, loop=True, muted=True)
                 st.write("---")
                 st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein2}: **{score2}**")
-                alignment2 = open("data/subset/figure_model/fish_Q9NVI1.mp4", "rb")
+                alignment2 = open("data/subset/figure_model/fish_Q9Y2M0.mp4", "rb")
                 bytes2 = alignment2.read()
                 st.video(bytes2, autoplay=True, loop=True, muted=True)
+                st.write("---")
+                st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein3}: **{score3}**")
+                alignment3 = open("data/subset/figure_model/fish_Q9NVI1.mp4", "rb")
+                bytes3 = alignment3.read()
+                st.video(bytes3, autoplay=True, loop=True, muted=True)
             elif title == "Arabidopsis thaliana":
                 alignment = open("data/subset/figure_model/plant_Q9NXK8.mp4", "rb")
                 bytes = alignment.read()
                 st.video(bytes, autoplay=True, loop=True, muted=True)
                 st.write("---")
                 st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein2}: **{score2}**")
-                alignment2 = open("data/subset/figure_model/plant_Q9NVI1.mp4", "rb")
+                alignment2 = open("data/subset/figure_model/plant_Q9Y2M0.mp4", "rb")
                 bytes2 = alignment2.read()
                 st.video(bytes2, autoplay=True, loop=True, muted=True)
+                st.write("---")
+                st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein3}: **{score3}**")
+                alignment3 = open("data/subset/figure_model/plant_Q9NVI1.mp4", "rb")
+                bytes3 = alignment3.read()
+                st.video(bytes3, autoplay=True, loop=True, muted=True)
 
 
 
@@ -1213,6 +1204,7 @@ st.warning("Please note that this analysis might require some time. It is possib
 
 ###------sidebar sign up--------------------
 #user sign up for updates and analysis results
+st.sidebar.subheader('6. Model Organism Search', divider="violet")
 st.sidebar.subheader('Results', divider="rainbow")
 st.sidebar.write('Sign up to receive your results')
 st.sidebar.text_input('Your email here:', key="email") #strip against whitespace
@@ -1236,8 +1228,8 @@ proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
 new_proteomes_path =  'data/core/merged_evo_rate.csv'
 proteomes_df = pd.read_csv(proteomes_path)
 
-st.sidebar.subheader('6. Model Organism Search', divider="violet")
-if st.sidebar.checkbox('Find best Model organism'):
+
+if st.checkbox('Find best Model organism'):
     user_email = st.session_state.email.strip()
     if not user_email:
         random_num = random.randint(100000, 999999)
@@ -1422,6 +1414,7 @@ if st.sidebar.checkbox('Find best Model organism'):
         st.markdown(f":orange[**The top model organism for your study is: {top_model_organism}**]")
         status_placeholder.empty()
         # show bar chart
+        df_final.sort_values('Rank', ascending=True, inplace=True)
         df_final['Display_Organism'] = df_final['Organism'].str.split('_', n=2).str[:2].str.join('_')
         df_final['Display_Organism'] = df_final['Display_Organism'].str.replace('_', ' ')
         comparison_df['Model_Protein'] = comparison_df['proteinB'].str.split('-').str[1]
@@ -1434,6 +1427,7 @@ if st.sidebar.checkbox('Find best Model organism'):
         target_name = ' '.join(target_name)
 
         # add presence
+        ordered_species = df_final['Display_Organism'].tolist()
         fixed_cols = ['Rank', 'Organism', 'Score', 'Display_Organism']
         uniprot_id_cols = [col for col in df_final.columns if col not in fixed_cols]
         #Initialize the hover_data dictionary for px.bar
@@ -1443,6 +1437,7 @@ if st.sidebar.checkbox('Find best Model organism'):
         for col in uniprot_id_cols:
             hover_data_config[col] = True # Setting to True makes the column appear with its value
 
+        
         #Create the horizontal bar chart figure, passing the complete hover_data_config
         # Create the Radial Bar Chart (Polar Bar)
         fig = px.line_polar(
@@ -1478,7 +1473,7 @@ if st.sidebar.checkbox('Find best Model organism'):
                 angularaxis=dict(
                     # Apply the sorting here
                     categoryorder='array',
-                    categoryarray=all_species 
+                    categoryarray=ordered_species 
                 )
             ),
             coloraxis_showscale=False,
@@ -1533,7 +1528,7 @@ if st.sidebar.checkbox('Find best Model organism'):
             bgcolor='#000000',
             # Ensure the angular axis uses the full list of unique species names
             angularaxis_categoryorder='array', 
-            angularaxis_categoryarray=all_species,
+            angularaxis_categoryarray=ordered_species,
             radialaxis=dict(
                 visible=True,
                 showticklabels=True,
@@ -1547,8 +1542,6 @@ if st.sidebar.checkbox('Find best Model organism'):
 
         # Render the radar chart in Streamlit
         #st.plotly_chart(radar_fig, use_container_width=True)
-
-
         color_map = {}
         for trace in radar_fig.data:
             # trace.name is the Color_Group (the protein ID part)
@@ -1614,7 +1607,7 @@ if st.sidebar.checkbox('Find best Model organism'):
                     angularaxis_showgrid=True,
                     bgcolor='#000000', # Black background for the plot interior
                     angularaxis_categoryorder='array',
-                    angularaxis_categoryarray=all_species,
+                    angularaxis_categoryarray=ordered_species, #all species
                     radialaxis=dict(
                         visible=True,
                         showticklabels=True,
