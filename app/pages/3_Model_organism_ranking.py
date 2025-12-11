@@ -31,7 +31,7 @@ from biotite.sequence.phylo import neighbor_joining
 from io import StringIO
 import copy
 import shutil
-
+import re
 from pathlib import Path
 import foldcomp as fc
 import random
@@ -74,6 +74,7 @@ def save_email(email):
         st.error(f"An error occurred while saving: {e}")
         return False
 
+@st.cache_data
 def get_base64_of_bin_file(bin_file):
     """
     Reads a binary file and returns its Base64 encoded string.
@@ -85,6 +86,7 @@ def get_base64_of_bin_file(bin_file):
     except FileNotFoundError:
         st.error(f"Error: Video file not found at path: {bin_file}. Please check the path.")
         return None
+    
 @st.cache_data
 def embed_video_background(video_path):
     """
@@ -145,7 +147,7 @@ def load_mapping(mapping_file):
     except Exception as e:
         st.error(f"Error reading mapping file: {e}")
         sys.exit(1)
-
+@st.cache_data
 def load_mapping_proteome(mapping_file):
     try:
         mapping_df = pd.read_csv(mapping_file)
@@ -153,7 +155,7 @@ def load_mapping_proteome(mapping_file):
     except Exception as e:
         st.error(f"Error reading mapping file: {e}")
         sys.exit(1)
-
+@st.cache_data
 def find_comparison_csv(target_dir, compare_dir_id):
     """Finds the Human_vs_Species or Species_vs_Human CSV file."""
     search_pattern = os.path.join(target_dir, '**', f'*vs{compare_dir_id}_top_hits.csv')
@@ -165,6 +167,7 @@ def find_comparison_csv(target_dir, compare_dir_id):
 
     return csv_files[0] if csv_files else None
 
+@st.cache_data
 def process_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
     """
     Calculates scores for a comparison species.
@@ -203,7 +206,7 @@ def process_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
 
 
     except Exception as e:
-        st.warning(f"Error processing {csv_file}: {e}")
+        st.error("Are you sure your input protein(s) are related to the input target organism? Try again by inputting the right target protein(s): the Uniprot ID has to be found in the proteome of the target species selected above.")
         
     # Convert map to list (Vector) ensures order is identical for all species
     score_vector = [score_map[uid] for uid in uniprot_ids]
@@ -257,6 +260,7 @@ def get_human_self_vector(target_dir, uniprot_ids):
     
     return total_self_score, human_vector
 
+@st.cache_data
 def sum_scores_for_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
     """
     Loads a single CSV file and sums the *best hit* bit scores
@@ -292,6 +296,7 @@ def sum_scores_for_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
         
     return total_score
 
+@st.cache_data
 def get_self_scores(target_dir, target_dir_id, uniprot_ids):
     """
     Calculates the "self-score" for the target species, which will be
@@ -353,6 +358,7 @@ def get_self_scores(target_dir, target_dir_id, uniprot_ids):
 
     return total_self_score
 
+@st.cache_data
 def generate_distance_matrix(species_scores_dict, uniprot_ids, out_dir):
     """
     Generates dmat.npy and ids_in_dmat.csv for the bootstrap script.
@@ -438,6 +444,7 @@ def parse_biotite_tree(biotite_tree, ids):
     newick = biotite_tree.to_newick(ids)
     return Phylo.read(StringIO(newick), 'newick')
 
+
 def analyze_bootstrap_support(original_tree, bootstrap_trees):
     """Calculate bootstrap support values"""
     support_tree = Consensus.get_support(original_tree, bootstrap_trees)
@@ -497,148 +504,9 @@ def load_tree(tree_path):
     return tree
 
 
-def render_tree(tree_path, user):
-    # Load the Tree: i.e. tree = Tree(main_tree_file)
-    model_tree = Tree(tree_path, format=1) #format=0
-    ts = TreeStyle()
-    ts.mode = "r"   
-    ts.show_leaf_name = True #true or false
-    ts.show_branch_length = False
-    ts.force_topology = True #not bad
-    # Render tree
-    model_tree_out="results/model_trees/" + user + "/model_tree.png"
-    model_tree.render(
-    model_tree_out,
-    tree_style=ts,
-    #w=183,
-    units="px"  
-    )
-    return model_tree_out
-
-
-# plotly_chart---------------------------------------------------------------------
-def get_tree_coordinates(tree):
-    # This function traverses the tree and assigns x, y coordinates
-    
-    # 1. Assign Y-coordinates (depth/level)
-    # The leaves will be at y=0, and the root will be at the max depth
-    leaves = tree.get_leaves()
-    max_depth = len(leaves)
-    
-    for i, leaf in enumerate(leaves):
-        leaf.y = i
-    
-    for node in tree.traverse("postorder"):
-        if node.is_leaf():
-            node.x = node.dist # X is the accumulated branch length
-        else:
-            # For internal nodes, Y is the mean of its children's Y coordinates
-            node.y = sum(child.y for child in node.children) / len(node.children)
-            # X is the max branch length of its children + its own branch length
-            node.x = max(child.x for child in node.children) + node.dist
-            
-    # Normalize X to be distance from root
-    root_x = tree.x
-    for node in tree.traverse("preorder"):
-        node.x = root_x - node.x
-
-    return tree
-
-def create_plotly_data(tree):
-    # This collects all the branch line segments and node scatter points
-    branch_lines_x = []
-    branch_lines_y = []
-    node_coords = {'x': [], 'y': [], 'text': [], 'name': []}
-
-    for node in tree.traverse():
-        # Add node coordinates for the scatter plot
-        node_coords['x'].append(node.x)
-        node_coords['y'].append(node.y)
-        node_coords['name'].append(node.name if node.name else f"Internal Node {node.x}")
-        
-        # Create custom hover text
-        hover_text = f"**Node:** {node.name if node.name else 'Internal Node'}<br>"
-        if not node.is_root():
-            hover_text += f"**Dist:** {node.dist:.3f}"
-        node_coords['text'].append(hover_text)
-        
-        # Create line segments for branches
-        if not node.is_root():
-            parent = node.up
-            # 1. Horizontal segment (from child X to parent X at child Y)
-            # Extends the X list: [Child_X, Parent_X, None]
-            branch_lines_x.extend([node.x, parent.x, None])
-            # Extends the Y list: [Child_Y, Child_Y, None]
-            branch_lines_y.extend([node.y, node.y, None])
-            
-            # 2. Vertical segment (from child Y to parent Y at Parent X)
-            # This segment connects the horizontal line to the parent node's vertical position
-            # Extends the X list: [Parent_X, Parent_X, None]
-            branch_lines_x.extend([parent.x, parent.x, None])
-            # Extends the Y list: [Child_Y, Parent_Y, None]
-            branch_lines_y.extend([node.y, parent.y, None])
-            
-    return branch_lines_x, branch_lines_y, node_coords
-
-def display_interactive_tree(tree_path):
-    
-    try:
-        # Load the tree from the Newick file
-        tree = Tree(tree_path, format=1)
-        
-        # Calculate coordinates
-        tree = get_tree_coordinates(tree)
-        
-        # Generate Plotly data lists
-        branch_lines_x, branch_lines_y, node_coords = create_plotly_data(tree)
-        
-    except Exception as e:
-        st.error(f"Error processing tree file: {e}")
-        return
-
-    # --- Create the Plotly Figure ---
-    # 1. Branch Traces (Lines)
-    trace_branches = go.Scatter(
-        x=branch_lines_x, y=branch_lines_y,
-        mode='lines',
-        line=dict(color='black', width=1),
-        hoverinfo='none', # Branches don't need hover
-        name='Branches'
-    )
-
-    # 2. Node Traces (Scatter Points)
-    trace_nodes = go.Scatter(
-        x=node_coords['x'], y=node_coords['y'],
-        mode='markers+text',
-        marker=dict(size=5, color='red'),
-        text=node_coords['name'], # Leaf/Node name displayed next to the point
-        textposition="middle right",
-        textfont=dict(size=10),
-        hovertext=node_coords['text'], # Custom hover text
-        hoverinfo='text',
-        name='Nodes'
-    )
-
-    # 3. Create the figure and layout
-    fig = go.Figure(data=[trace_branches, trace_nodes])
-
-    fig.update_layout(
-        title='Interactive Tree for model organism ranking',
-        xaxis=dict(showgrid=False, title='Branch length'),
-        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False), # Hide y-axis labels
-        showlegend=False,
-        hovermode="closest",
-        plot_bgcolor='white',
-        margin=dict(l=20, r=20, t=40, b=20)
-    )
-    
-    # --- Display in Streamlit ---
-    st.plotly_chart(fig, use_container_width=True)
-
-
-
 
 # reteive protein pdbs
+@st.cache_data(show_spinner=False)
 def get_pdb(protein, proteome):
     index_dir='data/subset/index' 
     proteome_indexes= f"{index_dir}/{proteome}_*_fc_id_mapping.csv"
@@ -700,7 +568,7 @@ def get_pdb(protein, proteome):
         return None
 
 
-
+@st.cache_data(show_spinner=False)
 def get_pdb2(protein, proteome):
     index_dir='data/subset/index' 
     subset_dir='data/subset/subset'
@@ -776,6 +644,7 @@ def get_pdb2(protein, proteome):
         status_placeholder.error(f"An unexpected error occurred during FoldComp retrieval: {e}")
         return None
 
+@st.cache_data(show_spinner=False)
 def render_3dmol_pdb(color, structure_path_or_url: str):
     """
     Loads and renders a protein structure, supporting both local file paths 
@@ -858,6 +727,8 @@ def render_3dmol_pdb(color, structure_path_or_url: str):
 # -----protein alignment viewer -----
 #FOLDSEEK_EXEC_PATH = "./foldseek_local"
 FOLDSEEK_EXEC_PATH = os.path.abspath("./foldseek_local")
+
+@st.cache_data(show_spinner=False)
 def run_foldseek_alignment_only(query_path, target_path):
     """
     Runs the standalone Foldseek binary.
@@ -874,7 +745,7 @@ def run_foldseek_alignment_only(query_path, target_path):
 
     # 2. Verify Binary Exists (Sanity Check)
     if not os.path.exists(FOLDSEEK_EXEC_PATH):
-        st.error("CRITICAL ERROR: 'foldseek_local' not found. Please run the 'wget' commands in the terminal to download it.")
+        st.error("CRITICAL ERROR: 'foldseek_local' not found.")
         return None
 
     # 3. Define Command
@@ -917,6 +788,7 @@ def run_foldseek_alignment_only(query_path, target_path):
         status_placeholder.error(f"An unexpected error occurred: {e}")
         return None
 
+@st.cache_data
 def get_format_from_path(filepath):
     """Simple helper to determine PDB/CIF format from file extension."""
     if filepath.lower().endswith(('.cif', '.mmcif')):
@@ -925,6 +797,7 @@ def get_format_from_path(filepath):
         return "pdb"
     return None
 
+@st.cache_data(show_spinner=False)
 def calculate_svd_and_merge(target_file, target_fmt, query_file, query_fmt, aln_data, out_name):
     """
     Uses Bio.SVDSuperimposer to align the Query (moving) structure to the Target (fixed) structure 
@@ -1008,7 +881,8 @@ def calculate_svd_and_merge(target_file, target_fmt, query_file, query_fmt, aln_
     except Exception as e:
         # st.error(f"SVD Error: {e}")
         return False, 0
-    
+
+@st.cache_data
 def render_3dmol_alignment(color, structure_path, target_name, query_name, tm_score, rmsd, spin_on=True):
     """
     Renders the merged PDB file, applying different colors to the two chains 
@@ -1060,7 +934,7 @@ def render_3dmol_alignment(color, structure_path, target_name, query_name, tm_sc
 
 
 # --- Function to generate the Mol* HTML viewer ---
-
+@st.cache_data
 def render_3dmol(afdb_download_url: str):
     """
     Fetches the CIF data and renders it using py3Dmol via stmol.
@@ -1106,6 +980,150 @@ def render_3dmol(afdb_download_url: str):
     except Exception as e:
          st.error(f"Error rendering 3Dmol viewer with stmol: {e}")
 
+
+# fast change in display
+@st.fragment
+def render_interactive_structure(key_suffix, out_file, target_name, query_name, tm_score, rmsd):
+    """
+    This function handles ONLY the UI for the structure viewer.
+    Interacting with widgets here will NOT reload the whole page.
+    """
+    c1, c2 = st.columns([1, 2])
+    
+    with c1:
+        alignment_color = st.radio(
+            "Color by:",
+            ('chain', 'plDDT'),
+            index=0, 
+            horizontal=True,
+            key=f"color_radio_{key_suffix}"
+        )
+        
+        enable_spin = st.checkbox(
+            "Spin Structure", 
+            value=True, 
+            key=f"spin_check_{key_suffix}"
+        )
+
+    # Call your existing 3Dmol render function
+    # Note: Ensure render_3dmol_alignment handles the path string correctly
+    render_3dmol_alignment(
+        alignment_color,
+        structure_path=out_file, 
+        target_name=target_name, 
+        query_name=query_name, 
+        tm_score=tm_score, 
+        rmsd=rmsd,
+        spin_on=enable_spin
+    )
+
+
+
+
+@st.cache_data(show_spinner=False)
+def prepare_ranking_data(target_species, model_organisms, protein_list_str):
+    """
+    Performs all data parsing, ranking, and merging.
+    Returns the final DataFrames or None if an error occurs.
+    """
+    # 1. Setup
+    uniprot_ids = protein_list_str.split()
+    root_dir = 'data/decompressed/'
+    mapping_file = 'data/core/model/extracted_and_renamed.csv'
+    
+    # Load mapping
+    species_map = load_mapping(mapping_file)
+    
+    # Check Target
+    target_dir_id = species_map.get(target_species)
+    if not target_dir_id:
+        return None, None, f"Target species '{target_species}' not found in mapping."
+
+    target_dir = os.path.join(root_dir, target_dir_id)
+    
+    # Storage
+    ranking_scores = {}
+    itol_data = {}
+    tree_data = {} 
+    all_best_hits_dfs = [] 
+
+    # 2. Calculate Human (Target) Data
+    human_score, human_vector = get_human_self_vector(target_dir, uniprot_ids)
+    ranking_scores[target_species] = human_score
+    tree_data[target_species] = human_vector
+    itol_data[target_species] = {uid: 1 for uid in uniprot_ids}
+
+    # 3. Calculate Comparison Species
+    for species in model_organisms:
+        if species not in species_map: 
+            continue
+        
+        compare_dir_id = species_map[species]
+        csv_file = find_comparison_csv(target_dir, compare_dir_id)
+        search_col = 'proteinA'
+        
+        # Try reverse direction if needed
+        if not csv_file:
+            reverse_dir = os.path.join(root_dir, compare_dir_id)
+            if os.path.isdir(reverse_dir):
+                csv_file = find_comparison_csv(reverse_dir, target_dir_id)
+                search_col = 'proteinB'
+
+        if csv_file:
+            score, presence, vector, best_hits_df = process_orthologs(csv_file, uniprot_ids, search_col)
+
+            # Swap columns if we looked up proteinB
+            if search_col == 'proteinB':
+                try:
+                    temp_col = best_hits_df['proteinA'].copy()
+                    best_hits_df['proteinA'] = best_hits_df['proteinB']
+                    best_hits_df['proteinB'] = temp_col
+                except Exception:
+                    return None, None, "Input protein mismatch. Uniprot ID must exist in target proteome."
+            
+            best_hits_df['Compared_Species'] = species 
+            all_best_hits_dfs.append(best_hits_df)
+            ranking_scores[species] = score
+            itol_data[species] = presence
+            tree_data[species] = vector
+        else:
+            ranking_scores[species] = 0.0
+            itol_data[species] = {uid: -1 for uid in uniprot_ids}
+            tree_data[species] = [0.0] * len(uniprot_ids)
+
+    # 4. Merge Results
+    if all_best_hits_dfs:
+        comparison_df = pd.concat(all_best_hits_dfs, ignore_index=True)
+    else:
+        comparison_df = pd.DataFrame()
+
+    # Build Rank DataFrame
+    df_rank = pd.DataFrame.from_dict(ranking_scores, orient='index', columns=['Score'])
+    df_target = df_rank.loc[[target_species]]
+    df_other = df_rank.drop(target_species).sort_values(by='Score', ascending=False)
+    
+    df_rank_sorted = pd.concat([df_target, df_other])
+    df_rank = df_rank_sorted.reset_index()
+    df_rank.columns = ['Organism', 'Score']
+
+    # Build Presence DataFrame
+    presence_list = []
+    for sp, pres in itol_data.items():
+        row_data = {'Organism': sp}
+        for uid in uniprot_ids:
+            row_data[uid] = 1 if pres.get(uid, 0) == 1 else 0
+        presence_list.append(row_data)
+
+    df_presence = pd.DataFrame(presence_list)
+
+    # Final Merge
+    df_rank_filtered = df_rank[df_rank['Organism'] != target_species].copy()
+    df_rank_filtered.reset_index(drop=True, inplace=True)
+    df_rank_filtered.insert(0, 'Rank', df_rank_filtered.index + 1)
+    
+    df_final = pd.merge(df_rank_filtered, df_presence, on='Organism', how='left')
+    
+    return df_final, comparison_df, None  # None means no error
 #---------------------------------------
 
 ##MAIN##
@@ -1118,107 +1136,119 @@ st.set_page_config(
 
 st.title('SHE: Structural History of Eukarya')
 #st.image('data/tree/model.png',ccaption='Protein-protein structure comparison to rank the best model organism for your target organism')
-st.title('Model Organisms ranking')
-st.write("Discover the best model organism to use for your study based on the proteins involved in your pathway")
-st.subheader(":violet[Follow the steps for an example usage]")
-st.subheader(':green[Step 1. Choose target organism]')
-st.selectbox('Target organism:', 'Homo sapiens', key = 'ex1')
-st.write('Target organism: Homo sapiens')
-st.subheader(':green[Step 2. Select Model Organims]')
-st.selectbox('Model organisms:', 'Mus musculus, Saccharomyces cerevisiae, Arabidopsis thaliana, Xenopus tropicalis, Danio rerio, Caenorhabditis elegans', key = 'ex2')
-st.write('Model organisms: Mus musculus, Saccharomyces cerevisiae, Arabidopsis thaliana, Xenopus tropicalis, Danio rerio, Caenorhabditis elegans')
-st.subheader(':green[Step 3. Choose target proteins]')
-st.selectbox('Target proteins:', 'Q9NXK8, Q9Y2M0, Q9NVI1', key = 'ex3')
-st.write('Target proteins (FA pathway): Q9NXK8, Q9Y2M0, Q9NVI1')
-st.subheader(':green[Step 4. Check Model Organism ranking based on protein structure similarity to the target proteins]')
-st.markdown(f":orange[**The top model organism for your study is: Mus musculus**]")
-st.image("data/subset/figure_model/ranking.png", caption="Organisms Ranking based on bitscore (the higher, the better)", use_container_width=True)
+st.title('Model Organisms Ranking')
+st.write("Find the best model organism match for your biological pathway by instant structural matching")
+with st.expander(":violet[See Example Usage]"):
+    st.subheader(":violet[Follow the following steps to discover the top model organism to study part of the human Fanconi anemia (FA) DNA repair pathway]")
+    st.subheader(':green[Step 1. Choose Target Organim]')
+    st.selectbox('Target organism:', 'Homo sapiens', key = 'ex1')
+    st.write('Target organism: Homo sapiens')
+    st.subheader(':green[Step 2. Select Model Organims]')
+    st.selectbox('Model organisms:', 'Mus musculus, Saccharomyces cerevisiae, Arabidopsis thaliana, Xenopus tropicalis, Danio rerio, Caenorhabditis elegans', key = 'ex2')
+    st.write('Model organisms: Mus musculus, Saccharomyces cerevisiae, Arabidopsis thaliana, Xenopus tropicalis, Danio rerio, Caenorhabditis elegans')
+    st.subheader(':green[Step 3. Choose target proteins from the proteome of the target species selected above]')
+    st.selectbox('Target proteins:', 'Q9NXK8 Q9Y2M0 Q9NVI1', key = 'ex3')
+    st.write('Target proteins (FA pathway): Q9NXK8, Q9Y2M0, Q9NVI1')
+    st.subheader(':green[Step 4. Check Model Organism ranking based on protein structure similarity to the target proteins]')
+    #st.markdown(f":orange[**The top model organism for your study is: Mus musculus**]")
+    st.markdown(
+    f"""
+    <div style='text-align: center; color: orange;'>
+        <strong>The top model organism for your study is: Mus musculus</strong>
+    </div>
+    """,
+    unsafe_allow_html=True)
+    st.image("data/subset/figure_model/ranking.png", caption="Organisms Ranking based on bitscore (the higher, the better)", use_container_width=True)
 
-row2 = st.columns(3)
-emojis = [":mouse2:", ":tropical_fish:", ":seedling:"]
-titles = ["House Mouse", "Zebrafish", "Arabidopsis thaliana"]
-ranks = ["1st", "2nd", "3rd"]
-bitscores = ["14527", "3894", "1463"]
-score_1= ["2627", "365", "156"]
-score_2= ["4330", "3025", "1239"]
-score_3= ["7570", "504", "68"]
-proteins1= ["Q9EPX5", "Q6PBJ7", "Q9FM90"]
-proteins2= ["Q69ZT1", "Q1LWH4", "Q5XVJ4"]
-proteins3= ["Q8K368", "B3DJT4", "Q9LY34"]
-# Define the custom heights for the *visible* title containers
-tile_heights = [170, 170, 170] 
-for col, emoji, title, bitscore, height, rank, score1, score2, score3, protein1, protein2, protein3 in zip(row2, emojis, titles, bitscores, tile_heights, ranks, score_1, score_2, score_3, proteins1, proteins2, proteins3):
-    with col:
-        #with st.container(key="my_blue_container")
-        # 1. Create the Visible Title Container with Custom Height
-        tile = st.container(height=height)
-        # Use a large markdown header for the title inside the container
-        tile.markdown(f"## {rank} {emoji} {title}")
-        
-        with st.expander(":green[Step 5. Check structural alignments]"):
-            # Content that appears when the user clicks/expands
-            st.write(f"**Total Bitscore** human vs {title}: **{bitscore}**")
-            st.write("---")
-            st.write(f"**Bitscore** human Q9NXK8 vs {title} {protein1}: **{score1}**")
-            if title == "House Mouse":
-                alignment = open("data/subset/figure_model/mouse_Q9NXK8.mp4", "rb")
-                bytes = alignment.read()
-                st.video(bytes, autoplay=True, loop=True, muted=True)
+    row2 = st.columns(3)
+    emojis = [":mouse2:", ":tropical_fish:", ":seedling:"]
+    titles = ["House Mouse", "Zebrafish", "Arabidopsis thaliana"]
+    ranks = ["1st", "2nd", "3rd"]
+    bitscores = ["14527", "3894", "1463"]
+    score_1= ["2627", "365", "156"]
+    score_2= ["4330", "3025", "1239"]
+    score_3= ["7570", "504", "68"]
+    proteins1= ["Q9EPX5", "Q6PBJ7", "Q9FM90"]
+    proteins2= ["Q69ZT1", "Q1LWH4", "Q5XVJ4"]
+    proteins3= ["Q8K368", "B3DJT4", "Q9LY34"]
+    # Define the custom heights for the *visible* title containers
+    tile_heights = [170, 170, 170] 
+    for col, emoji, title, bitscore, height, rank, score1, score2, score3, protein1, protein2, protein3 in zip(row2, emojis, titles, bitscores, tile_heights, ranks, score_1, score_2, score_3, proteins1, proteins2, proteins3):
+        with col:
+            #with st.container(key="my_blue_container")
+            # 1. Create the Visible Title Container with Custom Height
+            tile = st.container(height=height)
+            # Use a large markdown header for the title inside the container
+            tile.markdown(f"## {rank} {emoji} {title}")
+            
+            with st.expander(":green[Step 5. Check structural alignments]"):
+                # Content that appears when the user clicks/expands
+                st.write(f"**Total Bitscore** human vs {title}: **{bitscore}**")
                 st.write("---")
-                st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein2}: **{score2}**")
-                alignment2 = open("data/subset/figure_model/mouse_Q9Y2M0.mp4", "rb")
-                bytes2 = alignment2.read()
-                st.video(bytes2, autoplay=True, loop=True, muted=True)
-                st.write("---")
-                st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein3}: **{score3}**")
-                alignment3 = open("data/subset/figure_model/mouse_Q9NVI1.mp4", "rb")
-                bytes3 = alignment3.read()
-                st.video(bytes3, autoplay=True, loop=True, muted=True)
-            elif title == "Zebrafish":
-                alignment = open("data/subset/figure_model/fish_Q9NXK8.mp4", "rb")
-                bytes = alignment.read()
-                st.video(bytes, autoplay=True, loop=True, muted=True)
-                st.write("---")
-                st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein2}: **{score2}**")
-                alignment2 = open("data/subset/figure_model/fish_Q9Y2M0.mp4", "rb")
-                bytes2 = alignment2.read()
-                st.video(bytes2, autoplay=True, loop=True, muted=True)
-                st.write("---")
-                st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein3}: **{score3}**")
-                alignment3 = open("data/subset/figure_model/fish_Q9NVI1.mp4", "rb")
-                bytes3 = alignment3.read()
-                st.video(bytes3, autoplay=True, loop=True, muted=True)
-            elif title == "Arabidopsis thaliana":
-                alignment = open("data/subset/figure_model/plant_Q9NXK8.mp4", "rb")
-                bytes = alignment.read()
-                st.video(bytes, autoplay=True, loop=True, muted=True)
-                st.write("---")
-                st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein2}: **{score2}**")
-                alignment2 = open("data/subset/figure_model/plant_Q9Y2M0.mp4", "rb")
-                bytes2 = alignment2.read()
-                st.video(bytes2, autoplay=True, loop=True, muted=True)
-                st.write("---")
-                st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein3}: **{score3}**")
-                alignment3 = open("data/subset/figure_model/plant_Q9NVI1.mp4", "rb")
-                bytes3 = alignment3.read()
-                st.video(bytes3, autoplay=True, loop=True, muted=True)
+                st.write(f"**Bitscore** human Q9NXK8 vs {title} {protein1}: **{score1}**")
+                if title == "House Mouse":
+                    alignment = open("data/subset/figure_model/mouse_Q9NXK8.mp4", "rb")
+                    bytes = alignment.read()
+                    st.video(bytes, autoplay=True, loop=True, muted=True)
+                    st.write("---")
+                    st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein2}: **{score2}**")
+                    alignment2 = open("data/subset/figure_model/mouse_Q9Y2M0.mp4", "rb")
+                    bytes2 = alignment2.read()
+                    st.video(bytes2, autoplay=True, loop=True, muted=True)
+                    st.write("---")
+                    st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein3}: **{score3}**")
+                    alignment3 = open("data/subset/figure_model/mouse_Q9NVI1.mp4", "rb")
+                    bytes3 = alignment3.read()
+                    st.video(bytes3, autoplay=True, loop=True, muted=True)
+                elif title == "Zebrafish":
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    alignment = open("data/subset/figure_model/fish_Q9NXK8.mp4", "rb")
+                    bytes = alignment.read()
+                    st.video(bytes, autoplay=True, loop=True, muted=True)
+                    st.write("---")
+                    st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein2}: **{score2}**")
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    alignment2 = open("data/subset/figure_model/fish_Q9Y2M0.mp4", "rb")
+                    bytes2 = alignment2.read()
+                    st.video(bytes2, autoplay=True, loop=True, muted=True)
+                    st.write("---")
+                    st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein3}: **{score3}**")
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    alignment3 = open("data/subset/figure_model/fish_Q9NVI1.mp4", "rb")
+                    bytes3 = alignment3.read()
+                    st.video(bytes3, autoplay=True, loop=True, muted=True)
+                elif title == "Arabidopsis thaliana":
+                    alignment = open("data/subset/figure_model/plant_Q9NXK8.mp4", "rb")
+                    bytes = alignment.read()
+                    st.video(bytes, autoplay=True, loop=True, muted=True)
+                    st.write("---")
+                    st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein2}: **{score2}**")
+                    alignment2 = open("data/subset/figure_model/plant_Q9Y2M0.mp4", "rb")
+                    bytes2 = alignment2.read()
+                    st.video(bytes2, autoplay=True, loop=True, muted=True)
+                    st.write("---")
+                    st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein3}: **{score3}**")
+                    alignment3 = open("data/subset/figure_model/plant_Q9NVI1.mp4", "rb")
+                    bytes3 = alignment3.read()
+                    st.video(bytes3, autoplay=True, loop=True, muted=True)
 
-st.subheader("Start your analysis by checking the 'Rank Model Organisms' box!")
+#st.subheader("Start your analysis by clicking on 'Rank Model Organisms' !")
 st.warning("Please note that this analysis might require some time. It is possible to register your email in the sidebar, so that your results will be sent to you as soon as they are ready!")
-
-with st.sidebar.expander("Help: How to use the Model Organism Ranking tool"):
-    st.sidebar.write("Start your analysis by checking the 'Rank Model Organisms' box!")
-    st.sidebar.write("You will be able to select:")
-    st.sidebar.write("- your target species")
-    st.sidebar.write("- the proteins in the pathway you are studying")
-    st.sidebar.write("- the available model organisms you could choose from.")
-    st.sidebar.write("This will result in a ranking of the model organisms  based on the structural similarity (bitscore, the higher the better) of the input proteins compared to the target species")
-    st.sidebar.write("If you wish to visualise the structural alignments of your input proteins, turn on 'Show protein structure alignments'.")
 
 
 ###------sidebar sign up--------------------
 #user sign up for updates and analysis results
-st.sidebar.subheader('6. Model Organism Search', divider="violet")
+st.sidebar.subheader('6. Model Organism Ranking', divider="violet")
+with st.sidebar.expander("Help: How to use the Model Organism Ranking tool"):
+    st.write("Start it by clicking on 'Rank Model Organisms'!")
+    st.markdown("""
+    * Your target species
+    * The proteins in the pathway you are studying
+    * The available model organisms you could choose from
+    """)
+    st.write("This will result in a ranking of the model organisms  based on the structural similarity (bitscore, the higher the better) of the input proteins compared to the target species")
+    st.write("If you wish to visualise the structural alignments of your input proteins, turn on 'Show protein structure alignments'.")
+
 st.sidebar.subheader('Results', divider="rainbow")
 st.sidebar.write('Sign up to receive your results')
 st.sidebar.text_input('Your email here:', key="email") #strip against whitespace
@@ -1237,13 +1267,60 @@ if st.sidebar.button('Receive Results'):
             # Updated success message
             st.sidebar.success(f"Thank you! Your email: **{user_email}** .")
 
+
+
 ################analysis -------------------------------------------
 proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
 new_proteomes_path =  'data/core/merged_evo_rate.csv'
 proteomes_df = pd.read_csv(proteomes_path)
 
+st.markdown("""
+<style>
+/* Target the button inside the Streamlit button container */
+div.stButton > button {
+    width: 100%;             /* Fill the column width */
+    height: 60px;            /* Make it taller/bigger */
+    font-size: 20px;         /* Larger text */
+    font-weight: bold;
+    border-radius: 12px;     /* Rounded corners */
+    border: 2px solid #4ade80; /* Thin green border default */
+    background-color: #1f2937; /* Dark background (matches your dark theme) */
+    color: white;
+    transition: all 0.3s ease-in-out; /* Smooth animation */
+}
 
-if st.checkbox('Rank Model Organisms'):
+/* HOVER STATE: The "Green Aura" */
+div.stButton > button:hover {
+    background-color: #1f2937; 
+    border-color: #22c55e;   /* Brighter green border */
+    color: #4ade80;          /* Green text */
+    
+    /* The Aura Effect: Box Shadow */
+    box-shadow: 0 0 20px rgba(74, 222, 128, 0.7), 
+                0 0 10px rgba(74, 222, 128, 0.5);
+                
+    transform: scale(1.02);  /* Slightly grow the button */
+}
+
+/* ACTIVE STATE: When clicked */
+div.stButton > button:active {
+    box-shadow: none;
+    transform: scale(0.98);
+}
+</style>
+""", unsafe_allow_html=True)
+
+# 1. Initialize a "state" variable to remember if the analysis is active
+if 'ranking_active' not in st.session_state:
+    st.session_state['ranking_active'] = False
+left, middle, right = st.columns([1, 2, 1])
+with middle:
+    # This button will pick up the CSS styles defined above
+    if st.button('Rank Model Organisms', use_container_width=True):
+        st.session_state['ranking_active'] = True
+# 3. Check the STATE variable, not the button itself
+if st.session_state['ranking_active']:
+#if middle.button('Rank Model Organisms'):
     user_email = st.session_state.email.strip()
     if not user_email:
         random_num = random.randint(100000, 999999)
@@ -1251,25 +1328,47 @@ if st.checkbox('Rank Model Organisms'):
     else: 
         user=user_email
     st.title('Find the best model organism for your study according to the structural phylogenetic tree!')
-    target = st.text_input(
-    'Which organism would you like to study (empty = Default: Homo_sapiens_Human)', key="target")
-    
+
+    # choose target -------------------------------------------------------------------------------------
+    #target: default human
+    options = proteomes_df['Organism_formatted'].tolist()
+    target_search_term = 'homo_sapiens_human'
+    try:
+        # Find the index regardless of how it's capitalized in the CSV
+        default_index = [x.lower() for x in options].index(target_search_term)
+    except ValueError:
+        default_index = 0
+
+    # 1. .replace('_', ' ') -> "Homo sapiens Human"
+    # 2. .capitalize()      -> "Homo sapiens human" (First letter Big, rest small)
+    target = st.selectbox(
+        'Which organism would you like to study (i.e: Homo sapiens human)', 
+        options, 
+        index=default_index, 
+        key="target", 
+        format_func=lambda x: x.replace('_', ' ').capitalize()
+    )
+
+    # choose models --------------------------------------------------------------------
     def add_model_organism():
-        st.session_state.model_count += 1 # Correctly increments the count
-        
+        st.session_state.model_count += 1 
+
     if 'model_count' not in st.session_state:
         st.session_state.model_count = 1 # Start with 1 mandatory model
         
     model_organisms = []
+
     # Loop renders the correct number of selectboxes based on model_count
     for i in range(1, st.session_state.model_count + 1):
-        # Assuming proteomes_df is defined elsewhere
         selection = st.selectbox(
-            f'Which model organism ({i}) do you have available (i.e: Saccharomyces cerevisiae, Arabidopsis thaliana, Drosophila melanogaster, Xenopus tropicalis, Danio rerio, Caenorhabditis elegans, Mus musculus)?',
+            f'Which model organism ({i}) do you have available (i.e: Saccharomyces cerevisiae...)?',
             proteomes_df['Organism_formatted'],
+            # Apply the same formatting logic: Replace underscore + Capitalize first letter only
+            format_func=lambda x: x.replace('_', ' ').capitalize(),
             key=f"model_{i}"
         )
         model_organisms.append(selection)
+
     # Use the defined function in on_click
     st.button(
         " Add Another Model Organism", 
@@ -1277,488 +1376,304 @@ if st.checkbox('Rank Model Organisms'):
         on_click=add_model_organism
     )
 
+    #choose proteins -----------------------------------------------------------------------
     protein_list = st.text_input(
-    'Which proteins are you studying in your target organism? (each Uniprot ID separated by a space, i.e: Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616)', key="protein_list")
+    'Which proteins are you studying in your target organism? (each Uniprot ID separated by a space, i.e: Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616). Please note that the proteins IDs have to be associated to the proteome of the target organism selected above.', key="protein_list")
 
+    #start ranking-------------------------------------------------------------------------
     if (protein_list == '') or not model_organisms:
-            st.warning('Please input the Uniprot ID of the protein(s) to study, the organism to study (Defaul to Human), and the model organisms you can to choose from, to find the best model organism for you study.')
+        st.warning('Please input the Uniprot ID of the protein(s) to study, the organism to study, and the model organisms to choose from.')
     else:
         st.write('Selected Protein(s) to study: ', protein_list)
-        #st.write('Selected Model Organism(s): ', model) # 'Danio_rerio_Zebrafish_Brachydanio_rerio Caenorhabditis_elegans Mus_musculus_Mouse'
         st.write('Selected Model Organism(s): ', ', '.join(model_organisms))
+        
+        # Handle Target Name
         if target == '':
-            target_species='Homo_sapiens_Human'
-            st.write('Selected Target Organism: ', target_species) #"Homo_sapiens_Human"
+            target_species = 'Homo_sapiens_Human'
         else:
             target_species = target
-            st.write('Selected Target Organism: ', target_species) # not "Homo_sapiens_Human"
+        st.write('Selected Target Organism: ', target_species)
 
         status_placeholder = st.empty()
-        # Display the loading message in the placeholder
         status_placeholder.info(f"a. Ranking your model organisms...")
-        #st.info('a. Ranking your model organisms...')
-        uniprot_ids=protein_list.split() # "Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616"
-        #compare_species=model.split()
-        compare_species = model_organisms
-        
-        root_dir='data/decompressed/' #350 gb
-        
-        # --- 1. Load Mapping ---
-        mapping='data/core/model/extracted_and_renamed.csv'    #Path to CSV file with columns id,proteome_id,species_name
-        species_map = load_mapping(mapping)
-        
-        # Get the directory ID for the target
-        #target_dir_id = species_map[target_species]
-        target_dir_id = species_map.get(target_species)
-        if not target_dir_id:
-            st.error("Target species not found in mapping.")
-            sys.exit(1)
-        target_dir = os.path.join(root_dir, target_dir_id)
-        
-        # Storage
-        ranking_scores = {}
-        itol_data = {}
-        tree_data = {} 
-        all_best_hits_dfs = [] #new list for homologous names
-        
-        # 1. Calculate Human (Target) Data first
-        # This ensures Human is in the tree!
-        human_score, human_vector = get_human_self_vector(target_dir, uniprot_ids)
-        ranking_scores[target_species] = human_score
-        tree_data[target_species] = human_vector
-        itol_data[target_species] = {uid: 1 for uid in uniprot_ids} # Human always has the proteins
 
-        # 2. Calculate Comparison Species
-        for species in compare_species:
-            if species not in species_map: continue
-            
-            compare_dir_id = species_map[species]
-            #st.info(f"Processing {species}...")
-            csv_file = find_comparison_csv(target_dir, compare_dir_id)
-            search_col = 'proteinA'
-            
-            if not csv_file:
-                reverse_dir = os.path.join(root_dir, compare_dir_id)
-                if os.path.isdir(reverse_dir):
-                    csv_file = find_comparison_csv(reverse_dir, target_dir_id)
-                    search_col = 'proteinB'
+        # --- CALL CACHED FUNCTION ---
+        # This runs instantly if cached!
+        df_final, comparison_df, error_msg = prepare_ranking_data(target_species, model_organisms, protein_list)
 
-            if csv_file:
-                score, presence, vector, best_hits_df = process_orthologs(csv_file, uniprot_ids, search_col)
+        if error_msg:
+            st.error(error_msg)
+            st.session_state['ranking_active'] = False
+            st.stop() # Stops execution safely
 
-                if search_col == 'proteinB':
-                    # Create a temporary column to hold the original proteinA data
-                    temp_col = best_hits_df['proteinA'].copy()
-                    
-                    # Move the original proteinB data (the target) to proteinA
-                    best_hits_df['proteinA'] = best_hits_df['proteinB']
-                    
-                    # Move the temporary data (the hit) to proteinB
-                    best_hits_df['proteinB'] = temp_col
-                
-                # Add a column to identify the species for later filtering
-                best_hits_df['Compared_Species'] = species 
-                all_best_hits_dfs.append(best_hits_df)
-
-                ranking_scores[species] = score
-                itol_data[species] = presence
-                tree_data[species] = vector
-            else:
-                ranking_scores[species] = 0.0
-                itol_data[species] = {uid: -1 for uid in uniprot_ids}
-                tree_data[species] = [0.0] * len(uniprot_ids)
-
-        if all_best_hits_dfs:
-            # Use pandas.concat to merge the list of DataFrames into one large DataFrame
-            comparison_df = pd.concat(all_best_hits_dfs, ignore_index=True)
-        else:
-            # Handle the case where no comparisons were successfully processed
-            st.warning("No ortholog comparison data was generated.")
-            comparison_df = pd.DataFrame() # Create an empty DataFrame
-            
-
-        df_rank = pd.DataFrame.from_dict(ranking_scores, orient='index', columns=['Score'])
-        df_target = df_rank.loc[[target_species]]
-        df_other = df_rank.drop(target_species)
-        # Sort by Score in descending order (highest score is Rank 2)
-        df_other_sorted = df_other.sort_values(by='Score', ascending=False)
-        # The target species is guaranteed to be the first row (index 0)
-        df_rank_sorted = pd.concat([df_target, df_other_sorted])
-        df_rank = df_rank_sorted.reset_index()
-        df_rank.columns = ['Organism', 'Score']
-        presence_list = []
-        for sp, pres in itol_data.items():
-            # Start the dictionary for this row with the organism name
-            row_data = {'Organism': sp}
-            
-            # Iterate through all UniProt IDs
-            for uid in uniprot_ids:
-                # Get the presence value (default to 0 if not found)
-                # Apply the -1/1 mapping: 1 if present, -1 if absent/missing
-                presence_val = 1 if pres.get(uid, 0) == 1 else 0 #else 0 or -1
-                
-                # Add a new key-value pair to the row_data dict: Key=UniProt ID, Value=Presence (-1 or 1)
-                row_data[uid] = presence_val
-            
-            # Append the complete row data to the list
-            presence_list.append(row_data)
-
-        df_presence = pd.DataFrame(presence_list)
-        # Filter target species out
-        target_species_row = df_rank[df_rank['Organism'] == target_species]
-        df_rank_filtered = df_rank[df_rank['Organism'] != target_species].copy()
-        df_rank_filtered.reset_index(drop=True, inplace=True)
-        df_rank_filtered.insert(0, 'Rank', df_rank_filtered.index + 1)
-        df_final = pd.merge(df_rank_filtered, df_presence, on='Organism', how='left')
+        # --- SAVE FILES ---
+        # Side effects (saving files) should happen outside the cached function
         csv_out = "results/model_trees/" + user + "/"
         os.makedirs(csv_out, exist_ok=True)
-        csv_path = csv_out + "model_ranking.txt"
-        df_final.to_csv(csv_path, index=False, sep='\t')
-        csv_path2 = csv_out + "protein_hits_ranking.txt"
-        comparison_df.to_csv(csv_path2, index=False, sep='\t')
-        # 6. Display the Final Table in Streamlit
-        #st.write("\n" + "="*70)
+        
+        txt_path = csv_out + "model_ranking.txt"
+        df_final.to_csv(txt_path, index=False, sep='\t')
+        
+        txt_path2 = csv_out + "protein_hits_ranking.txt"
+        comparison_df.to_csv(txt_path2, index=False, sep='\t')
+
+        # --- DISPLAY LOGIC ---
         st.write("--- Organism Ranking ---")
-        #st.write(f"Target: {target_species}")
-        #st.write(df_final.to_html(index=False), unsafe_allow_html=True)
+        
         top_model_organism = df_final.iloc[0]['Organism']
-        top_model_organism = top_model_organism.split('_', maxsplit=2)[:2]
-        top_model_organism = ' '.join(top_model_organism)
-        #st.write(f"**The top model organism for your study is: {top_model_organism}**")
-        st.markdown(f":orange[**The top model organism for your study is: {top_model_organism}**]")
+        # Extract just Genus species (e.g., "Mus musculus")
+        top_model_organism = ' '.join(top_model_organism.split('_', maxsplit=2)[:2])
+        
+        st.markdown(
+            f"""
+            <div style='text-align: center; color: orange;'>
+                <strong>The top model organism for your study is: {top_model_organism}</strong>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
         status_placeholder.empty()
-        # show bar chart
+
+        # --- PLOTLY CHARTS (RESTORED) ---
+        
+        # 1. Prepare Data for Plotting
         df_final.sort_values('Rank', ascending=True, inplace=True)
         df_final['Display_Organism'] = df_final['Organism'].str.split('_', n=2).str[:2].str.join('_')
         df_final['Display_Organism'] = df_final['Display_Organism'].str.replace('_', ' ')
+        
         comparison_df['Model_Protein'] = comparison_df['proteinB'].str.split('-').str[1]
         comparison_df['Model_Organism'] = comparison_df['Compared_Species'].str.split('_', n=2).str[:2].str.join('_')
         comparison_df['Model_Organism'] = comparison_df['Model_Organism'].str.replace('_', ' ')
-        # 2. Create the color grouping based on proteinA (color parameter)
+        
+        # Create the color grouping based on proteinA
         comparison_df['Color_Group'] = comparison_df['proteinA'].str.split('-').str[1]
+        
         all_species = comparison_df['Model_Organism'].unique().tolist()
-        target_name = target_species.split('_', maxsplit=2)[:2]
-        target_name = ' '.join(target_name)
+        target_name = ' '.join(target_species.split('_', maxsplit=2)[:2])
 
-        # add presence
+        # 2. Radial Bar Chart (Organism Ranking)
         ordered_species = df_final['Display_Organism'].tolist()
         fixed_cols = ['Rank', 'Organism', 'Score', 'Display_Organism']
         uniprot_id_cols = [col for col in df_final.columns if col not in fixed_cols]
-        #Initialize the hover_data dictionary for px.bar
+        
+        # Initialize hover_data dictionary
         hover_data_config = {'Score': ':.1f', 'Rank': True, 'Display_Organism': False}
-        
-        # Add all UniProt ID columns to the dictionary
         for col in uniprot_id_cols:
-            hover_data_config[col] = True # Setting to True makes the column appear with its value
+            hover_data_config[col] = True 
 
-        
-        #Create the horizontal bar chart figure, passing the complete hover_data_config
-        # Create the Radial Bar Chart (Polar Bar)
         fig = px.line_polar(
             df_final,
-            r='Score',                  # Length of the bar (formerly x)
-            theta='Display_Organism',   # Category around the circle (formerly y)
+            r='Score',                 
+            theta='Display_Organism',  
             color_discrete_sequence=['#00CC96'],
             line_close=True,
             title='Model Organism Ranking by Bit score',
             hover_data=hover_data_config,
-            # distinct start angle makes it easier to read
-            start_angle=0,
-            direction="clockwise", 
-            template='plotly_dark' # Optional: change direction if preferred
-        )
-
-        fig.update_traces(
-            mode='lines+markers', # Ensures markers and lines are drawn
-            fill='toself',        # Ensures the area inside the closed line is filled (the polyshape)
-            opacity=0.7,      # OPTIONAL: Add opacity to see overlapping shapes
-            marker=dict(size=8))   # OPTIONAL: Make the markers visible
-        
-        # Update layout for Polar specifics
-        fig.update_layout(
-            polar=dict(
-                radialaxis=dict(
-                    visible=True,
-                    showticklabels=True, 
-                    showline=False,
-                    angle=90,   # Position the radial axis labels so they don't overlap data
-                    tickangle=90 # Rotate text for readability
-                ),
-                angularaxis=dict(
-                    # Apply the sorting here
-                    categoryorder='array',
-                    categoryarray=ordered_species 
-                )
-            ),
-            coloraxis_showscale=False,
-            # Optional: Add a hole to make it a "Donut" style radial plot for better label readability
-            # polar_hole=0.1 
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        #radar plot---------------------------------------------------------
-        # 1. Create the cleaner display name for the proteinB (for hover data)
-
-        # 3. Create a unique list of all Compared_Species names to define the angular axes (theta)
-        #all_species = comparison_df['Compared_Species'].unique().tolist()
-
-        # --- Radar Chart Generation ---
-        radar_fig = px.line_polar(
-            comparison_df,
-            r='bit_score',         # Radial axis variable (score magnitude)
-            theta='Model_Organism', # Angular axis uses the species name
-            color='Color_Group',     # Color based on the Target Protein (proteinA)
-            #color_discrete_sequence=px.colors.qualitative.Set1, #Plasma, Dark2, Vidid
-            line_close=True,
-            title=f'Protein Hit Bitscores by Species compared to {target_name}',
-            labels={
-                'bit_score': 'Bit Score',
-                'Model_Organism': 'Model Organism',
-                'Color_Group': 'Target Protein (UniProt ID)'
-            },
-            # <<< NEW: Add Display_Protein to hover data
-            hover_data={
-                'Model_Protein': True,  # Show the UniProt ID of the hit protein (proteinB)
-                'bit_score': ':.0f',      # Show the bitscore clearly
-                'Compared_Species': False # Already on the axis, no need to repeat
-            },
             start_angle=0,
             direction="clockwise", 
             template='plotly_dark'
         )
 
-        # Update the layout for better readability
-        #radar_fig.update_traces(fill='toself')
-        radar_fig.update_traces(
-            mode='lines+markers', # Ensures markers and lines are drawn
-            fill='toself',        # Ensures the area inside the closed line is filled (the polyshape)
-            opacity=0.5,      # OPTIONAL: Add opacity to see overlapping shapes
-            marker=dict(size=5)   # OPTIONAL: Make the markers visible
+        fig.update_traces(
+            mode='lines+markers', 
+            fill='toself',        
+            opacity=0.7,      
+            marker=dict(size=8)
+        )
+        
+        fig.update_layout(
+            polar=dict(
+                radialaxis=dict(visible=True, showticklabels=True, showline=False, angle=90, tickangle=90),
+                angularaxis=dict(categoryorder='array', categoryarray=ordered_species)
+            ),
+            coloraxis_showscale=False,
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+        # 3. Radar Chart (Protein Hits)
+        radar_fig = px.line_polar(
+            comparison_df,
+            r='bit_score',         
+            theta='Model_Organism', 
+            color='Color_Group',    
+            line_close=True,
+            title=f'Protein Hit Bitscores by Species compared to {target_name}',
+            labels={'bit_score': 'Bit Score', 'Model_Organism': 'Model Organism', 'Color_Group': 'Target Protein (UniProt ID)'},
+            hover_data={'Model_Protein': True, 'bit_score': ':.0f', 'Compared_Species': False},
+            start_angle=0,
+            direction="clockwise", 
+            template='plotly_dark'
         )
 
-        # Customize the polar axis
+        radar_fig.update_traces(
+            mode='lines+markers', 
+            fill='toself',       
+            opacity=0.5,      
+            marker=dict(size=5)  
+        )
+
         radar_fig.update_polars(
             radialaxis_showgrid=True,
             angularaxis_showgrid=True,
             bgcolor='#000000',
-            # Ensure the angular axis uses the full list of unique species names
             angularaxis_categoryorder='array', 
             angularaxis_categoryarray=ordered_species,
             radialaxis=dict(
-                visible=True,
-                showticklabels=True,
-                showline=False,
-                angle=90,   # Position the radial axis labels so they don't overlap data
-                tickangle=90, # Rotate text for readability
-                # Set range based on the overall max score
+                visible=True, showticklabels=True, showline=False, angle=90, tickangle=90,
                 range=[0, comparison_df['bit_score'].max() * 1.1] 
             )
         )
 
-        # Render the radar chart in Streamlit
-        #st.plotly_chart(radar_fig, use_container_width=True)
+        # Extract color map for later use
         color_map = {}
         for trace in radar_fig.data:
-            # trace.name is the Color_Group (the protein ID part)
-            # trace.line.color is the actual color (e.g., 'rgba(31, 119, 180, 1)')
             color = trace.line.color 
-            
             if trace.name not in color_map and color:
                 color_map[trace.name] = color
+                
+        # (Optional: Display the main radar chart if you want)
+        # st.plotly_chart(radar_fig, use_container_width=True)
 
-        # show protein structures --------------------------------------------------------------------------------------
-        if st.toggle('Show protein structure alignments'):
-            st.subheader(f'Structural comparison of input proteins between {target_name} and model organisms')
-            #comparison_df: proteinA, proteinB, bit_Score, Compared_Species
-            #target_species: usually human (protein A)
+
+        # --- STRUCTURE ALIGNMENT ---
+        if st.toggle(':green[Show protein structure alignments]'):
+            st.subheader(f'Structural comparison between {target_name} and model organisms')
+            
             unique_target_proteins = comparison_df['proteinA'].unique()
             selected_protein_A = st.radio(
                 "Select the **Target protein** to visualise:",
                 unique_target_proteins,
                 horizontal=True
             )
+            
             selected_protein_df = comparison_df[comparison_df['proteinA'] == selected_protein_A]
+            
             if selected_protein_df.empty:
                 st.warning(f"No comparison hits found for {selected_protein_A}.")
             else:
                 selected_group = selected_protein_df['Color_Group'].iloc[0]
-                # Extract the human UniProt ID (AF-Q13616-F1-model_v4 -> Q13616)
-                #plotly radial chart
+                
+                # --- Single Protein Radar Chart ---
                 radar_fig_alone = px.line_polar(
-                    selected_protein_df,  # <<< Use the FILTERED DataFrame
+                    selected_protein_df,  
                     r='bit_score',
                     theta='Model_Organism',
-                    color='Color_Group', # REMOVED: Only one protein is being plotted
-                    color_discrete_map={selected_group: color_map[selected_group]},
+                    color='Color_Group',
+                    color_discrete_map={selected_group: color_map.get(selected_group, '#FFFFFF')},
                     line_close=True,
                     title=f'Structural hits for {selected_protein_A} from {target_name}',
-                    labels={
-                        'bit_score': 'Bit Score',
-                        'Model_Organism': 'Model Organism',
-                        'Color_Group': 'Target Protein (UniProt ID)'
-                    },
-                    hover_data={
-                        'Model_Protein': True,
-                        'bit_score': ':.0f',
-                        'Compared_Species': False
-                    },
+                    labels={'bit_score': 'Bit Score', 'Model_Organism': 'Model Organism', 'Color_Group': 'Target Protein'},
+                    hover_data={'Model_Protein': True, 'bit_score': ':.0f', 'Compared_Species': False},
                     start_angle=0,
                     direction="clockwise",
                     template='plotly_dark'
                 )
 
-                # Update the layout for better readability
-                radar_fig_alone.update_traces(
-                    mode='lines+markers',
-                    fill='toself',
-                    # Since there is only one trace, we can use a higher opacity for a cleaner look
-                    opacity=0.8,
-                    marker=dict(size=5)
-                )
-
-                # Customize the polar axis (keeping the dark mode customizations)
+                radar_fig_alone.update_traces(mode='lines+markers', fill='toself', opacity=0.8, marker=dict(size=5))
                 radar_fig_alone.update_polars(
-                    radialaxis_showgrid=True,
-                    angularaxis_showgrid=True,
-                    bgcolor='#000000', # Black background for the plot interior
-                    angularaxis_categoryorder='array',
-                    angularaxis_categoryarray=ordered_species, #all species
-                    radialaxis=dict(
-                        visible=True,
-                        showticklabels=True,
-                        showline=False,
-                        angle=90,   # Position the radial axis labels so they don't overlap data
-                        tickangle=90,
-                        range=[0, selected_protein_df['bit_score'].max() * 1.1] # Use max of the *filtered* data
-                    )
+                    radialaxis_showgrid=True, angularaxis_showgrid=True, bgcolor='#000000',
+                    angularaxis_categoryorder='array', angularaxis_categoryarray=ordered_species,
+                    radialaxis=dict(visible=True, showticklabels=True, showline=False, angle=90, tickangle=90,
+                                    range=[0, selected_protein_df['bit_score'].max() * 1.1])
                 )
-                # Render the radar chart in Streamlit
                 st.plotly_chart(radar_fig_alone, use_container_width=True)
-
-                try:
-                    target_uniprot_id = selected_protein_A.split('-')[1]
-                    mapping='data/core/model/extracted_and_renamed.csv'    #Path to CSV file with columns id,proteome_id,species_name
-                    proteome_map = load_mapping_proteome(mapping)
-                    proteome_target_id = proteome_map.get(target_species) #fix here to get proteome id
-                    pdb_target = get_pdb2(target_uniprot_id, proteome_target_id)
-                    #st.info(f"info: target_uniprot_id {target_uniprot_id}, proteome_target_id {proteome_target_id}, target species {target_species}, structure {pdb_target}.")
-                except Exception as e:
-                    st.error(f"Parsing Error: {e}, for target uniprot id {target_uniprot_id}")
-                    pdb_target = None
                 
-                # Check if the target (human) structure can be loaded
+                # --- STRUCTURE LOOP ---
+                # Pre-load Mapping/PDB info for the target ONCE
+                target_uniprot_id = selected_protein_A.split('-')[1]
+                mapping_file = 'data/core/model/extracted_and_renamed.csv'
+                proteome_map = load_mapping_proteome(mapping_file)
+                proteome_target_id = proteome_map.get(target_species)
+                
+                pdb_target = get_pdb2(target_uniprot_id, proteome_target_id)
+                
                 if not pdb_target:
-                    st.error(f"Could not retrieve PDB file for the target protein {target_uniprot_id} from proteome {proteome_target_id}, structure {pdb_target}.")
-                
-                # --- 3. Iterate over the hits in all model organisms ---
-                #st.write(f"Structural protein Hits for: **{target_uniprot_id}** from {target_name} ({proteome_target_id})")
-                
-                # We now iterate over the rows of the filtered DataFrame
-                for index, row in selected_protein_df.iterrows():
-                    
-                    # Variables for the current comparison
-                    hit_proteinB = row['proteinB']
-                    hit_species = row['Compared_Species']
-                    
-                    st.markdown("---")
-                    st.write(f"### **{hit_species}** (Bit Score: {row['bit_score']:.0f})")
-                    
-                    # 3.1 Get PDB paths for the model organism hit
-                    try:
+                    st.error(f"Could not retrieve PDB file for target {target_uniprot_id}")
+                else:
+                    for index, row in selected_protein_df.iterrows():
+                        hit_proteinB = row['proteinB']
+                        hit_species = row['Compared_Species']
+                        
+                        st.divider()
+                        st.write(f"### **{hit_species}** (Bit Score: {row['bit_score']:.0f})")
+
+                        # Get Model PDB
                         model_uniprot_id = hit_proteinB.split('-')[1]
                         proteome_model_id = proteome_map.get(hit_species)
                         pdb_model = get_pdb2(model_uniprot_id, proteome_model_id)
-                    except Exception:
-                        st.error(f"Could not parse UniProt ID from {hit_proteinB}.")
-                        pdb_model = None
 
-                    if not pdb_model:
-                        st.warning(f"Skipping structure comparison: PDB file missing for {hit_species}.")
-                        continue
+                        if not pdb_model:
+                            st.warning(f"Skipping: PDB file missing for {hit_species}.")
+                            continue
 
-                    #Structural Alignment and Superposition ---
-                    st.write(f"Structural Overlap {target_species} {target_uniprot_id} vs. {hit_species} {model_uniprot_id}")
-                    alignment_key = f'alignment_toggle_{index}'
-                    # Ensure PDB/CIF formats are correctly identified for the SVD/Foldseek functions
-                    target_fmt = get_format_from_path(pdb_target)
-                    model_fmt = get_format_from_path(pdb_model)
+                        # --- ALIGNMENT & SVD ---
+                        st.write(f"Structural Overlap {target_species} {target_uniprot_id} vs. {hit_species} {model_uniprot_id}")
+                        aln_data = run_foldseek_alignment_only(query_path=pdb_model, target_path=pdb_target)
 
-                    # 1. Get Alignment MAP from Foldseek (Model is Query, Target is Target)
-                    aln_data = run_foldseek_alignment_only(query_path=pdb_model, target_path=pdb_target)
-                    #st.info(f"Alignment data: {aln_data}")
-
-                    if aln_data is not None:
-                        
-                        # Define output path for the merged PDB file
-                        out_file_name = f"foldseek_{target_uniprot_id}_vs_{model_uniprot_id}.pdb"
-                        out_file = os.path.join(csv_out, out_file_name)
-                        
-                        # 2. Calculate Superposition locally using SVD
-                        # Target (Fixed) is selected_protein_A, Query (Moving) is hit_proteinB
-                        success, rmsd = calculate_svd_and_merge(
-                            target_file=pdb_target, target_fmt=target_fmt, 
-                            query_file=pdb_model, query_fmt=model_fmt, 
-                            aln_data=aln_data, 
-                            out_name=out_file
-                        )
-                        
-                        if success:
-                            # 3. Render the Merged Structure
-                            alignment_color = st.radio(
-                                "Color by:",
-                                ('chain', 'plDDT'),
-                                index=0, # 'plDDT' is the default
-                                horizontal=True,
-                                key=alignment_key)
-                            enable_spin = st.checkbox(
-                                "Spin Structure", 
-                                value=True, 
-                                key=f"spin_{alignment_key}"
-                            )
-                            render_3dmol_alignment(alignment_color,
-                                structure_path=out_file, 
-                                target_name=selected_protein_A, 
-                                query_name=hit_proteinB, 
-                                tm_score=aln_data.get('tm', 0.0), 
-                                rmsd=rmsd,
-                                spin_on=enable_spin
-                            )
-                        else:
-                            st.warning(f"Could not perform SVD superposition for {hit_species}. Check console for details.")
+                        #if aln_data:
+                        if aln_data is not None and not aln_data.empty:
+                            out_file_name = f"foldseek_{target_uniprot_id}_vs_{model_uniprot_id}.pdb"
+                            out_file = os.path.join(csv_out, out_file_name)
                             
-                    else:
-                        st.warning("Foldseek could not find a reliable alignment between the two structures.")     
+                            target_fmt = get_format_from_path(pdb_target)
+                            model_fmt = get_format_from_path(pdb_model)
+                            
+                            success, rmsd = calculate_svd_and_merge(
+                                target_file=pdb_target, target_fmt=target_fmt, 
+                                query_file=pdb_model, query_fmt=model_fmt, 
+                                aln_data=aln_data, 
+                                out_name=out_file
+                            )
 
-        # download button
+                            if success:
+                                # --- USE THE FRAGMENT ---
+                                # This replaces your old render_3dmol_alignment call
+                                render_interactive_structure(
+                                    key_suffix=index, # Unique key per row ensures widgets don't conflict
+                                    out_file=out_file, 
+                                    target_name=selected_protein_A, 
+                                    query_name=hit_proteinB, 
+                                    tm_score=aln_data.get('tm', 0.0), 
+                                    rmsd=rmsd
+                                )
+                            else:
+                                st.warning("SVD superposition failed.")
+                        else:
+                            st.warning("Foldseek alignment failed.")
+
+        # --- DOWNLOAD BUTTON LOGIC ---
         is_random_user = False
-        if not user_email:
+        if not user_email: # Assuming user_email is defined in global scope
             is_random_user = True
         user_dir = os.path.join("results", "model_trees", user)
-        os.makedirs(user_dir, exist_ok=True) 
-        target_folder_path=user_dir
-        user_name=user.split('@')[0]
+        
+        target_folder_path = user_dir
+        user_name = user.split('@')[0]
         zip_file_name = f"results_{user_name}" 
         output_base_dir = "temp_archives" 
         os.makedirs(output_base_dir, exist_ok=True) 
-        # results in 'temp_archives/UP000005640_bitscores.zip'
+        
         shutil.make_archive(
             base_name=os.path.join(output_base_dir, zip_file_name),
             format='zip',
-            root_dir=os.path.dirname(target_folder_path), # Start zipping from the parent directory
-            base_dir=os.path.basename(target_folder_path)  # Only include the target folder itself
+            root_dir=os.path.dirname(target_folder_path), 
+            base_dir=os.path.basename(target_folder_path)
         )
-        # Get the full path to the newly created ZIP file and make download availabel
+        
         zip_file_path = os.path.join(output_base_dir, f"{zip_file_name}.zip")
         with open(zip_file_path, "rb") as file:
             st.sidebar.download_button(
                 label="Download results now",
-                data=file, # The actual byte content of the zip file
-                file_name=f"{zip_file_name}.zip", # The name the user will see
-                mime="application/zip", # Critical: Set the correct MIME type for zip files
+                data=file, 
+                file_name=f"{zip_file_name}.zip",
+                mime="application/zip",
                 icon=":material/download:",
             )
-        # Clean up the generated zip file after use
+        
+
+    if st.button("Close Analysis"):
         os.remove(zip_file_path)
         if is_random_user:
             shutil.rmtree(user_dir)
-            #temp_fs="tmp_fs"
-            #shutil.rmtree(temp_fs)
+        st.session_state['ranking_active'] = False
+        st.rerun()

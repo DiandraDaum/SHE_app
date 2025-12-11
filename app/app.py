@@ -19,18 +19,18 @@ VIDEO_PATH_BG = "data/tree/bg.mp4"
 NAV_ITEMS = [
     {"label": "Home", "icon": "🏠", "path": "app.py"},
     {"label": "Tree Viewer", "icon": "🌳", "path": "pages/1_Explore_Tree.py"},
-    {"label": "Tree Viewer", "icon": "🍃", "path": "pages/2_Interactive_Tree.py"},
-    {"label": "Model Organisms", "icon": "🐁", "path": "pages/3_Model_organism_ranking.py"},
+    {"label": "Interactive Tree", "icon": "🍃", "path": "pages/2_Interactive_Tree.py"},
+    {"label": "Model Organisms Ranking", "icon": "🐁", "path": "pages/3_Model_Organism_Ranking.py"},
     {"label": "Downloads", "icon": "⬇️", "path": "pages/4_Downloads.py"},
 ]
 
 # Define features for the main grid section
 FEATURES = [
-    {"icon": "🌳", "title": "Structural Phylogeny", "description": "Explore the structural phylogenetic tree for the main subkingdoms including Opisthokonta, Viridiplantae, SAR, Amoebozoa, Discoba, and Rhodophyta.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/plant_Q9NXK8.mp4"}, #"demo": "data/demos/demo1.mp4"
+    {"icon": "🌳", "title": "Structural Phylogeny", "description": "Explore the structural phylogenetic tree for the main eukaryotic subkingdoms.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/plant_Q9NXK8.mp4"}, #"demo": "data/demos/demo1.mp4"
     {"icon": "📈", "title": "Evolutionary Rate", "description": "Visualize colored branches by evolutionary rate to identify fast and slow-evolving proteomes.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/mouse_Q9NXK8.mp4"},
-    {"icon": "🍄", "title": "Taxon Search", "description": "Zoom on specific taxa or species to discover new evolutionary relationships.", "link_path": "pages/2_Interactive_Tree.py", "demo": "data/subset/figure_model/fish_Q9NXK8.mp4"},
-    {"icon": "🔎", "title": "Protein Structural Homologous", "description": "Input UniProt IDs to analyze presence/absence of structural homologs across all eukaryotic organisms.", "link_path": "pages/2_Interactive_Tree.py", "demo": "data/subset/figure_model/plant_Q9NVI1.mp4"}, # Reusing Model Organisms page for search
-    {"icon": "🐁", "title": "Model Organism Ranking", "description": "Select proteins of interest to find the best model organisms where they are most conserved.", "link_path": "pages/3_Model_organism_ranking.py", "demo": "data/subset/figure_model/mouse_Q9NVI1.mp4"},
+    {"icon": "🍄", "title": "Taxon Interactive Search", "description": "Zoom on specific taxa or species to discover new evolutionary relationships.", "link_path": "pages/2_Interactive_Tree.py", "demo": "data/subset/figure_model/fish_Q9NXK8.mp4"},
+    {"icon": "🔎", "title": "Structural Homologs Search", "description": "Input UniProt IDs to analyze presence/absence of structural homologs across all eukaryotic organisms.", "link_path": "pages/2_Interactive_Tree.py", "demo": "data/subset/figure_model/plant_Q9NVI1.mp4"}, # Reusing Model Organisms page for search
+    {"icon": "🐁", "title": "Model Organism Ranking", "description": "Find the best model organism match for your biological pathway by instant structural matching.", "link_path": "pages/3_Model_Organism_Ranking.py", "demo": "data/subset/figure_model/mouse_Q9NVI1.mp4"},
     {"icon": "⬇️", "title": "Data Downloads", "description": "Download FoldSeek comparison bitscores, Newick files, and predicted protein structures from each proteome.", "link_path": "pages/4_Downloads.py", "demo": "data/subset/figure_model/fish_Q9NVI1.mp4"},
 ]
 
@@ -62,6 +62,7 @@ def save_email(email):
         st.error(f"An error occurred while saving: {e}")
         return False
 
+@st.cache_data
 def get_base64_of_bin_file(bin_file):
     """Encodes a binary file (like a video) to base64 for embedding in HTML."""
     try:
@@ -283,7 +284,7 @@ with st.container():
             </div>
         </div>
         """, unsafe_allow_html=True)
-        st.page_link("pages/2_Model_organisms.py", label="Find Best Model Organism", icon="🐁", use_container_width=True)
+        st.page_link("pages/3_Model_Organism_Ranking.py", label="Find Best Model Organism", icon="🐁", use_container_width=True)
 
     # --- CARD 2: TREE & EVOLUTIONARY RATE ---
     with dashboard_row1[1]:
@@ -365,7 +366,7 @@ with st.container():
         </div>
     </div>
     """, unsafe_allow_html=True)
-    st.page_link("pages/3_Downloads.py", label="Search Homologs & Download Data", icon="🔎", use_container_width=True)
+    st.page_link("pages/4_Downloads.py", label="Search Homologs & Download Data", icon="🔎", use_container_width=True)
 
     st.markdown("<br><br>", unsafe_allow_html=True) 
 
