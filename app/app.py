@@ -13,26 +13,24 @@ from datetime import datetime
 
 # --- CONFIGURATION & CONSTANTS ---
 EMAIL_FILE = 'data/email_updates.csv'
-# NOTE: Placeholder path. Replace with your actual video file path if it exists.
 VIDEO_PATH_BG = "data/tree/bg.mp4" 
 
 # Define navigation items for the custom header
 NAV_ITEMS = [
     {"label": "Home", "icon": "🏠", "path": "app.py"},
     {"label": "Tree Viewer", "icon": "🌳", "path": "pages/1_Explore_Tree.py"},
-    {"label": "Tree Viewer", "icon": "🍃", "path": "pages/2_Interactive_Tree.py"},
-    {"label": "Model Organisms", "icon": "🐁", "path": "pages/3_Model_organisms_ranking.py"},
-    {"label": "Downloads", "icon": "⬇️", "path": "pages/4_Downloads.py"},
+    {"label": "Model Organisms", "icon": "🐁", "path": "pages/2_Model_organisms.py"},
+    {"label": "Downloads", "icon": "⬇️", "path": "pages/3_Downloads.py"},
 ]
 
 # Define features for the main grid section
 FEATURES = [
-    {"icon": "🌳", "title": "Structural Phylogeny", "description": "Explore the structural phylogenetic tree for the main subkingdoms including Opisthokonta, Viridiplantae, SAR, Amoebozoa, Discoba, and Rhodophyta.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/plant_Q9NXK8.mp4"}, #"demo": "data/demos/demo1.mp4"
-    {"icon": "📈", "title": "Evolutionary Rate", "description": "Visualize colored branches by evolutionary rate to identify fast and slow-evolving proteomes.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/mouse_Q9NXK8.mp4"},
-    {"icon": "🍄", "title": "Taxon Search", "description": "Zoom on specific taxa or species to discover new evolutionary relationships.", "link_path": "pages/2_Interactive_Tree.py", "demo": "data/subset/figure_model/fish_Q9NXK8.mp4"},
-    {"icon": "🔎", "title": "Protein Structural Homologous", "description": "Input UniProt IDs to analyze presence/absence of structural homologs across all eukaryotic organisms.", "link_path": "pages/2_Interactive_Tree.py", "demo": "data/subset/figure_model/plant_Q9NVI1.mp4"}, # Reusing Model Organisms page for search
-    {"icon": "🐁", "title": "Model Organism Ranking", "description": "Select proteins of interest to find the best model organisms where they are most conserved.", "link_path": "pages/3_Model_organisms_ranking.py", "demo": "data/subset/figure_model/mouse_Q9NVI1.mp4"},
-    {"icon": "⬇️", "title": "Data Downloads", "description": "Download FoldSeek comparison bitscores, Newick files, and predicted protein structures from each proteome.", "link_path": "pages/4_Downloads.py", "demo": "data/subset/figure_model/fish_Q9NVI1.mp4"},
+    {"icon": "🌳", "title": "Interactive Phylogeny", "link_path": "pages/1_Explore_Tree.py"}, 
+    {"icon": "📈", "title": "Evolutionary Rate", "link_path": "pages/1_Explore_Tree.py"}, 
+    {"icon": "🍄", "title": "Taxon Search", "link_path": "pages/1_Explore_Tree.py"}, 
+    {"icon": "🔎", "title": "Homolog Discovery", "link_path": "pages/1_Explore_Tree.py"}, 
+    {"icon": "🐁", "title": "Model Organism Ranking", "link_path": "pages/2_Model_organisms.py"}, 
+    {"icon": "⬇️", "title": "Data Downloads", "link_path": "pages/3_Downloads.py"}, 
 ]
 
 # Define methodology steps
@@ -46,8 +44,7 @@ STEPS = [
 
 # FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
 def save_email(email):
-    """Saves the email and current timestamp to the CSV file. 
-    It ensures the directory exists before attempting to write."""
+    """Saves the email and current timestamp to the CSV file."""
     try:
         os.makedirs(os.path.dirname(EMAIL_FILE), exist_ok=True)
         file_exists = os.path.exists(EMAIL_FILE)
@@ -78,9 +75,7 @@ def embed_video_background(video_path):
     """Embeds the video and custom CSS for styling the landing page."""
     video_base64 = get_base64_of_bin_file(video_path)
     if video_base64 is None:
-        # Don't fail the app if the video isn't there, just show a warning
-        st.warning(f"Warning: Background video file not found at path: {video_path}. Using plain background.")
-        video_url = "" # Set to empty if file is missing
+        video_url = "" 
     else:
         video_url = f"data:video/mp4;base64,{video_base64}"
 
@@ -97,10 +92,10 @@ def embed_video_background(video_path):
             width: auto; height: auto; z-index: -100; overflow: hidden; object-fit: cover;
         }}
         
-        /* 1. CUSTOM THEME COLORS & EFFECTS */
+        /* THEME COLORS */
         :root {{
-            --primary-color: #10b981; /* Tailwind green-500 */
-            --secondary-color: #3b82f6; /* Tailwind blue-500 */
+            --primary-color: #10b981; 
+            --secondary-color: #3b82f6; 
             --foreground-color: #ffffff;
             --muted-foreground-color: #a0a0a0;
             --background-color: #0d0d0d;
@@ -122,68 +117,7 @@ def embed_video_background(video_path):
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }}
         
-        /* 2. FIXED HEADER STYLES */
-        .fixed-header {{
-            position: fixed; top: 0; left: 0; right: 0; z-index: 999;
-            height: 64px; display: flex; align-items: center; justify-content: space-between;
-            padding: 0 1rem;
-        }}
-        .logo-container {{ display: flex; align-items: center; gap: 0.75rem; }}
-        .logo-title {{ font-size: 1.125rem; font-weight: 700; line-height: 1; }}
-        .logo-subtitle {{ font-size: 0.625rem; color: var(--muted-foreground-color); margin-top: -0.25rem; line-height: 1; }}
-        .nav-desktop {{ display: none; }}
-        @media (min-width: 768px) {{ .nav-desktop {{ display: flex; align-items: center; gap: 0.25rem; }} }}
-        .nav-button, .nav-button-active {{
-            display: flex; align-items: center; gap: 0.5rem; padding: 0.25rem 0.75rem; border-radius: 0.375rem; 
-            font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background-color 0.15s;
-            text-decoration: none; color: #e0e0e0;
-        }}
-        .nav-button:hover {{ background-color: rgba(255, 255, 255, 0.1); color: var(--foreground-color); }}
-        .nav-button-active {{ background-color: rgba(255, 255, 255, 0.2); color: var(--primary-color); font-weight: 600; }}
-        
-        /* 3. MAIN CONTENT OFFSET & HERO STYLES */
-        .main-content-offset {{ margin-top: 64px; padding-top: 5rem; }}
-        .hero-title {{ 
-            font-size: 4rem; line-height: 1; font-weight: 800; text-align: center; margin-bottom: 2rem;
-            color: var(--foreground-color);
-        }}
-        @media (min-width: 768px) {{ .hero-title {{ font-size: 5rem; }} }}
-        .hero-subtitle {{ color: var(--muted-foreground-color); text-align: center; max-width: 48rem; margin: 0 auto 3rem; font-size: 1.125rem; }}
-
-        .hero-stats-box {{
-            padding: 1rem; border-radius: 0.75rem; text-align: center;
-        }}
-        .stat-value {{ font-size: 1.5rem; font-weight: 700; }}
-        
-        /* 4. FEATURE GRID STYLES */
-        .feature-grid {{
-            display: grid; grid-template-columns: repeat(1, minmax(0, 1fr)); gap: 1.5rem;
-        }}
-        @media (min-width: 768px) {{ .feature-grid {{ grid-template-columns: repeat(2, minmax(0, 1fr)); }} }}
-        @media (min-width: 1024px) {{ .feature-grid {{ grid-template-columns: repeat(3, minmax(0, 1fr)); }} }}
-        
-        .feature-tile {{
-            border-radius: 1rem; padding: 1.5rem; min-height: 220px;
-            display: flex; flex-direction: column; 
-            transition: all 0.3s ease;
-        }}
-        .feature-tile:hover {{
-            border-color: var(--primary-color);
-            box-shadow: 0 0 10px rgba(16, 185, 129, 0.3); /* subtle glow on hover */
-        }}
-        .feature-icon-box {{
-            width: 3rem; height: 3rem; border-radius: 0.75rem; 
-            display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;
-            background-color: rgba(16, 185, 129, 0.2); /* primary/10 */
-        }}
-        .feature-title {{ 
-            font-size: 1.125rem; font-weight: 600; color: var(--foreground-color); margin-bottom: 0.5rem;
-        }}
-        .feature-description {{
-            font-size: 0.875rem; color: var(--muted-foreground-color); line-height: 1.5;
-        }}
-        
-        /* 5. METHODOLOGY STYLES */
+        /* METHODOLOGY STYLES */
         .method-step {{ text-align: center; position: relative; padding: 0 1rem; }}
         .method-number-bubble {{
             width: 4rem; height: 4rem; border-radius: 50%;
@@ -200,14 +134,11 @@ def embed_video_background(video_path):
             .method-step:not(:first-child) .method-line {{ left: -50%; }}
             .method-step:not(:last-child) .method-line {{ right: -50%; }}
         }}
-        .step-title {{ font-size: 1.125rem; font-weight: 600; color: var(--foreground-color); margin-bottom: 0.5rem; }}
-
         </style>
         
         <div class="video-container">
             <video class="video-background" autoplay muted loop>
                 <source src="{video_url}" type="video/mp4">
-                Your browser does not support the video tag.
             </video>
         </div>
         """,
@@ -220,13 +151,76 @@ def embed_video_background(video_path):
 st.set_page_config(
     page_title="SHE: Structural History of Eukarya",
     page_icon= "data/tree/logo_tree.png", 
-    layout="wide" # Use wide layout for the rich landing page design
+    layout="wide"
 )
 
-# 2. Embed Background Video & Custom CSS
-#embed_video_background(VIDEO_PATH_BG)
+# 2. Add Styles for Dashboard (Applied Globally)
+st.markdown("""
+<style>
+    /* --- NEW DASHBOARD CARD STYLES --- */
+    .dashboard-card {
+        background-color: #111827; /* Dark Navy/Black */
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        padding: 24px;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+        transition: all 0.3s ease;
+    }
+    .dashboard-card:hover {
+        border-color: #10b981; /* Green hover effect */
+        box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.2);
+    }
+    
+    .card-header h3 {
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #ffffff;
+        margin-bottom: 0.5rem;
+    }
+    
+    .card-description {
+        color: #9ca3af; /* Gray-400 */
+        font-size: 0.95rem;
+        margin-bottom: 1.5rem;
+        line-height: 1.5;
+    }
+    
+    /* Feature Icon Styling */
+    .card-icon {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+        display: inline-block;
+        background: rgba(255,255,255,0.05);
+        padding: 10px;
+        border-radius: 12px;
+    }
 
-#st.title('SHE: Structural History of Eukarya')
+    /* VISUAL: PROGRESS BARS (Model Organisms) */
+    .prog-row { display: flex; align-items: center; margin-bottom: 12px; font-size: 0.85rem; }
+    .prog-label { width: 120px; color: #e5e7eb; }
+    .prog-track { flex-grow: 1; height: 8px; background: #374151; border-radius: 4px; overflow: hidden; margin: 0 12px; }
+    .prog-fill { height: 100%; border-radius: 4px; }
+    .prog-val { width: 30px; text-align: right; color: #9ca3af; }
+
+    /* VISUAL: HEATMAP (Evolutionary Rate) */
+    .heatmap-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 1rem; margin-bottom: 1rem; }
+    .heatmap-cell { height: 28px; border-radius: 4px; opacity: 0.9; }
+    
+    /* VISUAL: HISTOGRAM (Homologs) */
+    .histo-container { display: flex; align-items: flex-end; gap: 8px; height: 60px; margin-top: 10px; }
+    .histo-bar-box { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .histo-bar { width: 100%; border-radius: 4px 4px 0 0; opacity: 0.9; }
+    .histo-label { font-size: 0.7rem; color: #6b7280; }
+    .histo-val { font-size: 0.8rem; font-weight: bold; color: #fff; }
+</style>
+""", unsafe_allow_html=True)
+
+
+# 3. Main Title & Tree Video
 st.markdown("""
     <h1 style='text-align: center; color: green; font-size: 4rem; font-weight: bold;'>
         SHE: Structural History of Eukarya
@@ -234,91 +228,163 @@ st.markdown("""
 """, unsafe_allow_html=True)
 st.markdown("<h2 style='text-align: center; color: white;'>Beyond traditional phylogenetics — leverage proteome-wide structural comparisons for groundbreaking insights", unsafe_allow_html=True)
 
-#st.subheader('Beyond traditional phylogenetics — leverage proteome-wide structural comparisons for groundbreaking insights.', divider="green")
 st.sidebar.success("Find more analysis options in the panels above.")
 
-# 3. Custom Fixed Header (replicated from previous response)
-def create_custom_header(nav_items):
-    nav_html_items = ""
-    for item in nav_items:
-        is_active = item["label"] == "Home"
-        button_class = "nav-button-active" if is_active else "nav-button"
-        # The path links won't navigate correctly in the fixed header, but provide visual structure
-        nav_html_items += f"""
-        <a href="#" class="{button_class}">
-            {item["icon"]} {item["label"]}
-        </a>
-        """
+try:
+    video_tree = open("data/tree/final_tree.mp4", "rb")
+    tree_bytes = video_tree.read()
+    st.video(tree_bytes, autoplay=True, loop=True, muted=True)
+except FileNotFoundError:
+    st.warning("Tree video not found (data/tree/final_tree.mp4)")
 
-    st.markdown(
-        f"""
-        <header class="glass-panel fixed-header">
-            <div class="logo-container">
-                <span style="color:var(--primary-color); font-size: 32px;">🌳</span>
-                <div class="logo-text">
-                    <span class="logo-title text-gradient">SHE</span>
-                    <span class="logo-subtitle">Structural History of Eukarya</span>
-                </div>
-            </div>
-            <nav class="nav-desktop">
-                {nav_html_items}
-            </nav>
-        </header>
-        """,
-        unsafe_allow_html=True
-    )
-
-#create_custom_header(NAV_ITEMS)
-video_tree = open("data/tree/final_tree.mp4", "rb")
-tree_bytes = video_tree.read()
-st.video(tree_bytes, autoplay=True, loop=True, muted=True)
-# 4. Main Content Container (starts below the fixed header)
+# 4. Main Content Container
 with st.container():
 
-    # CTA Buttons (using Streamlit components for functionality)
-    cta_col1, cta_col2, cta_col3 = st.columns([1, 1, 1])
-    with cta_col1:
-        st.page_link("pages/1_Explore_Tree.py", label="🌳 Explore the Tree", icon="👉", help="explore the **structural phylogenetic tree** for all Eukarya, a kingdom, a taxon, a species or a set of proteins")
-    with cta_col2:
-        st.page_link("pages/2_Model_organisms.py", label="🐁 Model Organism search", icon="👉", help="find the **best model organism** for your study based on the structural comparison of the protein(s) in your pathway of interest.")
-    with cta_col3:
-        st.page_link("pages/3_Downloads.py", label="⬇️ Download Data", icon="👉", help="Access all raw alignment scores and files.")
+    # --- TOP DASHBOARD SECTION ---
+    st.markdown("<br>", unsafe_allow_html=True)
 
-    st.markdown("<br><br>", unsafe_allow_html=True) # Spacer
+    # Row 1: Model Organisms (Left) & Tree/Evolution (Right)
+    dashboard_row1 = st.columns([1, 1], gap="medium")
+
+    # --- CARD 1: MODEL ORGANISM RANKING ---
+    with dashboard_row1[0]:
+        st.markdown("""
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h3>Model Organism Ranking</h3>
+                <p class="card-description">
+                    Select your proteins of interest and discover the optimal model organism 
+                    where they are most structurally conserved.
+                </p>
+                <div style="background: #1f2937; padding: 15px; border-radius: 12px; margin-bottom: 15px;">
+                    <div style="color: #6b7280; font-size: 0.75rem; margin-bottom: 10px;">Conservation Score</div>
+                    <div class="prog-row">
+                        <div class="prog-label">D. melanogaster</div>
+                        <div class="prog-track"><div class="prog-fill" style="width: 94%; background: #38bdf8;"></div></div>
+                        <div class="prog-val">94%</div>
+                    </div>
+                    <div class="prog-row">
+                        <div class="prog-label">C. elegans</div>
+                        <div class="prog-track"><div class="prog-fill" style="width: 87%; background: #38bdf8;"></div></div>
+                        <div class="prog-val">87%</div>
+                    </div>
+                    <div class="prog-row">
+                        <div class="prog-label">S. cerevisiae</div>
+                        <div class="prog-track"><div class="prog-fill" style="width: 82%; background: #38bdf8;"></div></div>
+                        <div class="prog-val">82%</div>
+                    </div>
+                    <div class="prog-row">
+                        <div class="prog-label">A. thaliana</div>
+                        <div class="prog-track"><div class="prog-fill" style="width: 71%; background: #4ade80;"></div></div>
+                        <div class="prog-val">71%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        st.page_link("pages/2_Model_organisms.py", label="Find Best Model Organism", icon="🐁", use_container_width=True)
+
+    # --- CARD 2: TREE & EVOLUTIONARY RATE ---
+    with dashboard_row1[1]:
+        st.markdown("""
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h3>Tree & Evolutionary Rate</h3>
+                <p class="card-description">
+                    Identify fast and slow-evolving lineages by visualizing evolutionary rates across the tree.
+                </p>
+                <div style="background: #1f2937; padding: 15px; border-radius: 12px; margin-bottom: 15px;">
+                   <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                        <span style="color: #6b7280; font-size: 0.75rem;">Evolutionary Rate</span>
+                        <span style="color: #6b7280; font-size: 0.75rem;">Slow <span style="display:inline-block; width:40px; height:4px; background:linear-gradient(90deg, #4ade80, #ef4444); vertical-align:middle; margin:0 5px;"></span> Fast</span>
+                   </div>
+                   <div class="heatmap-grid">
+                        <div class="heatmap-cell" style="background:#4ade80;"></div> <div class="heatmap-cell" style="background:#4ade80;"></div>
+                        <div class="heatmap-cell" style="background:#a3e635;"></div> <div class="heatmap-cell" style="background:#facc15;"></div> <div class="heatmap-cell" style="background:#ea580c;"></div> <div class="heatmap-cell" style="background:#4ade80;"></div>
+                        <div class="heatmap-cell" style="background:#a3e635;"></div>
+                        <div class="heatmap-cell" style="background:#facc15;"></div>
+                        <div class="heatmap-cell" style="background:#facc15;"></div>
+                        <div class="heatmap-cell" style="background:#4ade80;"></div>
+                        <div class="heatmap-cell" style="background:#4ade80;"></div>
+                        <div class="heatmap-cell" style="background:#ea580c;"></div>
+                        <div class="heatmap-cell" style="background:#ef4444;"></div> <div class="heatmap-cell" style="background:#ef4444;"></div>
+                        <div class="heatmap-cell" style="background:#ea580c;"></div>
+                   </div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+        st.page_link("pages/1_Explore_Tree.py", label="Explore Evolutionary Rates", icon="🌳", use_container_width=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # --- CARD 3: HOMOLOGS (Full Width) ---
+    st.markdown("""
+    <div class="dashboard-card" style="flex-direction: row; display: block;">
+        <div style="display: flex; flex-wrap: wrap; align-items: center;">
+            <div style="flex: 1.5; padding-right: 20px; min-width: 300px;">
+                <h3 style="color:white; margin:0; font-size: 1.5rem; font-weight: 700;">Protein Homolog Discovery</h3>
+                <p style="color:#9ca3af; margin-top:10px; margin-bottom: 20px;">
+                    Enter any UniProt ID to instantly discover structural homologs across all 24.3 million proteins.
+                    Map the evolutionary distribution of your protein family.
+                </p>
+            </div>
+            <div style="flex: 1; min-width: 250px;">
+                <div style="background: #1f2937; padding: 15px; border-radius: 12px;">
+                    <div style="color: #6b7280; font-size: 0.75rem;">Structural Homolog Distribution</div>
+                    <div class="histo-container">
+                        <div class="histo-bar-box">
+                            <div class="histo-val">342</div>
+                            <div class="histo-bar" style="height: 100%; background: #38bdf8;"></div>
+                            <div class="histo-label">Opis</div>
+                        </div>
+                        <div class="histo-bar-box">
+                            <div class="histo-val">156</div>
+                            <div class="histo-bar" style="height: 45%; background: #4ade80;"></div>
+                            <div class="histo-label">Viri</div>
+                        </div>
+                        <div class="histo-bar-box">
+                            <div class="histo-val">89</div>
+                            <div class="histo-bar" style="height: 25%; background: #facc15;"></div>
+                            <div class="histo-label">SAR</div>
+                        </div>
+                        <div class="histo-bar-box">
+                            <div class="histo-val">23</div>
+                            <div class="histo-bar" style="height: 10%; background: #c084fc;"></div>
+                            <div class="histo-label">Amoe</div>
+                        </div>
+                         <div class="histo-bar-box">
+                            <div class="histo-val">12</div>
+                            <div class="histo-bar" style="height: 5%; background: #fb923c;"></div>
+                            <div class="histo-label">Disc</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.page_link("pages/3_Downloads.py", label="Search Homologs & Download Data", icon="🔎", use_container_width=True)
+
+    st.markdown("<br><br>", unsafe_allow_html=True) 
+
     # --- A. STATISTICS TILES SECTION ---
-
-    # Define your custom CSS with the GREEN color
     css = """
-        .blue-tile-container {
-            /* ⭐ CHANGE MADE HERE: Using a light green RGBA value */
-            background: rgba(100, 200, 100, 0.3); 
-            min-height: 120px; 
-            padding: 10px;
-            border-radius: 8px; 
-            
+        .green-tile-container {
+            background: rgba(16, 185, 129, 0.1); 
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            min-height: 100px; 
+            padding: 15px;
+            border-radius: 12px; 
             display: flex;
             flex-direction: column;
             justify-content: center;
+            text-align: center;
         }
-        
-        /* Ensure markdown header (##) spacing is minimal inside the tile */
-        .blue-tile-container h2 {
-            margin: 0; 
-            padding: 0;
-            line-height: 1.2;
-        }
-        
-        /* Style the paragraph text (the title) */
-        .blue-tile-container p {
-            margin: 0;
-            padding: 0;
-            font-size: 16px; 
-            opacity: 0.8;
-        }
+        .green-tile-container h2 { margin: 0; color: #10b981; font-weight: 800; }
+        .green-tile-container p { margin: 0; color: #a0a0a0; font-size: 0.9rem; }
         """
     st.html(f"<style>{css}</style>")
-
-    # --- Application Logic ---
 
     row1 = st.columns(4)
     titles = ["Organisms", "Proteins", "Kingdoms", "Powered By"]
@@ -326,23 +392,18 @@ with st.container():
 
     for i, (col, value, title) in enumerate(zip(row1, values, titles)):
         with col:
-            unique_key = f"my_green_container_{i}" # Changed key name for clarity
-            
-            with st.container(key=unique_key):
-                
-                # Single st.markdown call for the entire tile.
-                st.markdown(
-                    f"""
-                    <div class="blue-tile-container">
-                        <h2>{value}</h2>
-                        <p>{title}</p>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
+            st.markdown(
+                f"""
+                <div class="green-tile-container">
+                    <h2>{value}</h2>
+                    <p>{title}</p>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
-    # --- B. FEATURES SECTION ---
-    st.write("---") #color: var(--foreground-color);
+    # --- B. FEATURES GRID SECTION (Updated to Match Dashboard Style) ---
+    st.write("---") 
     st.markdown("""
         <div style="text-align: center; max-width: 42rem; margin: 0 auto 3rem;">
             <h2 style="font-size: 2rem; font-weight: 700; color: green; margin-bottom: 1rem;">
@@ -354,55 +415,43 @@ with st.container():
         </div>
     """, unsafe_allow_html=True)
 
-    # Features Grid (Using custom HTML/CSS for tiles, but st.page_link for navigation below the tile)
-    st.markdown('<div class="feature-grid">', unsafe_allow_html=True)
-        
+    # Features Grid using the new 'dashboard-card' style
     cols = st.columns(3)
     
-    # Iterate through features only ONCE
     for i, feature in enumerate(FEATURES):
         col_index = i % 3
         with cols[col_index]:
-            # 1. The HTML Card
+            # Use 'dashboard-card' here instead of 'glass-panel'
             st.markdown(f"""
-                <div class="glass-panel feature-tile">
-                    <div class="feature-icon-box" style="color: var(--primary-color);">
-                        {feature["icon"]}
+                <div class="dashboard-card" style="min-height: 280px; margin-bottom: 20px;">
+                    <div class="card-header">
+                        <div class="card-icon">{feature["icon"]}</div>
+                        <h3>{feature["title"]}</h3>
+                        <p class="card-description">{feature["description"]}</p>
                     </div>
-                    <h3 class="feature-title">{feature["title"]}</h3>
-                    <p class="feature-description">{feature["description"]}</p>
                 </div>
             """, unsafe_allow_html=True)
             
-            # 2. The Link
-            st.page_link(feature["link_path"], label=f"Go to: {feature['title']} function", icon="🔗")
+            # Place the link directly under the visual card
+            st.page_link(feature["link_path"], label=f"Go to: {feature['title']}", icon="🔗")
         
-            # 3. THE VIDEO POPOVER
             with st.popover(f"▶️ Watch Demo", use_container_width=True):
                 st.markdown(f"**Demo for {feature['title']}**")
-                
-                # --- LOGIC FIX ---
-                # No inner loop here. We just use the 'feature' from the main loop above.
                 if "demo" in feature:
                     try:
-                        # Using 'with open' is safer for file handling
                         with open(feature["demo"], "rb") as video_file:
                             video_bytes = video_file.read()
-                        
-                        # Removed 'key' argument to support your Streamlit version
                         st.video(video_bytes, autoplay=True, loop=True, muted=True)
-                        
                     except FileNotFoundError:
-                        st.error(f"Video file not found: {feature['demo']}")
+                        st.warning(f"Video file not found: {feature.get('demo')}")
                 else:
                     st.warning("No video demo available for this feature yet.")
                 st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown("<hr style='margin: 4rem 0;'>", unsafe_allow_html=True) # Separator
+
+    st.markdown("<hr style='margin: 4rem 0;'>", unsafe_allow_html=True) 
 
 
     # --- C. METHODOLOGY SECTION ---
-
     st.markdown("""
         <div style="text-align: center; max-width: 42rem; margin: 0 auto 3rem;">
             <h2 style="font-size: 2rem; font-weight: 700; color: green; margin-bottom: 1rem;">
@@ -414,12 +463,9 @@ with st.container():
         </div>
     """, unsafe_allow_html=True)
     
-    # Methodology Steps (Using 4 columns)
     step_cols = st.columns(4)
-    
     for i, step in enumerate(STEPS):
         with step_cols[i]:
-            # The line requires complex CSS positioning. We will use the number bubble and a centered layout.
             st.markdown(f"""
                 <div class="method-step">
                     <div class="glass-panel method-number-bubble">
@@ -433,27 +479,20 @@ with st.container():
             """, unsafe_allow_html=True)
 
 
-    st.markdown("<hr style='margin: 4rem 0;'>", unsafe_allow_html=True) # Separator
+    st.markdown("<hr style='margin: 4rem 0;'>", unsafe_allow_html=True) 
 
-
-    # --- D. CITATION AND UPDATES (Original content, slightly restyled) ---
-
+    # --- D. CITATION AND UPDATES ---
     st.subheader('Cite', divider="rainbow")
     st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
 
     st.sidebar.subheader('Updates', divider="rainbow")
     st.sidebar.write('Sign up for updates!')
-    # Use a unique key for the text input
     email = st.sidebar.text_input('Your email', key="email_input") 
     if st.sidebar.button('Subscribe'):
-        # Correctly reference the value using st.session_state
         user_email = st.session_state.email_input.strip()
         if not user_email:
-            # Only check remaining: must not be empty
             st.error("Please enter an email address.")
         else:
-            # If we reach here, the email is non-empty and we save it.
             if save_email(user_email):
                 st.balloons()
-                # Updated success message
                 st.sidebar.success(f"Thank you! **{user_email}** is where you will receive updates regarding SHE!")
