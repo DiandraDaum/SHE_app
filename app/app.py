@@ -19,18 +19,19 @@ VIDEO_PATH_BG = "data/tree/bg.mp4"
 NAV_ITEMS = [
     {"label": "Home", "icon": "🏠", "path": "app.py"},
     {"label": "Tree Viewer", "icon": "🌳", "path": "pages/1_Explore_Tree.py"},
-    {"label": "Model Organisms", "icon": "🐁", "path": "pages/2_Model_organisms.py"},
-    {"label": "Downloads", "icon": "⬇️", "path": "pages/3_Downloads.py"},
+    {"label": "Tree Viewer", "icon": "🍃", "path": "pages/2_Interactive_Tree.py"},
+    {"label": "Model Organisms", "icon": "🐁", "path": "pages/3_Model_organism_ranking.py"},
+    {"label": "Downloads", "icon": "⬇️", "path": "pages/4_Downloads.py"},
 ]
 
 # Define features for the main grid section
 FEATURES = [
-    {"icon": "🌳", "title": "Interactive Phylogeny", "link_path": "pages/1_Explore_Tree.py"}, 
-    {"icon": "📈", "title": "Evolutionary Rate", "link_path": "pages/1_Explore_Tree.py"}, 
-    {"icon": "🍄", "title": "Taxon Search", "link_path": "pages/1_Explore_Tree.py"}, 
-    {"icon": "🔎", "title": "Homolog Discovery", "link_path": "pages/1_Explore_Tree.py"}, 
-    {"icon": "🐁", "title": "Model Organism Ranking", "link_path": "pages/2_Model_organisms.py"}, 
-    {"icon": "⬇️", "title": "Data Downloads", "link_path": "pages/3_Downloads.py"}, 
+    {"icon": "🌳", "title": "Structural Phylogeny", "description": "Explore the structural phylogenetic tree for the main subkingdoms including Opisthokonta, Viridiplantae, SAR, Amoebozoa, Discoba, and Rhodophyta.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/plant_Q9NXK8.mp4"}, #"demo": "data/demos/demo1.mp4"
+    {"icon": "📈", "title": "Evolutionary Rate", "description": "Visualize colored branches by evolutionary rate to identify fast and slow-evolving proteomes.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/mouse_Q9NXK8.mp4"},
+    {"icon": "🍄", "title": "Taxon Search", "description": "Zoom on specific taxa or species to discover new evolutionary relationships.", "link_path": "pages/2_Interactive_Tree.py", "demo": "data/subset/figure_model/fish_Q9NXK8.mp4"},
+    {"icon": "🔎", "title": "Protein Structural Homologous", "description": "Input UniProt IDs to analyze presence/absence of structural homologs across all eukaryotic organisms.", "link_path": "pages/2_Interactive_Tree.py", "demo": "data/subset/figure_model/plant_Q9NVI1.mp4"}, # Reusing Model Organisms page for search
+    {"icon": "🐁", "title": "Model Organism Ranking", "description": "Select proteins of interest to find the best model organisms where they are most conserved.", "link_path": "pages/3_Model_organism_ranking.py", "demo": "data/subset/figure_model/mouse_Q9NVI1.mp4"},
+    {"icon": "⬇️", "title": "Data Downloads", "description": "Download FoldSeek comparison bitscores, Newick files, and predicted protein structures from each proteome.", "link_path": "pages/4_Downloads.py", "demo": "data/subset/figure_model/fish_Q9NVI1.mp4"},
 ]
 
 # Define methodology steps
