@@ -1118,12 +1118,17 @@ st.set_page_config(
 
 st.title('SHE: Structural History of Eukarya')
 #st.image('data/tree/model.png',ccaption='Protein-protein structure comparison to rank the best model organism for your target organism')
+st.title(':violet[Model Organisms ranking]')
 st.write("Discover the best model organism to use for your study based on the proteins involved in your pathway")
-st.title('Model Organisms search')
-st.subheader('Target organism: Homo sapiens')
-st.subheader('Target proteins: Q9NXK8, Q9Y2M0, Q9NVI1')
+st.subheader(':green[Step 1. Choose target organism]')
+st.write('Target organism: Homo sapiens')
+st.subheader(':green[Step 2. Select Model Organims]')
+st.write('Model organisms: Mus musculus, Saccharomyces cerevisiae, Arabidopsis thaliana, Xenopus tropicalis, Danio rerio, Caenorhabditis elegans')
+st.subheader(':green[Step 3. Choose target proteins]')
+st.write('Target proteins (FA pathway): Q9NXK8, Q9Y2M0, Q9NVI1')
+st.subheader(':green[Step 4. Check Model Organism ranking based on protein structure similarity to the target proteins]')
+st.image("data/subset/figure_model/ranking.png", caption="Organisms Ranking based on bitscore (the higher, the better)", use_container_width=True)
 
-st.image("data/subset/figure_model/ranking.png", caption="Organisms Ranking based on protein structure similarity", use_container_width=True)
 row2 = st.columns(3)
 emojis = [":mouse2:", ":tropical_fish:", ":seedling:"]
 titles = ["House Mouse", "Zebrafish", "Arabidopsis thaliana"]
@@ -1136,7 +1141,7 @@ proteins1= ["Q9EPX5", "Q6PBJ7", "Q9FM90"]
 proteins2= ["Q69ZT1", "Q1LWH4", "Q5XVJ4"]
 proteins3= ["Q8K368", "B3DJT4", "Q9LY34"]
 # Define the custom heights for the *visible* title containers
-tile_heights = [150, 130, 110] 
+tile_heights = [170, 170, 170] 
 for col, emoji, title, bitscore, height, rank, score1, score2, score3, protein1, protein2, protein3 in zip(row2, emojis, titles, bitscores, tile_heights, ranks, score_1, score_2, score_3, proteins1, proteins2, proteins3):
     with col:
         #with st.container(key="my_blue_container")
@@ -1145,7 +1150,7 @@ for col, emoji, title, bitscore, height, rank, score1, score2, score3, protein1,
         # Use a large markdown header for the title inside the container
         tile.markdown(f"## {rank} {emoji} {title}")
         
-        with st.expander("Click for structural alignment details"):
+        with st.expander(":green[Step 5. Check structural alignments]"):
             # Content that appears when the user clicks/expands
             st.write(f"**Total Bitscore** human vs {title}: **{bitscore}**")
             st.write("---")
@@ -1195,11 +1200,17 @@ for col, emoji, title, bitscore, height, rank, score1, score2, score3, protein1,
 
 
 
-st.write("Start your analysis by checking the 'Find best Model Organism' box in the sidebar. You will be able to choose your final target species, proteins and available model organisms. This will result in a ranking of the model organisms you have available based on the structural similarity of the proteins in the pathway you are studying compared to the target species.")
-st.write("If you wish to visualise the structural alignments of your input proteins, turn on 'Show protein structure alignments'.")
-
+st.subheader("Start your analysis by checking the 'Rank Model Organisms' box!")
 st.warning("Please note that this analysis might require some time. It is possible to register your email in the sidebar, so that your results will be sent to you as soon as they are ready!")
 
+with st.sidebar.expander("Help: How to use the Model Organism Ranking tool"):
+    st.sidebar.write("Start your analysis by checking the 'Rank Model Organisms' box!")
+    st.sidebar.write("You will be able to select:")
+    st.sidebar.write("- your target species")
+    st.sidebar.write("- the proteins in the pathway you are studying")
+    st.sidebar.write("- the available model organisms you could choose from.")
+    st.sidebar.write("This will result in a ranking of the model organisms  based on the structural similarity (bitscore, the higher the better) of the input proteins compared to the target species")
+    st.sidebar.write("If you wish to visualise the structural alignments of your input proteins, turn on 'Show protein structure alignments'.")
 
 
 ###------sidebar sign up--------------------
@@ -1229,7 +1240,7 @@ new_proteomes_path =  'data/core/merged_evo_rate.csv'
 proteomes_df = pd.read_csv(proteomes_path)
 
 
-if st.checkbox('Find best Model organism'):
+if st.checkbox('Rank Model Organisms'):
     user_email = st.session_state.email.strip()
     if not user_email:
         random_num = random.randint(100000, 999999)
@@ -1552,7 +1563,7 @@ if st.checkbox('Find best Model organism'):
                 color_map[trace.name] = color
 
         # show protein structures --------------------------------------------------------------------------------------
-        if st.sidebar.toggle('Show protein structure alignments'):
+        if st.toggle('Show protein structure alignments'):
             st.subheader(f'Structural comparison of input proteins between {target_name} and model organisms')
             #comparison_df: proteinA, proteinB, bit_Score, Compared_Species
             #target_species: usually human (protein A)
