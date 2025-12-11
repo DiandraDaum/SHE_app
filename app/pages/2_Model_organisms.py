@@ -1118,7 +1118,7 @@ st.set_page_config(
 
 st.title('SHE: Structural History of Eukarya')
 #st.image('data/tree/model.png',ccaption='Protein-protein structure comparison to rank the best model organism for your target organism')
-
+st.write("Discover the best model organism to use for your study based on the proteins involved in your pathway")
 st.title('Model Organisms search')
 st.subheader('Target organism: Homo sapiens')
 st.subheader('Target proteins: Q9NXK8, Q9NVI1')
@@ -1203,8 +1203,8 @@ for col, emoji, title, bitscore, height, rank, score1, score2, protein1, protein
                 st.video(bytes2, autoplay=True, loop=True, muted=True)
 
 
-st.write("Here, you can look for the best model organism to use for your study based on the proteins involved in your pathway. Click on 'Find best Model Organism' in the sidebar to start you analysis!")
-st.write("Start by checking the 'Find best Model Organism' box in the sidebar. This will result in a ranking of your model organisms.")
+
+st.write("Start your analysis by checking the 'Find best Model Organism' box in the sidebar. You will be able to choose your final target species, proteins and available model organisms. This will result in a ranking of the model organisms you have available based on the structural similarity of the proteins in the pathway you are studying compared to the target species.")
 st.write("If you wish to visualise the structural alignments of your input proteins, turn on 'Show protein structure alignments'.")
 
 st.warning("Please note that this analysis might require some time. It is possible to register your email in the sidebar, so that your results will be sent to you as soon as they are ready!")
@@ -1546,7 +1546,7 @@ if st.sidebar.checkbox('Find best Model organism'):
         )
 
         # Render the radar chart in Streamlit
-        st.plotly_chart(radar_fig, use_container_width=True)
+        #st.plotly_chart(radar_fig, use_container_width=True)
 
 
         color_map = {}

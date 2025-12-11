@@ -27,11 +27,11 @@ NAV_ITEMS = [
 # Define features for the main grid section
 FEATURES = [
     {"icon": "🌳", "title": "Interactive Phylogeny", "description": "Explore the structural phylogenetic tree for the main subkingdoms including Opisthokonta, Viridiplantae, SAR, Amoebozoa, Discoba, and Rhodophyta.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/plant_Q9NXK8.mp4"}, #"demo": "data/demos/demo1.mp4"
-    {"icon": "📈", "title": "Evolutionary Rate", "description": "Visualize colored branches by evolutionary rate to identify fast and slow-evolving proteomes.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/plant_Q9NXK8.mp4"},
-    {"icon": "🍄", "title": "Taxon Search", "description": "Zoom on specific taxa or species to discover new evolutionary relationships.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/plant_Q9NXK8.mp4"},
-    {"icon": "🔎", "title": "Protein Structural Homologous", "description": "Input UniProt IDs to analyze presence/absence of structural homologs across all eukaryotic organisms.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/plant_Q9NXK8.mp4"}, # Reusing Model Organisms page for search
-    {"icon": "🐁", "title": "Model Organism Ranking", "description": "Select proteins of interest to find the best model organisms where they are most conserved.", "link_path": "pages/2_Model_organisms.py", "demo": "data/subset/figure_model/plant_Q9NXK8.mp4"},
-    {"icon": "⬇️", "title": "Data Downloads", "description": "Download FoldSeek comparison bitscores, Newick files, and predicted protein structures from each proteome.", "link_path": "pages/3_Downloads.py", "demo": "data/subset/figure_model/plant_Q9NXK8.mp4"},
+    {"icon": "📈", "title": "Evolutionary Rate", "description": "Visualize colored branches by evolutionary rate to identify fast and slow-evolving proteomes.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/mouse_Q9NXK8.mp4"},
+    {"icon": "🍄", "title": "Taxon Search", "description": "Zoom on specific taxa or species to discover new evolutionary relationships.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/fish_Q9NXK8.mp4"},
+    {"icon": "🔎", "title": "Protein Structural Homologous", "description": "Input UniProt IDs to analyze presence/absence of structural homologs across all eukaryotic organisms.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/plant_Q9NVI1.mp4"}, # Reusing Model Organisms page for search
+    {"icon": "🐁", "title": "Model Organism Ranking", "description": "Select proteins of interest to find the best model organisms where they are most conserved.", "link_path": "pages/2_Model_organisms.py", "demo": "data/subset/figure_model/mouse_Q9NVI1.mp4"},
+    {"icon": "⬇️", "title": "Data Downloads", "description": "Download FoldSeek comparison bitscores, Newick files, and predicted protein structures from each proteome.", "link_path": "pages/3_Downloads.py", "demo": "data/subset/figure_model/fish_Q9NVI1.mp4"},
 ]
 
 # Define methodology steps
@@ -225,8 +225,15 @@ st.set_page_config(
 # 2. Embed Background Video & Custom CSS
 #embed_video_background(VIDEO_PATH_BG)
 
-st.title('SHE: Structural History of Eukarya')
+#st.title('SHE: Structural History of Eukarya')
+st.markdown("""
+    <h1 style='text-align: center; color: green; font-size: 4rem; font-weight: bold;'>
+        SHE: Structural History of Eukarya
+    </h1>
+""", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center; color: white;'>Beyond traditional phylogenetics — leverage proteome-wide structural comparisons for groundbreaking insights", unsafe_allow_html=True)
 
+#st.subheader('Beyond traditional phylogenetics — leverage proteome-wide structural comparisons for groundbreaking insights.', divider="green")
 st.sidebar.success("Find more analysis options in the panels above.")
 
 # 3. Custom Fixed Header (replicated from previous response)
@@ -272,7 +279,7 @@ with st.container():
     with cta_col1:
         st.page_link("pages/1_Explore_Tree.py", label="🌳 Explore the Tree", icon="👉", help="explore the **structural phylogenetic tree** for all Eukarya, a kingdom, a taxon, a species or a set of proteins")
     with cta_col2:
-        st.page_link("pages/2_Model_organisms.py", label="🐁 Model Organisms search", icon="👉", help="find the **best model organism** for your study based on the structural comparison of the protein(s) in your pathway of interest.")
+        st.page_link("pages/2_Model_organisms.py", label="🐁 Model Organism search", icon="👉", help="find the **best model organism** for your study based on the structural comparison of the protein(s) in your pathway of interest.")
     with cta_col3:
         st.page_link("pages/3_Downloads.py", label="⬇️ Download Data", icon="👉", help="Access all raw alignment scores and files.")
 
@@ -333,13 +340,12 @@ with st.container():
                     unsafe_allow_html=True
                 )
 
-
     # --- B. FEATURES SECTION ---
-
+    st.write("---") #color: var(--foreground-color);
     st.markdown("""
         <div style="text-align: center; max-width: 42rem; margin: 0 auto 3rem;">
-            <h2 style="font-size: 2rem; font-weight: 700; color: var(--foreground-color); margin-bottom: 1rem;">
-                Powerful Visualization Tools
+            <h2 style="font-size: 2rem; font-weight: 700; color: green; margin-bottom: 1rem;">
+                Discover What Makes SHE Different
             </h2>
             <p style="color: var(--muted-foreground-color);">
                 Explore the complete structural phylogeny of eukaryotes with our interactive analysis platform.
@@ -348,18 +354,13 @@ with st.container():
     """, unsafe_allow_html=True)
 
     # Features Grid (Using custom HTML/CSS for tiles, but st.page_link for navigation below the tile)
-    
-    # We use a wrapper to use the custom grid CSS class
     st.markdown('<div class="feature-grid">', unsafe_allow_html=True)
-    
-    # Use st.columns inside the markdown wrapper for the content flow
-    # Since we have 6 features, we can use 3 columns and iterate through them twice
-    # This is a Streamlit-specific compromise for grid layout
-    
-    # Create the columns outside the loop
+        
     cols = st.columns(3)
+    
+    # Iterate through features only ONCE
     for i, feature in enumerate(FEATURES):
-        col_index = i % 3  # Distribute tiles across the 3 columns
+        col_index = i % 3
         with cols[col_index]:
             # 1. The HTML Card
             st.markdown(f"""
@@ -379,13 +380,22 @@ with st.container():
             with st.popover(f"▶️ Watch Demo", use_container_width=True):
                 st.markdown(f"**Demo for {feature['title']}**")
                 
-                # Check for the video key in your dictionary
-                if "demo" in feature and feature["demo"]:
-                    # Autoplay and Muted create a "GIF-like" experience but with MP4 efficiency
-                    st.video(feature["demo"], autoplay=True, muted=True, loop=True)
+                # --- LOGIC FIX ---
+                # No inner loop here. We just use the 'feature' from the main loop above.
+                if "demo" in feature:
+                    try:
+                        # Using 'with open' is safer for file handling
+                        with open(feature["demo"], "rb") as video_file:
+                            video_bytes = video_file.read()
+                        
+                        # Removed 'key' argument to support your Streamlit version
+                        st.video(video_bytes, autoplay=True, loop=True, muted=True)
+                        
+                    except FileNotFoundError:
+                        st.error(f"Video file not found: {feature['demo']}")
                 else:
                     st.warning("No video demo available for this feature yet.")
-            st.markdown("<br>", unsafe_allow_html=True) # Small space between tiles
+                st.markdown("<br>", unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
     st.markdown("<hr style='margin: 4rem 0;'>", unsafe_allow_html=True) # Separator
 
@@ -394,7 +404,7 @@ with st.container():
 
     st.markdown("""
         <div style="text-align: center; max-width: 42rem; margin: 0 auto 3rem;">
-            <h2 style="font-size: 2rem; font-weight: 700; color: var(--foreground-color); margin-bottom: 1rem;">
+            <h2 style="font-size: 2rem; font-weight: 700; color: green; margin-bottom: 1rem;">
                 How It Works
             </h2>
             <p style="color: var(--muted-foreground-color);">
