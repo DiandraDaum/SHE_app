@@ -41,7 +41,7 @@ def kingdom_color(kingdom):
 st.set_page_config(
     page_title="SHE: Explore",
     page_icon= "data/tree/logo_tree.png", 
-    layout="centered"
+    layout="wide"
 )
 #st.title(':green[SHE: Structural History of Eukarya]')
 

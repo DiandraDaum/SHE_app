@@ -29,9 +29,9 @@ FEATURES = [
     {"icon": "🌳", "title": "Structural Phylogeny", "description": "Explore the structural phylogenetic tree for the main eukaryotic clades.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/plant_Q9NXK8.mp4"}, #"demo": "data/demos/demo1.mp4"
     {"icon": "📈", "title": "Evolutionary Rate", "description": "Visualize colored branches by evolutionary rate to identify fast and slow-evolving proteomes.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/mouse_Q9NXK8.mp4"},
     {"icon": "🍄", "title": "Taxon Interactive Search", "description": "Zoom on specific taxa or species to discover new evolutionary relationships.", "link_path": "pages/2_Interactive_Tree.py", "demo": "data/subset/figure_model/fish_Q9NXK8.mp4"},
-    {"icon": "🔎", "title": "Structural Homologs Search", "description": "Input UniProt IDs to analyze presence/absence of structural homologs across all eukaryotic organisms.", "link_path": "pages/2_Interactive_Tree.py", "demo": "data/subset/figure_model/plant_Q9NVI1.mp4"}, # Reusing Model Organisms page for search
+    {"icon": "🔎", "title": "Structural Homologs Search", "description": "Analyze the presence/absence of protein structural homologs across all eukaryotic organisms.", "link_path": "pages/2_Interactive_Tree.py", "demo": "data/subset/figure_model/plant_Q9NVI1.mp4"}, # Reusing Model Organisms page for search
     {"icon": "🐁", "title": "Model Organism Ranking", "description": "Find the best model organism match for your biological pathway by instant structural matching.", "link_path": "pages/3_Model_Organism_Ranking.py", "demo": "data/subset/figure_model/mouse_Q9NVI1.mp4"},
-    {"icon": "⬇️", "title": "Data Downloads", "description": "Download tree.newick files, FoldSeek bitscores, and predicted protein structures from each proteome.", "link_path": "pages/4_Downloads.py", "demo": "data/subset/figure_model/fish_Q9NVI1.mp4"},
+    {"icon": "⬇️", "title": "Data Downloads", "description": "Download the trees, the structural alignment scores and the predicted protein structures.", "link_path": "pages/4_Downloads.py", "demo": "data/subset/figure_model/fish_Q9NVI1.mp4"},
 ]
 
 # Define methodology steps
@@ -154,6 +154,9 @@ def get_base64_image(image_path):
         return "" # Return empty if file not found to prevent errors
     with open(image_path, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode()
+
+
+
 # --- APP EXECUTION ---
 
 # 1. Set Page Config
@@ -166,13 +169,13 @@ st.set_page_config(
 # 2. Add Styles for Dashboard (Applied Globally)
 st.markdown("""
 <style>
-    /* --- NEW DASHBOARD CARD STYLES --- */
+    /* --- DASHBOARD CARD STYLES --- */
     .dashboard-card {
-        background-color: #111827; /* Dark Navy/Black */
+        background-color: #111827;
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 16px;
         padding: 24px;
-        height: 100%;
+        height: 100%; /* Forces card to fill the Streamlit column height */
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -180,7 +183,7 @@ st.markdown("""
         transition: all 0.3s ease;
     }
     .dashboard-card:hover {
-        border-color: #10b981; /* Green hover effect */
+        border-color: #10b981;
         box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.2);
     }
     
@@ -192,39 +195,24 @@ st.markdown("""
     }
     
     .card-description {
-        color: #9ca3af; /* Gray-400 */
+        color: #9ca3af;
         font-size: 0.95rem;
         margin-bottom: 1.5rem;
         line-height: 1.5;
-    }
-    
-    /* Feature Icon Styling */
-    .card-icon {
-        font-size: 2rem;
-        margin-bottom: 1rem;
-        display: inline-block;
-        background: rgba(255,255,255,0.05);
-        padding: 10px;
-        border-radius: 12px;
+        flex-grow: 1; /* Pushes the image section to the bottom */
     }
 
-    /* VISUAL: PROGRESS BARS (Model Organisms) */
-    .prog-row { display: flex; align-items: center; margin-bottom: 12px; font-size: 0.85rem; }
-    .prog-label { width: 120px; color: #e5e7eb; }
-    .prog-track { flex-grow: 1; height: 8px; background: #374151; border-radius: 4px; overflow: hidden; margin: 0 12px; }
-    .prog-fill { height: 100%; border-radius: 4px; }
-    .prog-val { width: 30px; text-align: right; color: #9ca3af; }
-
-    /* VISUAL: HEATMAP (Evolutionary Rate) */
-    .heatmap-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 1rem; margin-bottom: 1rem; }
-    .heatmap-cell { height: 28px; border-radius: 4px; opacity: 0.9; }
-    
-    /* VISUAL: HISTOGRAM (Homologs) */
-    .histo-container { display: flex; align-items: flex-end; gap: 8px; height: 60px; margin-top: 10px; }
-    .histo-bar-box { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
-    .histo-bar { width: 100%; border-radius: 4px 4px 0 0; opacity: 0.9; }
-    .histo-label { font-size: 0.7rem; color: #6b7280; }
-    .histo-val { font-size: 0.8rem; font-weight: bold; color: #fff; }
+    /* --- IMAGE STYLING (replace old heatmaps) --- */
+    .card-visual-img {
+        width: 100%;
+        height: 220px;       
+        object-fit: cover;   
+        object-position: center;
+        border-radius: 8px;
+        border: 1px solid rgba(255,255,255,0.1);
+        opacity: 0.9;
+        display: block;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -238,7 +226,6 @@ st.markdown("""
 #st.markdown("<h2 style='text-align: center; color: white;'>Beyond traditional phylogenetics", unsafe_allow_html=True)
 #st.markdown("<h2 style='text-align: center; color: white;'>Leverage proteome-wide structural comparisons for groundbreaking insights", unsafe_allow_html=True)
 st.sidebar.success("Find more analysis options in the panels above.")
-# add figure here
 #video_tree = open("data/tree/final_tree.mp4", "rb")
 #tree_bytes = video_tree.read()
 #st.video(tree_bytes, autoplay=True, loop=True, muted=True)
@@ -307,9 +294,11 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# 4. Main Content Container
-with st.container():
+img_ranking = get_base64_image("data/subset/figure_model/ranking.png") 
+img_evolution = get_base64_image("data/logos/evorate.png")
+img_homologs = get_base64_image("data/logos/homolog.png")
 
+with st.container():
     # --- TOP DASHBOARD SECTION ---
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -318,35 +307,15 @@ with st.container():
 
     # --- CARD 1: MODEL ORGANISM RANKING ---
     with dashboard_row1[0]:
-        st.markdown("""
+        st.markdown(f"""
         <div class="dashboard-card">
             <div class="card-header">
                 <h3>Model Organism Ranking</h3>
                 <p class="card-description">
                     Find the best model organism match for your biological pathway by instant structural matching.
                 </p>
-                <div style="background: #1f2937; padding: 15px; border-radius: 12px; margin-bottom: 15px;">
-                    <div style="color: #6b7280; font-size: 0.75rem; margin-bottom: 10px;">Conservation Score</div>
-                    <div class="prog-row">
-                        <div class="prog-label">D. melanogaster</div>
-                        <div class="prog-track"><div class="prog-fill" style="width: 94%; background: #38bdf8;"></div></div>
-                        <div class="prog-val">94%</div>
-                    </div>
-                    <div class="prog-row">
-                        <div class="prog-label">C. elegans</div>
-                        <div class="prog-track"><div class="prog-fill" style="width: 87%; background: #38bdf8;"></div></div>
-                        <div class="prog-val">87%</div>
-                    </div>
-                    <div class="prog-row">
-                        <div class="prog-label">S. cerevisiae</div>
-                        <div class="prog-track"><div class="prog-fill" style="width: 82%; background: #38bdf8;"></div></div>
-                        <div class="prog-val">82%</div>
-                    </div>
-                    <div class="prog-row">
-                        <div class="prog-label">A. thaliana</div>
-                        <div class="prog-track"><div class="prog-fill" style="width: 71%; background: #4ade80;"></div></div>
-                        <div class="prog-val">71%</div>
-                    </div>
+                <div style="background: #1f2937; padding: 10px; border-radius: 12px; margin-bottom: 15px;">
+                    <img src="data:image/png;base64,{img_ranking}" class="card-visual-img">
                 </div>
             </div>
         </div>
@@ -355,88 +324,43 @@ with st.container():
 
     # --- CARD 2: TREE & EVOLUTIONARY RATE ---
     with dashboard_row1[1]:
-        st.markdown("""
+        st.markdown(f"""
         <div class="dashboard-card">
             <div class="card-header">
                 <h3>Tree & Evolutionary Rate</h3>
                 <p class="card-description">
                     Identify fast and slow-evolving proteomes by visualizing evolutionary rates across the tree.
                 </p>
-                <div style="background: #1f2937; padding: 15px; border-radius: 12px; margin-bottom: 15px;">
-                   <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                        <span style="color: #6b7280; font-size: 0.75rem;">Evolutionary Rate</span>
-                        <span style="color: #6b7280; font-size: 0.75rem;">Slow <span style="display:inline-block; width:40px; height:4px; background:linear-gradient(90deg, #4ade80, #ef4444); vertical-align:middle; margin:0 5px;"></span> Fast</span>
-                   </div>
-                   <div class="heatmap-grid">
-                        <div class="heatmap-cell" style="background:#4ade80;"></div> <div class="heatmap-cell" style="background:#4ade80;"></div>
-                        <div class="heatmap-cell" style="background:#a3e635;"></div> <div class="heatmap-cell" style="background:#facc15;"></div> <div class="heatmap-cell" style="background:#ea580c;"></div> <div class="heatmap-cell" style="background:#4ade80;"></div>
-                        <div class="heatmap-cell" style="background:#a3e635;"></div>
-                        <div class="heatmap-cell" style="background:#facc15;"></div>
-                        <div class="heatmap-cell" style="background:#facc15;"></div>
-                        <div class="heatmap-cell" style="background:#4ade80;"></div>
-                        <div class="heatmap-cell" style="background:#4ade80;"></div>
-                        <div class="heatmap-cell" style="background:#ea580c;"></div>
-                        <div class="heatmap-cell" style="background:#ef4444;"></div> <div class="heatmap-cell" style="background:#ef4444;"></div>
-                        <div class="heatmap-cell" style="background:#ea580c;"></div>
-                   </div>
+                <div style="background: #1f2937; padding: 10px; border-radius: 12px; margin-bottom: 15px;">
+                   <img src="data:image/png;base64,{img_evolution}" class="card-visual-img">
                 </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
-        st.page_link("pages/1_Explore_Tree.py", label="Explore Evolutionary Rates", icon="🌳", use_container_width=True)
+        st.page_link("pages/1_Explore_Tree.py", label="Explore Evolutionary Rates", icon="📈", use_container_width=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     # --- CARD 3: HOMOLOGS (Full Width) ---
-    st.markdown("""
-    <div class="dashboard-card" style="flex-direction: row; display: block;">
-        <div style="display: flex; flex-wrap: wrap; align-items: center;">
-            <div style="flex: 1.5; padding-right: 20px; min-width: 300px;">
-                <h3 style="color:white; margin:0; font-size: 1.5rem; font-weight: 700;">Protein Homolog Discovery</h3>
-                <p style="color:#9ca3af; margin-top:10px; margin-bottom: 20px;">
-                    Enter any UniProt ID to instantly discover structural homologs across all 24.3 million proteins.
-                    Map the evolutionary distribution of your protein family.
-                </p>
-            </div>
-            <div style="flex: 1; min-width: 250px;">
-                <div style="background: #1f2937; padding: 15px; border-radius: 12px;">
-                    <div style="color: #6b7280; font-size: 0.75rem;">Structural Homolog Distribution</div>
-                    <div class="histo-container">
-                        <div class="histo-bar-box">
-                            <div class="histo-val">342</div>
-                            <div class="histo-bar" style="height: 100%; background: #38bdf8;"></div>
-                            <div class="histo-label">Opis</div>
-                        </div>
-                        <div class="histo-bar-box">
-                            <div class="histo-val">156</div>
-                            <div class="histo-bar" style="height: 45%; background: #4ade80;"></div>
-                            <div class="histo-label">Viri</div>
-                        </div>
-                        <div class="histo-bar-box">
-                            <div class="histo-val">89</div>
-                            <div class="histo-bar" style="height: 25%; background: #facc15;"></div>
-                            <div class="histo-label">SAR</div>
-                        </div>
-                        <div class="histo-bar-box">
-                            <div class="histo-val">23</div>
-                            <div class="histo-bar" style="height: 10%; background: #c084fc;"></div>
-                            <div class="histo-label">Amoe</div>
-                        </div>
-                         <div class="histo-bar-box">
-                            <div class="histo-val">12</div>
-                            <div class="histo-bar" style="height: 5%; background: #fb923c;"></div>
-                            <div class="histo-label">Disc</div>
-                        </div>
-                    </div>
-                </div>
+    st.markdown(f"""
+    <div class="dashboard-card" style="flex-direction: row; display: flex; align-items: center;">
+        <div style="flex: 1.5; padding-right: 20px; min-width: 300px;">
+            <h3 style="color:white; margin:0; font-size: 1.5rem; font-weight: 700;">Protein Homolog Discovery</h3>
+            <p style="color:#9ca3af; margin-top:10px; margin-bottom: 20px;">
+                Enter any UniProt ID to instantly discover structural homologs across all 24.3 million proteins.
+                Map the evolutionary distribution of your protein family.
+            </p>
+        </div>
+        <div style="flex: 1; min-width: 250px;">
+            <div style="background: #1f2937; padding: 10px; border-radius: 12px;">
+                <img src="data:image/png;base64,{img_homologs}" class="card-visual-img" style="height: 180px;">
             </div>
         </div>
     </div>
     """, unsafe_allow_html=True)
-    st.page_link("pages/4_Downloads.py", label="Search Homologs & Download Data", icon="🔎", use_container_width=True)
+    st.page_link("pages/2_Interactive_Tree.py", label="Search Homologs", icon="🔎", use_container_width=True)
 
-    st.markdown("<br><br>", unsafe_allow_html=True) 
-
+    st.markdown("<br><br>", unsafe_allow_html=True)
     # --- A. STATISTICS TILES SECTION ---
     css = """
         /* 1. Base Style */

@@ -82,7 +82,7 @@ def set_background(image_path):
 st.set_page_config(
     page_title="SHE: Downloads",
     page_icon= "data/tree/logo_tree.png", 
-    layout="centered"
+    layout="wide"
 )
 set_background('data/logos/SHE.png')
 #st.title(':green[SHE: Structural History of Eukarya]')
@@ -310,5 +310,9 @@ with st.expander('Tree by Kingdom'):
 st.subheader('Cite', divider="rainbow")
 st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
 
-
+colm1, colm2, colm3, colm4 = st.columns(4)
+with colm2:
+    st.image("data/logos/scilifelab.png", use_container_width=False)
+with colm3:
+    st.image("data/logos/su.png", use_container_width=False)
 

@@ -1165,14 +1165,85 @@ def set_background(image_path):
         """,
         unsafe_allow_html=True
     )
+
+@st.cache_data
+def get_base64_image(image_path):
+    """Converts a local file to a base64 string for HTML embedding."""
+    if not os.path.exists(image_path):
+        return "" # Return empty if file not found to prevent errors
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
 #---------------------------------------
 ##MAIN##
 st.set_page_config(
     page_title="SHE: Model",
     page_icon= "data/tree/logo_tree.png", 
-    layout="centered"
+    layout="wide"
 )
-set_background('data/logos/model.png')
+st.title('Model Organism Ranking')
+#set_background('data/logos/model.png')
+image_path = 'data/logos/model.png'
+# 2. Check if file exists and encode
+if os.path.exists(image_path):
+    img_b64 = get_base64_image(image_path)
+
+#st.write("Find the best model organism match for your biological pathway by instant structural matching")
+
+st.markdown(
+    f"""
+    <style>
+    .banner-container {{
+        /* Use the Base64 image as a background */
+        background-image: url("data:image/png;base64,{img_b64}");
+        background-size: cover; /* Ensures image fills the box */
+        background-position: center;
+        border-radius: 15px;
+        padding: 100px 20px; /* Top/Bottom padding creates the height */
+        text-align: center;
+        position: relative;
+        margin-bottom: 20px;
+    }}
+    
+    /* Adds a dark overlay so text pops */
+    .banner-overlay {{
+        background-color: rgba(0, 0, 0, 0.4); /* 40% opaque black */
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border-radius: 15px;
+        z-index: 1;
+    }}
+
+    /* The text styling */
+    .banner-text {{
+        position: relative;
+        z-index: 2; /* Ensures text is above the dark overlay */
+        color: white;
+        transition: all 0.3s ease-in-out;
+        text-shadow: 2px 2px 5px rgba(0,0,0,0.8);
+    }}
+
+    /* The Glow Effect on Hover */
+    .banner-text:hover {{
+        text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #e60073;
+        transform: scale(1.02); /* Slight zoom for effect */
+    }}
+    </style>
+
+    <div class="banner-container">
+        <div class="banner-overlay"></div>
+        <div class="banner-text">
+            <h2>Find the best model organism match for your biological pathway by instant structural matching</h2>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+
+
 st.markdown("""
 <style>
 /* 1. Target the Expander Container (The 'details' HTML tag) */
@@ -1208,8 +1279,6 @@ st.markdown("""
 """, unsafe_allow_html=True)
 #st.title(':green[SHE: Structural History of Eukarya]')
 #st.image('data/tree/model.png',ccaption='Protein-protein structure comparison to rank the best model organism for your target organism')
-st.title('Model Organism Ranking')
-st.write("Find the best model organism match for your biological pathway by instant structural matching")
 with st.expander(":violet[See Example Usage]"):
     st.subheader(":violet[Follow the following steps to discover the top model organism to study part of the human Fanconi anemia (FA) DNA repair pathway]")
     st.subheader(':green[Step 1. Choose Target Organim]')
