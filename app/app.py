@@ -175,14 +175,19 @@ st.markdown("""
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 16px;
         padding: 24px;
-        height: 100%; /* Forces card to fill the Streamlit column height */
+        
+        /* Forces cards to match height */
+        min-height: 500px; 
+        
         display: flex;
         flex-direction: column;
         justify-content: space-between;
         box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
         transition: all 0.3s ease;
     }
-    .dashboard-card:hover {
+    
+    /* Hover effect now applies when hovering the LINK too */
+    a:hover .dashboard-card {
         border-color: #10b981;
         box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.2);
     }
@@ -199,10 +204,11 @@ st.markdown("""
         font-size: 0.95rem;
         margin-bottom: 1.5rem;
         line-height: 1.5;
-        flex-grow: 1; /* Pushes the image section to the bottom */
+        min-height: 80px; 
+        flex-grow: 1; 
     }
 
-    /* --- IMAGE STYLING (replace old heatmaps) --- */
+    /* --- IMAGE STYLING --- */
     .card-visual-img {
         width: 100%;
         height: 220px;       
@@ -212,6 +218,15 @@ st.markdown("""
         border: 1px solid rgba(255,255,255,0.1);
         opacity: 0.9;
         display: block;
+    }
+    
+    /* --- LINK STYLING  (replace heatmap)--- */
+    /* Removes the default blue underline from the <a> tag */
+    a.card-link {
+        text-decoration: none;
+        color: inherit;
+        display: block;
+        height: 100%; /* Ensures the click area fills the column */
     }
 </style>
 """, unsafe_allow_html=True)
@@ -299,68 +314,73 @@ img_evolution = get_base64_image("data/logos/evorate.png")
 img_homologs = get_base64_image("data/logos/homolog.png")
 
 with st.container():
-    # --- TOP DASHBOARD SECTION ---
     st.markdown("<br>", unsafe_allow_html=True)
 
     # Row 1: Model Organisms (Left) & Tree/Evolution (Right)
     dashboard_row1 = st.columns([1, 1], gap="medium")
 
-    # --- CARD 1: MODEL ORGANISM RANKING ---
+    # --- CARD 1 ---
     with dashboard_row1[0]:
+        # Wrapped in <a> tag pointing to the URL slug
         st.markdown(f"""
-        <div class="dashboard-card">
-            <div class="card-header">
-                <h3>Model Organism Ranking</h3>
-                <p class="card-description">
-                    Find the best model organism match for your biological pathway by instant structural matching.
-                </p>
-                <div style="background: #1f2937; padding: 10px; border-radius: 12px; margin-bottom: 15px;">
+        <a href="Model_Organism_Ranking" target="_self" class="card-link">
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h3>Model Organism Ranking</h3>
+                    <p class="card-description">
+                        Find the best model organism match for your biological pathway by instant structural matching.
+                    </p>
+                </div>
+                <div style="background: #1f2937; padding: 10px; border-radius: 12px;">
                     <img src="data:image/png;base64,{img_ranking}" class="card-visual-img">
                 </div>
             </div>
-        </div>
+        </a>
         """, unsafe_allow_html=True)
+        # Keep the st.page_link as a secondary navigation option
         st.page_link("pages/3_Model_Organism_Ranking.py", label="Find Best Model Organism", icon="🐁", use_container_width=True)
 
-    # --- CARD 2: TREE & EVOLUTIONARY RATE ---
+    # --- CARD 2 ---
     with dashboard_row1[1]:
         st.markdown(f"""
-        <div class="dashboard-card">
-            <div class="card-header">
-                <h3>Tree & Evolutionary Rate</h3>
-                <p class="card-description">
-                    Identify fast and slow-evolving proteomes by visualizing evolutionary rates across the tree.
-                </p>
-                <div style="background: #1f2937; padding: 10px; border-radius: 12px; margin-bottom: 15px;">
+        <a href="Explore_Tree" target="_self" class="card-link">
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h3>Tree & Evolutionary Rate</h3>
+                    <p class="card-description">
+                        Identify fast and slow-evolving proteomes by visualizing evolutionary rates across the tree.
+                    </p>
+                </div>
+                <div style="background: #1f2937; padding: 10px; border-radius: 12px;">
                    <img src="data:image/png;base64,{img_evolution}" class="card-visual-img">
                 </div>
             </div>
-        </div>
+        </a>
         """, unsafe_allow_html=True)
         st.page_link("pages/1_Explore_Tree.py", label="Explore Evolutionary Rates", icon="📈", use_container_width=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # --- CARD 3: HOMOLOGS (Full Width) ---
+    # --- CARD 3 (Horizontal Layout) ---
     st.markdown(f"""
-    <div class="dashboard-card" style="flex-direction: row; display: flex; align-items: center;">
-        <div style="flex: 1.5; padding-right: 20px; min-width: 300px;">
-            <h3 style="color:white; margin:0; font-size: 1.5rem; font-weight: 700;">Protein Homolog Discovery</h3>
-            <p style="color:#9ca3af; margin-top:10px; margin-bottom: 20px;">
-                Enter any UniProt ID to instantly discover structural homologs across all 24.3 million proteins.
-                Map the evolutionary distribution of your protein family.
-            </p>
-        </div>
-        <div style="flex: 1; min-width: 250px;">
-            <div style="background: #1f2937; padding: 10px; border-radius: 12px;">
-                <img src="data:image/png;base64,{img_homologs}" class="card-visual-img" style="height: 180px;">
+    <a href="Interactive_Tree" target="_self" class="card-link">
+        <div class="dashboard-card" style="flex-direction: row; display: flex; align-items: center; min-height: auto;">
+            <div style="flex: 1.5; padding-right: 20px; min-width: 300px;">
+                <h3 style="color:white; margin:0; font-size: 1.5rem; font-weight: 700;">Protein Homolog Discovery</h3>
+                <p style="color:#9ca3af; margin-top:10px; margin-bottom: 20px;">
+                    Instantly discover all the structural homologs across all 24.3 million proteins.
+                    Map the evolutionary distribution of your protein family.
+                </p>
+            </div>
+            <div style="flex: 1; min-width: 250px;">
+                <div style="background: #1f2937; padding: 10px; border-radius: 12px;">
+                    <img src="data:image/png;base64,{img_homologs}" class="card-visual-img" style="height: 180px;">
+                </div>
             </div>
         </div>
-    </div>
+    </a>
     """, unsafe_allow_html=True)
     st.page_link("pages/2_Interactive_Tree.py", label="Search Homologs", icon="🔎", use_container_width=True)
-
-    st.markdown("<br><br>", unsafe_allow_html=True)
     # --- A. STATISTICS TILES SECTION ---
     css = """
         /* 1. Base Style */
