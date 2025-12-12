@@ -93,7 +93,7 @@ def extract_closest_species(newick_file, input_species, num_neighbors): #species
 
     # --- Step 3: Find the target species leaf node in the tree ---
 
-    #target species could be leaf name, Uniprot ID or proteome ID
+    #target species could be leaf name, UniProt ID or proteome ID
     # Find the full leaf name that corresponds to the target species
     #target_species = input_species
     matching_full_names = [name for name in all_leaf_names if name.startswith(target_species)] 
@@ -322,7 +322,7 @@ def get_species_id(protein_name):
 
 def protein_in_family(protein, families_csv_path):
     """
-    Find the homologs family of a protein uniprot ID.
+    Find the homologs family of a protein UniProt ID.
     """
     families_df = pd.read_csv(families_csv_path)
     #new uniport id column
@@ -333,16 +333,18 @@ def protein_in_family(protein, families_csv_path):
     match_protein = families_df[families_df['uniprot_id'] == protein]
     if not match_protein.empty:
         family = match_protein['family_id'].iloc[0].strip()
-        print(f"Mapped Protein Uniprot ID '{protein}' to family: {family}")
+        print(f"Mapped Protein UniProt ID '{protein}' to family: {family}")
         return family, families_df
     else:
         st.warning(f"This protein does not seem to have a structural homologs...")
+        st.stop()
+        sys.exit(1)
 
 def protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree):
     """
-    Given a protein uniprot ID, find its family and color the tree of all organisms sharing that protein.
+    Given a protein PniProt ID, find its family and color the tree of all organisms sharing that protein.
     Input: 
-    protein: uniprot ID (i.e. P12345)
+    protein: PniProt ID (i.e. P12345)
     families_csv_path: path to the protein families csv file (i.e. ./data/core/protein_families_238.csv)
     new_proteomes_path: path to the updated proteomes csv file (i.e. ./ data/core/merged_evo_rate.csv)
     main_tree: path to the main tree newick file (i.e. ./data/tree/Eukarya/kingdoms_Eukarya_tree.newick)
@@ -548,11 +550,12 @@ def display_interactive_tree(tree_path):
         branch_lines_x, branch_lines_y, node_coords = create_plotly_data(tree)
         
     except Exception as e:
-        st.error(f"Error processing tree file: {e}")
+        print(f"Error processing tree file: {e}")
         return
 
     # --- Create the Plotly Figure ---
-    proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
+    #proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
+    proteomes_path = 'data/core/merged_evo_rate.csv'
     proteomes_df = pd.read_csv(proteomes_path)
     proteomes_df.columns = proteomes_df.columns.str.strip().str.replace(' ', '_')
     proteomes_df['Kingdom'] = proteomes_df['Taxonomic_lineage'].str.split(', ').str[1]
@@ -720,7 +723,7 @@ def display_interactive_tree_c(tree_path):
         num_species = len(tree.get_leaves())
         
     except Exception as e:
-        st.error(f"Error processing tree file: {e}")
+        print(f"Error processing tree file: {e}")
         return
 
     # --- 1. Layout Selection (Conditional) ---
@@ -756,12 +759,13 @@ def display_interactive_tree_c(tree_path):
         
     except Exception as e:
         # This catch is mainly for polar/data generation errors, though less likely now
-        st.error(f"Error generating tree coordinates: {e}")
+        print(f"Error generating tree coordinates: {e}")
         return
         
     # --- 4. Proteomes loading and Color Generation ---
     try:
-        proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
+        #proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
+        proteomes_path = 'data/core/merged_evo_rate.csv'
         proteomes_df = pd.read_csv(proteomes_path)
         proteomes_df.columns = proteomes_df.columns.str.strip().str.replace(' ', '_')
         proteomes_df['Kingdom'] = proteomes_df['Taxonomic_lineage'].str.split(', ').str[1]
@@ -775,7 +779,7 @@ def display_interactive_tree_c(tree_path):
             node_colors.append(color)
 
     except Exception as e:
-        st.warning(f"Could not load proteome data for coloring ({e}). Nodes will be plotted in a default color.")
+        print(f"Could not load proteome data for coloring ({e}). Nodes will be plotted in a default color.")
         node_colors = ['#1f77b4'] * len(node_coords['x'])
         unique_kingdoms = ['Default']
     
@@ -863,7 +867,7 @@ def display_interactive_tree_c_dark(tree_path):
         num_species = len(tree.get_leaves())
         
     except Exception as e:
-        st.error(f"Error processing tree file: {e}")
+        print(f"Error processing tree file: {e}")
         return
 
     # --- 1. Layout Selection ---
@@ -897,12 +901,13 @@ def display_interactive_tree_c_dark(tree_path):
         branch_lines_x, branch_lines_y, node_coords = create_plotly_data_c(tree, layout=layout_key)
         
     except Exception as e:
-        st.error(f"Error generating tree coordinates: {e}")
+        print(f"Error generating tree coordinates: {e}")
         return
         
     # --- 4. Proteomes loading and Color Generation ---
     try:
-        proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
+        #proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
+        proteomes_path = 'data/core/merged_evo_rate.csv'
         proteomes_df = pd.read_csv(proteomes_path)
         proteomes_df.columns = proteomes_df.columns.str.strip().str.replace(' ', '_')
         proteomes_df['Kingdom'] = proteomes_df['Taxonomic_lineage'].str.split(', ').str[1]
@@ -916,7 +921,7 @@ def display_interactive_tree_c_dark(tree_path):
             node_colors.append(color)
 
     except Exception as e:
-        st.warning(f"Could not load proteome data for coloring ({e}).")
+        print(f"Could not load proteome data for coloring ({e}).")
         node_colors = ['#1f77b4'] * len(node_coords['x'])
         unique_kingdoms = ['Default']
     
@@ -998,16 +1003,17 @@ def display_interactive_tree_c_dark(tree_path):
     fig.update_layout(**layout_params)
     st.plotly_chart(fig, use_container_width=True)
 
-def display_interactive_tree_c_zoom(tree_path):
+def display_interactive_tree_c_zoom(tree_path, name):
     
     try:
         tree = Tree(tree_path, format=1)
         tree = get_tree_coordinates(tree) 
         num_species = len(tree.get_leaves())
     except Exception as e:
-        st.error(f"Error processing tree file: {e}")
+        print(f"Error processing tree file: {e}")
         return
 
+    taxon=name
     # --- 1. Layout Selection ---
     available_layouts = ['Linear']
     MIN_SPECIES_FOR_CIRCULAR = 400
@@ -1029,12 +1035,13 @@ def display_interactive_tree_c_zoom(tree_path):
             tree = polar_coordinates_transform_c(tree) 
         branch_lines_x, branch_lines_y, node_coords = create_plotly_data_c(tree, layout=layout_key)
     except Exception as e:
-        st.error(f"Error generating coordinates: {e}")
+        print(f"Error generating coordinates: {e}")
         return
         
     # --- 3. Proteomes & Coloring ---
     try:
-        proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
+        #proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
+        proteomes_path = 'data/core/merged_evo_rate.csv'
         proteomes_df = pd.read_csv(proteomes_path)
         proteomes_df.columns = proteomes_df.columns.str.strip().str.replace(' ', '_')
         proteomes_df['Kingdom'] = proteomes_df['Taxonomic_lineage'].str.split(', ').str[1]
@@ -1063,7 +1070,7 @@ def display_interactive_tree_c_zoom(tree_path):
     
     # Use the filtered list for the dropdown
     search_node = st.selectbox(
-        "🔍 Find a Species (Type to search):",
+        "🔍 Find a Species:",
         options=["None"] + sorted(filtered_node_names), 
         index=0,
         key="node_finder"
@@ -1141,7 +1148,7 @@ def display_interactive_tree_c_zoom(tree_path):
     fig = go.Figure(data=data_traces)
     
     layout_params = dict(
-        title=f'{layout_key} Tree ({num_species} Species)',
+        title=f'{taxon} Tree ({num_species} Species)', # tree title
         height=800, 
         showlegend=True,
         hovermode="closest",
@@ -1177,7 +1184,7 @@ def display_protein_presence_tree_plotly(protein, families_csv_path, new_proteom
         mapping_df = new_proteomes_csv[['Organism_formatted', 'Proteome_Id']].drop_duplicates()
         name_to_id_map = mapping_df.set_index('Organism_formatted')['Proteome_Id'].to_dict()
     except Exception as e:
-        st.error(f"Error loading proteomes: {e}")
+        print(f"Error loading proteomes: {e}")
         return
 
     # --- 2. Determine Presence/Absence ---
@@ -1207,11 +1214,9 @@ def display_protein_presence_tree_plotly(protein, families_csv_path, new_proteom
         
         # The set of IDs is simply the keys of this new dict
         present_proteomes = set(proteome_to_uniprot.keys())
-        # --- NEW LOGIC END ---
         
     except Exception as e:
-        st.error(f"Error determining protein family presence: {e}")
-        return
+        print(f"Error determining protein family presence: {e}")
 
     # --- 3. Generate Tree Coordinates (Plotly) ---
     try:
@@ -1221,8 +1226,7 @@ def display_protein_presence_tree_plotly(protein, families_csv_path, new_proteom
             tree = polar_coordinates_transform_c(tree) 
         branch_x, branch_y, node_coords = create_plotly_data_c(tree, layout=layout) 
     except Exception as e:
-        st.error(f"Error generating coordinates: {e}")
-        return
+        print(f"Error generating coordinates: {e}")
 
     # --- 4. Assign Colors to Nodes ---
     node_colors = []
@@ -1250,7 +1254,7 @@ def display_protein_presence_tree_plotly(protein, families_csv_path, new_proteom
             
             hover_texts.append(f"{node_name}<br>Hits: {hit_ids}")
             
-            # --- SAVE: Format as "Species [TAB] UniprotIDs" ---
+            # --- SAVE: Format as "Species [TAB] UniProtIDs" ---
             present_species_info.append(f"{node_name}\t{hit_ids}")
             
         else:
@@ -1336,22 +1340,21 @@ def render_3dmol(afdb_download_url: str):
     """
     Fetches the CIF data and renders it using py3Dmol via stmol.
     """
-    st.info("Fetching protein structure from AlphaFold database...")
+    #st.info("Fetching protein structure from AlphaFold database...")
     cif_data = None
     
     try:
         # 1. Fetch the CIF data
         cif_response = requests.get(afdb_download_url, timeout=30)
-        cif_response.raise_for_status() 
+        #cif_response.raise_for_status() 
         cif_data = cif_response.text
         
         if not cif_data or not isinstance(cif_data, str):
-             st.error("Fetched data is empty or not a string. Cannot render structure.")
-             return
+             st.error("Cannot render structure, entry not found in AFDB.")
              
     except requests.exceptions.RequestException as e:
-        st.error(f"Network error during CIF download: {e}")
-        return
+        st.warning("Cannot render structure, entry not found in AFDB.")
+        print(f"Network error during CIF download: {e}")
 
     # 2. Initialize the py3Dmol viewer object
     # DO NOT call .render()
@@ -1365,7 +1368,8 @@ def render_3dmol(afdb_download_url: str):
     try:
         showmol(view, height=600, width=600)
     except Exception as e:
-         st.error(f"Error rendering 3Dmol viewer with stmol: {e}")
+         st.warning(f"Cannot render with 3Dmol viewer")
+         print(f"Error rendering 3Dmol viewer with stmol: {e}")
 
 ##### protein evolution set
 def load_mapping(mapping_file):
@@ -1373,7 +1377,7 @@ def load_mapping(mapping_file):
         mapping_df = pd.read_csv(mapping_file)
         return dict(zip(mapping_df['species_name'], mapping_df['id']))
     except Exception as e:
-        st.error(f"Error reading mapping file: {e}")
+        print(f"Error reading mapping file: {e}")
         sys.exit(1)
 
 def find_comparison_csv(target_dir, compare_dir_id):
@@ -1418,7 +1422,7 @@ def process_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
                 score_map[uniprot_id] = best_score
 
     except Exception as e:
-        st.warning(f"Error processing {csv_file}: {e}")
+        print(f"Error processing {csv_file}: {e}")
         
     # Convert map to list (Vector) ensures order is identical for all species
     score_vector = [score_map[uid] for uid in uniprot_ids]
@@ -1462,8 +1466,8 @@ def get_human_self_vector(target_dir, uniprot_ids):
                         local_max = hits['bit_score'].max()
                         if local_max > self_scores_map[uniprot_id]:
                             self_scores_map[uniprot_id] = local_max
-        except Exception:
-            continue
+        except Exception as e:
+            print(f"Exception in get_human_self_vector:{e}")
             
     # Create the vector and total sum
     human_vector = [self_scores_map[uid] for uid in uniprot_ids]
@@ -1500,9 +1504,9 @@ def sum_scores_for_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
                 #st.info(f"  > No hit found for {uniprot_id} in {csv_file}")
 
     except pd.errors.EmptyDataError:
-        st.warning(f"CSV file {csv_file} is empty. Skipping.")
+        print(f"CSV file {csv_file} is empty. Skipping.")
     except Exception as e:
-        st.error(f"Error processing CSV {csv_file}: {e}")
+        print(f"Error processing CSV {csv_file}: {e}")
         
     return total_score
 
@@ -1556,7 +1560,7 @@ def get_self_scores(target_dir, target_dir_id, uniprot_ids):
                 continue
             except Exception as e:
                 # Log other errors (e.g., file corrupted) but continue
-                st.warning(f"Could not fully read {csv_file} for self-score: {e}")
+                print(f"Could not fully read {csv_file} for self-score: {e}")
                 continue
         
         if max_score_for_this_protein == 0.0:
@@ -1685,15 +1689,45 @@ def get_support_statistics(tree):
     }
     return stats, support_df
 
+@st.cache_data
+def set_background(image_path):
+    """
+    Adds a background image to the main Streamlit app container.
+    """
+    if not os.path.exists(image_path):
+        st.error(f"Background image not found at: {image_path}")
+        return
 
+    with open(image_path, "rb") as f:
+        data = f.read()
+    
+    # Convert image to Base64
+    encoded_image = base64.b64encode(data).decode()
+
+    # Inject CSS with the Base64 image
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background-image: url("data:image/png;base64,{encoded_image}");
+            background-size: cover;        /* Scale image to cover entire screen */
+            background-position: center;   /* Center the image */
+            background-repeat: no-repeat;  /* Do not repeat */
+            background-attachment: fixed;  /* Keep background fixed when scrolling */
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
 #### intro -----------------------------------------------------------------------------------------------------------------------------------
 st.set_page_config(
-    page_title="SHE: Explore",
+    page_title="SHE: Analyse",
     page_icon= "data/tree/logo_tree.png", 
     layout="centered"
 )
-st.title('SHE: Structural History of Eukarya')
+set_background('data/logos/interactive.png')
+#st.title(':green[SHE: Structural History of Eukarya]')
 
 st.subheader('Interactive Structural Phylogenetic Tree')
 st.write("Discover our instant interactive analysis option of the eukaryotic structural tree")
@@ -1742,7 +1776,7 @@ for col, content in zip(row2, titles):
         # --- zoom ---
         if content == "3. Zoom on Species or Taxon":
             st.write(':orange[Interested in discovering the new structural phylogenetics of a specific species? Use the "Find Species" option.]')
-            st.write(':orange[Interested in discovering the new structural phylogenetics of a taxa? Use the "Find Taxon" option.]')
+            st.write(':orange[Interested in discovering the new structural phylogenetics of a taxon? Use the "Find Taxon" option.]')
             st.checkbox('Find Species', key="find_species_box")
             st.checkbox('Find Taxon', key="find_taxon_box")
 
@@ -1767,9 +1801,9 @@ df = pd.DataFrame({
 
 ##############Extract taxonomic group ------------------------------------------------
 main_tree_path = 'data/tree/Eukarya/kingdoms_Eukarya_tree.newick'
-proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
+#proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
 new_proteomes_path =  'data/core/merged_evo_rate.csv'
-proteomes_df = pd.read_csv(proteomes_path)
+proteomes_df = pd.read_csv(new_proteomes_path) # old: proteomes_path
 
 # find species ------------------------------------------------------------------------------------------------------
 st.sidebar.subheader('3. Zoom on Taxonomic Group', divider="orange")
@@ -1828,7 +1862,7 @@ if st.session_state.get("find_species_box"):
             st.page_link("https://en.wikipedia.org/wiki/" + what, label="Wiki", icon="🌎")
         #species = renamed_species
         st.write('Close species in the tree share similar protein structures at the proteome level.')
-        display_interactive_tree_c_zoom(species_out)
+        display_interactive_tree_c_zoom(species_out, renamed_species)
 
 
 # find taxon --------------------------------------------------------------------------------------------------
@@ -1845,15 +1879,15 @@ if st.session_state.get("find_taxon_box"):
     else:
         what = taxon
         st.page_link("https://en.wikipedia.org/wiki/" + what, label="Wiki", icon="🌎")
-        taxon_tree = extract_subtree(proteomes_path, main_tree_path, taxon)
-        display_interactive_tree_c_zoom(taxon_tree)
+        taxon_tree = extract_subtree(new_proteomes_path, main_tree_path, taxon)
+        display_interactive_tree_c_zoom(taxon_tree, taxon)
             
 
 
 ############### Protein tree extraction -----------------------------------------------------------------------------------------
 st.sidebar.subheader('4. Structural Homologs', divider="red")
 with st.sidebar.expander("Help: How to Find Protein Structural Homologs"):
-    st.write("Digit the protein (Uniprot ID) you want to find the homologs of.")
+    st.write("Digit the protein (UniProt ID) you want to find the homologs of.")
     st.write("The resulting structural phylogenetic tree will show you all the species sharing a protein structural homolog of your input protein.")
 
 #if st.checkbox('Find Protein Structural Homologs'):
@@ -1861,7 +1895,7 @@ if st.session_state.get("homologs"):
     protein = ''
     st.title('Tree of all organisms sharing a protein structure:')
     protein = st.text_input(
-    'Which protein (Uniprot ID)?', key="protein")
+    'Which protein (UniProt ID)?', key="protein")
     st.write('Selected Protein: ', protein)
     if protein == '':
             st.warning('Please enter protein uniprot ID i.e. P05023 or A0A0P8ZLX7')
@@ -1869,23 +1903,20 @@ if st.session_state.get("homologs"):
         # uniprot link
         st.page_link("https://www.uniprot.org/uniprotkb/" + protein + "/entry", label="UniProt", icon="🌎")
         # --- Configuration AFDB  ---
-        UNIPROT_ID = protein 
-        AFDB_API_URL = (
-            "https://alphafold.ebi.ac.uk/api/prediction/" + UNIPROT_ID + "?")
-            #f"{protein}?") #https://alphafold.ebi.ac.uk/api/prediction/Q5VSL9
-        st.markdown(f"Loading predicted structure **{UNIPROT_ID}** from AlphaFold DB...")
+        try: 
+            UNIPROT_ID = protein 
+            AFDB_API_URL = (
+                "https://alphafold.ebi.ac.uk/api/prediction/" + UNIPROT_ID + "?")
+                #f"{protein}?") #https://alphafold.ebi.ac.uk/api/prediction/Q5VSL9
+            st.info(f"Loading predicted structure **{UNIPROT_ID}** from AlphaFold DB...")
+        except:
+            st.warning(f"**{UNIPROT_ID}** not found in AlphaFold DB...")
         # Use requests.get() to query the API and retrieve the JSON metadata
         response = requests.get(AFDB_API_URL, timeout=59)
         # Check for general request errors (e.g., 404, 500)
-        response.raise_for_status() 
+        #response.raise_for_status() 
         # Parse the JSON response
         data = response.json()
-        layout = st.radio(
-            "Select Tree Layout:",
-            ('Linear', 'Circular'),
-            index=0,
-            horizontal=True
-        )
         # The API returns a list of prediction objects (usually one)
         if data and isinstance(data, list) and data[0].get('cifUrl'):
             # Extract the direct download link from the JSON response
@@ -1896,9 +1927,15 @@ if st.session_state.get("homologs"):
             st.caption(f"Source: [AlphaFold DB - {UNIPROT_ID}]({AFDB_DOWNLOAD_URL})")
         else:
             # Handle cases where the API returns a valid response but no structure data
-            st.warning(f"Error: Structure data for {UNIPROT_ID} was **not found** in the API response. Please make sure to input a protein Uniprot ID.")
+            st.warning(f"Structure data for {UNIPROT_ID} was **not found** in the AFDB.")
         
         # get tree
+        layout = st.radio(
+            "Select Tree Layout:",
+            ('Linear', 'Circular'),
+            index=0,
+            horizontal=True
+        )
         #protein_svg = pathlib.Path('results/protein_trees/' + protein +'_presence_tree_' + layout +'.svg')
         for protein in [protein]:
             families_csv_path = 'data/core/protein_families_238.csv' #i.e. ./data/core/protein_families_238.csv
@@ -1942,12 +1979,12 @@ with st.sidebar.expander("Help: how to build the Structural Tree from a Set of P
 if st.session_state.get("set"):
     proteins = ''
     st.title('Tree built from your protein structures:')
-    #st.warning('This function is going to be released soon')
+    st.warning('Please not that this function is still under development. Contact us for feedback :)')
     proteins = st.text_input(
-    'Which proteins (each Uniprot ID separated by a space, i.e: Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616)?', key="proteins")
+    'Which proteins (each UniProt ID separated by a space, i.e: Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616)?', key="proteins")
     st.write('Selected Proteins: ', proteins)
     if proteins == '':
-            st.warning('Please enter a list of protein Uniprot ID split by a space i.e. "P05023 A0A0P8ZLX7"')
+            st.warning('Please enter a list of protein UniProt ID split by a space i.e. "P05023 A0A0P8ZLX7"')
     else:
         random_num = random.randint(100000, 999999)
         user = f"user_{random_num}"
@@ -2131,3 +2168,7 @@ if st.session_state.get("set"):
         os.remove(zip_file_path)
         if is_random_user:
             shutil.rmtree(user_dir)
+
+# --- CITATION
+st.subheader('Cite', divider="rainbow")
+st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')

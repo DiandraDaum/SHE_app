@@ -43,7 +43,7 @@ st.set_page_config(
     page_icon= "data/tree/logo_tree.png", 
     layout="centered"
 )
-st.title('SHE: Structural History of Eukarya')
+#st.title(':green[SHE: Structural History of Eukarya]')
 
 st.subheader('Structural Phylogenetic Tree')
 st.markdown("""
@@ -81,15 +81,15 @@ st.markdown("""
 """, unsafe_allow_html=True)
 row1 = st.columns(2)
 #emojis = [":deciduous_tree:", ":mouse2:", ":material/download:"]
-titles = ["1. Explore Kingdoms", "2. Proteome evolutionary rate"]
+titles = ["1. Explore Clades", "2. Proteome evolutionary rate"]
 
 # Create the tiles and their content
 for col, content in zip(row1,  titles):
     #with col:   tile = st.container(height=120)   tile.title(f"{emoji} {content}")
     with col.expander(f"**{content}**"):
         # --- kingdoms ---
-        if content == "1. Explore Kingdoms":
-            st.write(':blue[Start exploring the new structural phylogenetic tree by selecting a kingdom in the sidebar!]')
+        if content == "1. Explore Clades":
+            st.write(':blue[Start exploring the new structural phylogenetic tree by selecting a major taxon in the sidebar!]')
             st.write(':blue[You can also choose the tree visualisation style in the sidebar.]')
             
         # --- evorate ---
@@ -118,7 +118,7 @@ else:
     labels = False
     
 # Choose Taxon
-st.sidebar.subheader('1. Visualise Kingdoms', divider=True)
+st.sidebar.subheader('1. Visualise Clades', divider=True)
 kingdom = st.sidebar.selectbox(
     'Which kingdom? (default: Eukarya)',
     df['kingdom'],
@@ -172,8 +172,8 @@ if st.button(button_label):
 
 # Display the kingdom tree image --------------------------------------------------------------
 if st.session_state.show_tree:
-    st.title('Kingdom tree: ' + kingdom)
-    'Selected Kingdom: ', kingdom
+    st.title('Clade tree: ' + kingdom)
+    'Selected Clade: ', kingdom
     'Selected layout: ', layout
     if labels == True:
         'Labels: ON'
@@ -238,3 +238,6 @@ if st.sidebar.toggle('See tree with evolutionary rate'):
                     width='stretch')
 
 st.sidebar.page_link("pages/4_Downloads.py", label="Download trees", icon="⬇️")
+# --- CITATION
+st.subheader('Cite', divider="rainbow")
+st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')

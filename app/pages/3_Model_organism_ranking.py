@@ -145,7 +145,8 @@ def load_mapping(mapping_file):
         mapping_df = pd.read_csv(mapping_file)
         return dict(zip(mapping_df['species_name'], mapping_df['id']))
     except Exception as e:
-        st.error(f"Error reading mapping file: {e}")
+        print(f"Error reading mapping file: {e}")
+        st.stop()
         sys.exit(1)
 @st.cache_data
 def load_mapping_proteome(mapping_file):
@@ -153,7 +154,8 @@ def load_mapping_proteome(mapping_file):
         mapping_df = pd.read_csv(mapping_file)
         return dict(zip(mapping_df['species_name'], mapping_df['proteome_id']))
     except Exception as e:
-        st.error(f"Error reading mapping file: {e}")
+        print(f"Error reading mapping file: {e}")
+        st.stop()
         sys.exit(1)
 @st.cache_data
 def find_comparison_csv(target_dir, compare_dir_id):
@@ -206,7 +208,8 @@ def process_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
 
 
     except Exception as e:
-        st.error("Are you sure your input protein(s) are related to the input target organism? Try again by inputting the right target protein(s): the Uniprot ID has to be found in the proteome of the target species selected above.")
+        st.error("Your input protein(s) cannot be found in the proteone of the input target organism... Try again with the right target protein(s): the UniProt ID has to be found in the proteome of the target species selected above.")
+        st.stop()
         
     # Convert map to list (Vector) ensures order is identical for all species
     score_vector = [score_map[uid] for uid in uniprot_ids]
@@ -423,7 +426,9 @@ def load_ids(ids_file):
 
         # Try different formats
         if len(lines) == 0:
-            raise ValueError("Empty file")
+            print("ValueError: Empty file")
+            st.stop()
+            #raise ValueError("Empty file")
 
         # Try tab-delimited format
         if '\t' in lines[0]:
@@ -437,6 +442,7 @@ def load_ids(ids_file):
     except Exception as e:
         print(f"Error reading IDs file: {e}")
         print("File should contain one ID per line or be tab-delimited")
+        st.stop()
         sys.exit(1)
 
 def parse_biotite_tree(biotite_tree, ids):
@@ -529,7 +535,8 @@ def get_pdb(protein, proteome):
     if proteome_dirs:
         proteome_dir = proteome_dirs[0]
     else:
-        st.error(f"Error: Could not find any directory matching the pattern: {wild_proteome_dir}")
+        print(f"Error: Could not find any directory matching the pattern: {wild_proteome_dir}")
+        st.stop()
         sys.exit(1)
     db_dir = f"{proteome_dir}/extracted_pdbs" 
     db_dir_path = Path(db_dir)
@@ -922,7 +929,7 @@ def render_3dmol_alignment(color, structure_path, target_name, query_name, tm_sc
         **Alignment Details:**
         * **TM-Score:** `{tm_score:.4f}` 
         * **RMSD:** `{rmsd:.4f}` Å
-        * **Chain legend:** **{target_name}** (**cyan**) vs. **{query_name}** (**Yellow**)
+        * **Chain legend:** **{target_name}** (**cyan**) vs. **{query_name}** (**yellow**)
         * **plDDT legend: >90 (dark blue), 81-90 (cyan), 71-80 (green), 61-70 (yellow), 51-60 (orange), <51 (red)**
     """)
 
@@ -1079,7 +1086,9 @@ def prepare_ranking_data(target_species, model_organisms, protein_list_str):
                     best_hits_df['proteinA'] = best_hits_df['proteinB']
                     best_hits_df['proteinB'] = temp_col
                 except Exception:
-                    return None, None, "Input protein mismatch. Uniprot ID must exist in target proteome."
+                    st.warning("Input protein mismatch: UniProt ID must exist in target proteome. Please note that the input protein have to be related to the proteome of the target species. Please change your input protein(s) or target organism accordingly.")
+                    st.stop()
+                    return None, None, "Input protein mismatch. UniProt ID must exist in target proteome."
             
             best_hits_df['Compared_Species'] = species 
             all_best_hits_dfs.append(best_hits_df)
@@ -1124,15 +1133,46 @@ def prepare_ranking_data(target_species, model_organisms, protein_list_str):
     df_final = pd.merge(df_rank_filtered, df_presence, on='Organism', how='left')
     
     return df_final, comparison_df, None  # None means no error
-#---------------------------------------
 
+#bg
+@st.cache_data
+def set_background(image_path):
+    """
+    Adds a background image to the main Streamlit app container.
+    """
+    if not os.path.exists(image_path):
+        st.error(f"Background image not found at: {image_path}")
+        return
+
+    with open(image_path, "rb") as f:
+        data = f.read()
+    
+    # Convert image to Base64
+    encoded_image = base64.b64encode(data).decode()
+
+    # Inject CSS with the Base64 image
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background-image: url("data:image/png;base64,{encoded_image}");
+            background-size: cover;        /* Scale image to cover entire screen */
+            background-position: center;   /* Center the image */
+            background-repeat: no-repeat;  /* Do not repeat */
+            background-attachment: fixed;  /* Keep background fixed when scrolling */
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+#---------------------------------------
 ##MAIN##
 st.set_page_config(
-    page_title="SHE: Analyse",
+    page_title="SHE: Model",
     page_icon= "data/tree/logo_tree.png", 
     layout="centered"
 )
-
+set_background('data/logos/model.png')
 st.markdown("""
 <style>
 /* 1. Target the Expander Container (The 'details' HTML tag) */
@@ -1166,9 +1206,9 @@ st.markdown("""
 }
 </style>
 """, unsafe_allow_html=True)
-st.title('SHE: Structural History of Eukarya')
+#st.title(':green[SHE: Structural History of Eukarya]')
 #st.image('data/tree/model.png',ccaption='Protein-protein structure comparison to rank the best model organism for your target organism')
-st.title('Model Organisms Ranking')
+st.title('Model Organism Ranking')
 st.write("Find the best model organism match for your biological pathway by instant structural matching")
 with st.expander(":violet[See Example Usage]"):
     st.subheader(":violet[Follow the following steps to discover the top model organism to study part of the human Fanconi anemia (FA) DNA repair pathway]")
@@ -1281,8 +1321,8 @@ st.sidebar.subheader('6. Model Organism Ranking', divider="violet")
 with st.sidebar.expander("Help: How to use the Model Organism Ranking tool"):
     st.write("Start it by clicking on 'Rank Model Organisms'!")
     st.markdown("""
-    * Your target species
-    * The proteins in the pathway you are studying
+    * Your target species (i.e. Homo sapiens)
+    * The proteins in the pathway you are studying (note that their UniProt ID has to be found in the proteome of the target species)
     * The available model organisms you could choose from
     """)
     st.write("This will result in a ranking of the model organisms  based on the structural similarity (bitscore, the higher the better) of the input proteins compared to the target species")
@@ -1377,7 +1417,6 @@ if st.session_state['ranking_active']:
         default_index = [x.lower() for x in options].index(target_search_term)
     except ValueError:
         default_index = 0
-
     # 1. .replace('_', ' ') -> "Homo sapiens Human"
     # 2. .capitalize()      -> "Homo sapiens human" (First letter Big, rest small)
     target = st.selectbox(
@@ -1400,7 +1439,7 @@ if st.session_state['ranking_active']:
     # Loop renders the correct number of selectboxes based on model_count
     for i in range(1, st.session_state.model_count + 1):
         selection = st.selectbox(
-            f'Which model organism ({i}) do you have available (i.e: Saccharomyces cerevisiae...)?',
+            f'Which model organism ({i}) do you have available (i.e: Mus musculus, Saccharomyces cerevisiae, Danio rerio)?',
             proteomes_df['Organism_formatted'],
             # Apply the same formatting logic: Replace underscore + Capitalize first letter only
             format_func=lambda x: x.replace('_', ' ').capitalize(),
@@ -1417,11 +1456,11 @@ if st.session_state['ranking_active']:
 
     #choose proteins -----------------------------------------------------------------------
     protein_list = st.text_input(
-    'Which proteins are you studying in your target organism? (each Uniprot ID separated by a space, i.e: Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616). Please note that the proteins IDs have to be associated to the proteome of the target organism selected above.', key="protein_list")
+    'Which proteins are you studying in your target organism? (each UniProt ID separated by a space, i.e: Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616). Please note that the protein IDs have to be associated to the proteome of the target organism selected above, otherwise they will not be found.', key="protein_list")
 
     #start ranking-------------------------------------------------------------------------
     if (protein_list == '') or not model_organisms:
-        st.warning('Please input the Uniprot ID of the protein(s) to study, the organism to study, and the model organisms to choose from.')
+        st.warning('Please input the UniProt ID of the protein(s) to study, the organism to study, and the model organisms to choose from.')
     else:
         st.write('Selected Protein(s) to study: ', protein_list)
         st.write('Selected Model Organism(s): ', ', '.join(model_organisms))
@@ -1569,10 +1608,7 @@ if st.session_state['ranking_active']:
             color = trace.line.color 
             if trace.name not in color_map and color:
                 color_map[trace.name] = color
-                
-        # (Optional: Display the main radar chart if you want)
         # st.plotly_chart(radar_fig, use_container_width=True)
-
 
         # --- STRUCTURE ALIGNMENT ---
         if st.toggle(':green[Show protein structure alignments]'):
@@ -1666,7 +1702,6 @@ if st.session_state['ranking_active']:
 
                             if success:
                                 # --- USE THE FRAGMENT ---
-                                # This replaces your old render_3dmol_alignment call
                                 render_interactive_structure(
                                     key_suffix=index, # Unique key per row ensures widgets don't conflict
                                     out_file=out_file, 
@@ -1711,8 +1746,12 @@ if st.session_state['ranking_active']:
         
 
     if st.button("Close Analysis"):
-        os.remove(zip_file_path)
         if is_random_user:
+            os.remove(zip_file_path)
             shutil.rmtree(user_dir)
         st.session_state['ranking_active'] = False
         st.rerun()
+
+# --- CITATION
+st.subheader('Cite', divider="rainbow")
+st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')

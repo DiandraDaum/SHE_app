@@ -26,12 +26,12 @@ NAV_ITEMS = [
 
 # Define features for the main grid section
 FEATURES = [
-    {"icon": "🌳", "title": "Structural Phylogeny", "description": "Explore the structural phylogenetic tree for the main eukaryotic subkingdoms.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/plant_Q9NXK8.mp4"}, #"demo": "data/demos/demo1.mp4"
+    {"icon": "🌳", "title": "Structural Phylogeny", "description": "Explore the structural phylogenetic tree for the main eukaryotic clades.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/plant_Q9NXK8.mp4"}, #"demo": "data/demos/demo1.mp4"
     {"icon": "📈", "title": "Evolutionary Rate", "description": "Visualize colored branches by evolutionary rate to identify fast and slow-evolving proteomes.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/mouse_Q9NXK8.mp4"},
     {"icon": "🍄", "title": "Taxon Interactive Search", "description": "Zoom on specific taxa or species to discover new evolutionary relationships.", "link_path": "pages/2_Interactive_Tree.py", "demo": "data/subset/figure_model/fish_Q9NXK8.mp4"},
     {"icon": "🔎", "title": "Structural Homologs Search", "description": "Input UniProt IDs to analyze presence/absence of structural homologs across all eukaryotic organisms.", "link_path": "pages/2_Interactive_Tree.py", "demo": "data/subset/figure_model/plant_Q9NVI1.mp4"}, # Reusing Model Organisms page for search
     {"icon": "🐁", "title": "Model Organism Ranking", "description": "Find the best model organism match for your biological pathway by instant structural matching.", "link_path": "pages/3_Model_Organism_Ranking.py", "demo": "data/subset/figure_model/mouse_Q9NVI1.mp4"},
-    {"icon": "⬇️", "title": "Data Downloads", "description": "Download FoldSeek comparison bitscores, Newick files, and predicted protein structures from each proteome.", "link_path": "pages/4_Downloads.py", "demo": "data/subset/figure_model/fish_Q9NVI1.mp4"},
+    {"icon": "⬇️", "title": "Data Downloads", "description": "Download tree.newick files, FoldSeek bitscores, and predicted protein structures from each proteome.", "link_path": "pages/4_Downloads.py", "demo": "data/subset/figure_model/fish_Q9NVI1.mp4"},
 ]
 
 # Define methodology steps
@@ -147,6 +147,13 @@ def embed_video_background(video_path):
         unsafe_allow_html=True
     )
 
+@st.cache_data
+def get_base64_image(image_path):
+    """Converts a local file to a base64 string for HTML embedding."""
+    if not os.path.exists(image_path):
+        return "" # Return empty if file not found to prevent errors
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
 # --- APP EXECUTION ---
 
 # 1. Set Page Config
@@ -225,18 +232,80 @@ st.markdown("""
 # 3. Main Title & Tree Video
 st.markdown("""
     <h1 style='text-align: center; color: green; font-size: 4rem; font-weight: bold;'>
-        SHE: Structural History of Eukarya
+        Structural History of Eukarya
     </h1>
 """, unsafe_allow_html=True)
-st.markdown("<h2 style='text-align: center; color: white;'>Beyond traditional phylogenetics", unsafe_allow_html=True)
-st.markdown("<h2 style='text-align: center; color: white;'>leverage proteome-wide structural comparisons for groundbreaking insights", unsafe_allow_html=True)
+#st.markdown("<h2 style='text-align: center; color: white;'>Beyond traditional phylogenetics", unsafe_allow_html=True)
+#st.markdown("<h2 style='text-align: center; color: white;'>Leverage proteome-wide structural comparisons for groundbreaking insights", unsafe_allow_html=True)
 st.sidebar.success("Find more analysis options in the panels above.")
-
-
-video_tree = open("data/tree/final_tree.mp4", "rb")
-tree_bytes = video_tree.read()
+# add figure here
+#video_tree = open("data/tree/final_tree.mp4", "rb")
+#tree_bytes = video_tree.read()
 #st.video(tree_bytes, autoplay=True, loop=True, muted=True)
 
+#st.image('data/logos/SHE.png')
+# 1. Define image path
+image_path = 'data/logos/SHE.png'
+# 2. Check if file exists and encode
+if os.path.exists(image_path):
+    img_b64 = get_base64_image(image_path)
+else:
+    st.error("Image not found. Please check the path 'data/logos/SHE.png'")
+    img_b64 = ""
+# 3. Render the Banner with Overlay Text
+st.markdown(
+    f"""
+    <style>
+    .banner-container {{
+        /* Use the Base64 image as a background */
+        background-image: url("data:image/png;base64,{img_b64}");
+        background-size: cover; /* Ensures image fills the box */
+        background-position: center;
+        border-radius: 15px;
+        padding: 100px 20px; /* Top/Bottom padding creates the height */
+        text-align: center;
+        position: relative;
+        margin-bottom: 20px;
+    }}
+    
+    /* Adds a dark overlay so text pops */
+    .banner-overlay {{
+        background-color: rgba(0, 0, 0, 0.4); /* 40% opaque black */
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border-radius: 15px;
+        z-index: 1;
+    }}
+
+    /* The text styling */
+    .banner-text {{
+        position: relative;
+        z-index: 2; /* Ensures text is above the dark overlay */
+        color: white;
+        transition: all 0.3s ease-in-out;
+        text-shadow: 2px 2px 5px rgba(0,0,0,0.8);
+    }}
+
+    /* The Glow Effect on Hover */
+    .banner-text:hover {{
+        text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #e60073;
+        transform: scale(1.02); /* Slight zoom for effect */
+    }}
+    </style>
+
+    <div class="banner-container">
+        <div class="banner-overlay"></div>
+        <div class="banner-text">
+            <h2>Beyond traditional phylogenetics</h2>
+            <h3>Leverage proteome-wide structural comparisons for groundbreaking insights</h3>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 # 4. Main Content Container
 with st.container():
@@ -254,8 +323,7 @@ with st.container():
             <div class="card-header">
                 <h3>Model Organism Ranking</h3>
                 <p class="card-description">
-                    Select your proteins of interest and discover the optimal model organism 
-                    where they are most structurally conserved.
+                    Find the best model organism match for your biological pathway by instant structural matching.
                 </p>
                 <div style="background: #1f2937; padding: 15px; border-radius: 12px; margin-bottom: 15px;">
                     <div style="color: #6b7280; font-size: 0.75rem; margin-bottom: 10px;">Conservation Score</div>
@@ -292,7 +360,7 @@ with st.container():
             <div class="card-header">
                 <h3>Tree & Evolutionary Rate</h3>
                 <p class="card-description">
-                    Identify fast and slow-evolving lineages by visualizing evolutionary rates across the tree.
+                    Identify fast and slow-evolving proteomes by visualizing evolutionary rates across the tree.
                 </p>
                 <div style="background: #1f2937; padding: 15px; border-radius: 12px; margin-bottom: 15px;">
                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
@@ -405,21 +473,46 @@ with st.container():
     st.html(f"<style>{css}</style>")
 
 
+
     row1 = st.columns(4)
-    titles = ["Organisms", "Proteins", "Kingdoms", "Powered By"]
-    values = ["1542", "24.3M", "6", "FoldSeek"]
+    titles = ["Organisms", "Proteins", "Structure Alignments", "Powered By"]
+    values = ["1'542", "24.3M", "296'000B", "Foldseek"]
 
     for i, (col, value, title) in enumerate(zip(row1, values, titles)):
         with col:
-            st.markdown(
-                f"""
-                <div class="green-tile-container">
-                    <h2>{value}</h2>
-                    <p>{title}</p>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+            if title == "Powered By":
+                logo_path = "data/logos/foldseek_logo.png" 
+                logo_b64 = get_base64_image(logo_path)
+                # --- SPECIAL FOLDSEEK CARD ---
+                st.markdown(
+                    f"""
+                    <a href="https://github.com/steineggerlab/foldseek" target="_blank" style="text-decoration: none; color: inherit;">
+                        <div class="green-tile-container" style="
+                            background-image: url('data:image/png;base64,{logo_b64}'); 
+                            background-size: cover; 
+                            background-position: center;
+                            background-blend-mode: overlay;
+                            background-color: rgba(0, 50, 0, 0.7); /* Dark green tint to make text readable */
+                            cursor: pointer;
+                            ">
+                            <h2 style="color: white; text-shadow: 2px 2px 4px #000;">{value}</h2>
+                            <p style="color: white; font-weight: bold; text-shadow: 1px 1px 2px #000;">{title}</p>
+                        </div>
+                    </a>
+                    """,
+                    unsafe_allow_html=True
+                )
+            else:
+                # --- STANDARD CARDS ---
+                st.markdown(
+                    f"""
+                    <div class="green-tile-container">
+                        <h2>{value}</h2>
+                        <p>{title}</p>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
     # --- B. FEATURES GRID SECTION (Updated to Match Dashboard Style) ---
     st.write("---") 
@@ -435,10 +528,10 @@ with st.container():
     """, unsafe_allow_html=True)
 
     # Features Grid using the new 'dashboard-card' style
-    cols = st.columns(2)
+    cols = st.columns(3)
     
     for i, feature in enumerate(FEATURES):
-        col_index = i % 2
+        col_index = i % 3
         with cols[col_index]:
             # Use 'dashboard-card' here instead of 'glass-panel'
             st.markdown(f"""
@@ -503,6 +596,14 @@ with st.container():
     # --- D. CITATION AND UPDATES ---
     st.subheader('Cite', divider="rainbow")
     st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
+
+    colm1, colm2, colm3, colm4 = st.columns(4)
+    with colm2:
+        st.image("data/logos/scilifelab.png", use_container_width=False)
+    with colm3:
+        st.image("data/logos/su.png", use_container_width=False)
+
+
 
     st.sidebar.subheader('Updates', divider="rainbow")
     st.sidebar.write('Sign up for updates!')

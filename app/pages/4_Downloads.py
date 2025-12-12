@@ -48,15 +48,44 @@ def zip_download(matching_paths, zip_file_name, label):
 
 
 
+@st.cache_data
+def set_background(image_path):
+    """
+    Adds a background image to the main Streamlit app container.
+    """
+    if not os.path.exists(image_path):
+        st.error(f"Background image not found at: {image_path}")
+        return
 
+    with open(image_path, "rb") as f:
+        data = f.read()
+    
+    # Convert image to Base64
+    encoded_image = base64.b64encode(data).decode()
+
+    # Inject CSS with the Base64 image
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background-image: url("data:image/png;base64,{encoded_image}");
+            background-size: cover;        /* Scale image to cover entire screen */
+            background-position: center;   /* Center the image */
+            background-repeat: no-repeat;  /* Do not repeat */
+            background-attachment: fixed;  /* Keep background fixed when scrolling */
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 ##########page-----------------------------------------------
 st.set_page_config(
     page_title="SHE: Downloads",
     page_icon= "data/tree/logo_tree.png", 
     layout="centered"
 )
-
-st.title('SHE: Structural History of Eukarya')
+set_background('data/logos/SHE.png')
+#st.title(':green[SHE: Structural History of Eukarya]')
 st.subheader('Downloads')
 st.write('Here it is possible to download the data (structures and trees) from our analysis.')
 st.write('Please, below select the type of file you want to download.')
@@ -106,7 +135,7 @@ st.markdown("""
 
 with st.expander('Complete Foldcomp results by Proteome'):
     st.subheader('Foldcomp results for all Proteome')
-    st.write('Here it is possible to download the Foldseek results per Proteome. To read the files, see https://github.com/steineggerlab/foldcomp and our code on https://github.com/DiandraDaum/SHE_app/')
+    st.write('Here it is possible to download the Foldcomp results per Proteome. To read the files, see https://github.com/steineggerlab/foldcomp and our code on https://github.com/DiandraDaum/SHE_app/')
     proteome = st.text_input(
     'Which proteome: UniProt ID?', key="proteome1")
     st.write('Proteome selected for download: ', proteome)
@@ -114,7 +143,7 @@ with st.expander('Complete Foldcomp results by Proteome'):
     if proteome == '':
         st.warning('Please input the UniProt proteome ID (i.e. UP000005640)')
     else:
-        st.warning('This function is going to be released soon')
+        #st.warning('This function is going to be released soon')
         subset_dir='data/subset/subset'
         proteome_dir = f"{subset_dir}/{proteome}_*"  # temporarely unziped proteome
         # temp zip proteome folder for 
@@ -126,7 +155,7 @@ with st.expander('Complete Foldcomp results by Proteome'):
             label1="Download Foldseek results for " + proteome + " (.zip)"
             zip_download(matching_paths, zip_file_name, label1)
         else:
-            st.error(f"Proteome {proteome} not found.")
+            st.error(f"Proteome {proteome} not found. The **UniProt Proteomes** link above might help you find the ID you are looking for. Try again :)")
 
 with st.expander('Alignment scores by Organism'):
     st.subheader('Protein-protein alignment bitscores by Organism')
@@ -148,12 +177,12 @@ with st.expander('Alignment scores by Organism'):
             zip_file_name = f"{proteome}_bitscores"
             zip_download(matching_paths, zip_file_name, label2)
         else:
-            st.error("Proteome not found.")
+            st.error(f"Proteome {proteome} not found. The **UniProt Proteomes** link above might help you find the ID you are looking for. Try again :)")
 
 
 
 
-with st.expander('Protein structure predictions'):
+with st.expander('Protein Structure Predictions'):
     st.write('Here it is possible to download the predicted protein structures (.pdb) by protein ID, originally retrieved from AFDB v4')
     proteome = st.text_input(
     'Which proteome: UniProt ID?', key="proteome3")
@@ -174,19 +203,21 @@ with st.expander('Protein structure predictions'):
         proteome_indexes = f"{index_dir}/{proteome}_*_fc_id_mapping.csv"
         matching_proteome = glob.glob(proteome_indexes)
         if not matching_proteome:
-            st.error(f"Error: No matching proteome index file found for {proteome}")
+            st.error(f"No match found for proteome {proteome}. The **UniProt Proteomes** link above might help you find the ID you are looking for. Try again :)")
+            st.stop()
         index_file_path = matching_proteome[0]
         
         try:
             proteome_df = pd.read_csv(index_file_path) # columns: 'fc_db_index' and 'afdb_id'
         except Exception as e:
-            st.error(f"Error reading index file {index_file_path}: {e}")
+            print(f"Error reading index file {index_file_path}: {e}")
             
         af_protein = f"AF-{protein}-F1-model_v4"
         matching_rows = proteome_df[proteome_df['afdb_id'] == af_protein]
         
         if matching_rows.empty:
-            st.error(f"Structure prediction for protein {af_protein} not found in {proteome}.")
+            st.error(f"Structure prediction for protein {af_protein} not found in {proteome}. The **UniProtKB** link above might help you find the ID you are looking for. Try again :)")
+            st.stop()
         
         # This is the correct database index
         retrieved_index = matching_rows['fc_db_index'].iloc[0] 
@@ -195,7 +226,7 @@ with st.expander('Protein structure predictions'):
         wild_proteome_dir = f"{subset_dir}/{proteome}_*" #no .file
         proteome_dirs = glob.glob(wild_proteome_dir)
         if not proteome_dirs:
-            st.error(f"Error: Could not find any directory matching the pattern: {wild_proteome_dir}")
+            print(f"Error: Could not find any directory matching the pattern: {wild_proteome_dir}")
             
         proteome_dir = proteome_dirs[0]
         db_dir = f"{proteome_dir}/extracted_pdbs" 
@@ -206,7 +237,7 @@ with st.expander('Protein structure predictions'):
         db_name_wild = f"{proteome_dir}/{full_proteome_id}"
         db_name_list = glob.glob(db_name_wild)
         if not db_name_list:
-            st.error(f"Error: Could not find any database file matching: {db_name_wild}")
+            print(f"Error: Could not find any database file matching: {db_name_wild}")
         db_name = db_name_list[0]
 
         # --- 3. Directly Retrieve PDB using the Index ---
@@ -275,6 +306,9 @@ with st.expander('Tree by Kingdom'):
                     icon=":material/download:",
                 )
 
+# --- CITATION
+st.subheader('Cite', divider="rainbow")
+st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
 
 
 
