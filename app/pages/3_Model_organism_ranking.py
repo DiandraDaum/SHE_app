@@ -1133,7 +1133,39 @@ st.set_page_config(
     layout="centered"
 )
 
+st.markdown("""
+<style>
+/* 1. Target the Expander Container (The 'details' HTML tag) */
+[data-testid="stExpander"] {
+    border: 1px solid rgba(250, 250, 250, 0.2); /* Subtle default border */
+    border-radius: 12px;                        /* Rounded corners */
+    transition: all 0.3s ease-in-out;           /* Smooth animation */
+}
 
+/* 2. HOVER STATE: The "Green Aura" */
+[data-testid="stExpander"]:hover {
+    border-color: #22c55e;   /* Brighter green border */
+    
+    /* The Aura Effect: Green Glow */
+    box-shadow: 0 0 20px rgba(74, 222, 128, 0.4), 
+                0 0 10px rgba(74, 222, 128, 0.2);
+}
+
+/* 3. OPTIONAL: Make the Title Green on Hover too */
+[data-testid="stExpander"]:hover summary {
+    color: #4ade80 !important;
+}
+
+/* 4. OPTIONAL: Customize the internal icon color */
+[data-testid="stExpander"] summary svg {
+    fill: #9ca3af !important; /* Default gray */
+    transition: fill 0.3s ease-in-out;
+}
+[data-testid="stExpander"]:hover summary svg {
+    fill: #4ade80 !important; /* Green on hover */
+}
+</style>
+""", unsafe_allow_html=True)
 st.title('SHE: Structural History of Eukarya')
 #st.image('data/tree/model.png',ccaption='Protein-protein structure comparison to rank the best model organism for your target organism')
 st.title('Model Organisms Ranking')
@@ -1183,10 +1215,11 @@ with st.expander(":violet[See Example Usage]"):
             
             with st.expander(":green[Step 5. Check structural alignments]"):
                 # Content that appears when the user clicks/expands
-                st.write(f"**Total Bitscore** human vs {title}: **{bitscore}**")
-                st.write("---")
-                st.write(f"**Bitscore** human Q9NXK8 vs {title} {protein1}: **{score1}**")
                 if title == "House Mouse":
+                    st.write(f"**Total Bitscore** human vs {title}: **{bitscore}**")
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    st.write("---")
+                    st.write(f"**Bitscore** human Q9NXK8 vs {title} {protein1}: **{score1}**")
                     alignment = open("data/subset/figure_model/mouse_Q9NXK8.mp4", "rb")
                     bytes = alignment.read()
                     st.video(bytes, autoplay=True, loop=True, muted=True)
@@ -1201,13 +1234,16 @@ with st.expander(":violet[See Example Usage]"):
                     bytes3 = alignment3.read()
                     st.video(bytes3, autoplay=True, loop=True, muted=True)
                 elif title == "Zebrafish":
+                    st.write(f"**Total Bitscore** human vs {title}: **{bitscore}**")
+                    st.markdown("<br>", unsafe_allow_html=True)
+                    st.write("---")
+                    st.write(f"**Bitscore** human Q9NXK8 vs {title} {protein1}: **{score1}**")
                     st.markdown("<br>", unsafe_allow_html=True)
                     alignment = open("data/subset/figure_model/fish_Q9NXK8.mp4", "rb")
                     bytes = alignment.read()
                     st.video(bytes, autoplay=True, loop=True, muted=True)
                     st.write("---")
                     st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein2}: **{score2}**")
-                    st.markdown("<br>", unsafe_allow_html=True)
                     alignment2 = open("data/subset/figure_model/fish_Q9Y2M0.mp4", "rb")
                     bytes2 = alignment2.read()
                     st.video(bytes2, autoplay=True, loop=True, muted=True)
@@ -1218,6 +1254,9 @@ with st.expander(":violet[See Example Usage]"):
                     bytes3 = alignment3.read()
                     st.video(bytes3, autoplay=True, loop=True, muted=True)
                 elif title == "Arabidopsis thaliana":
+                    st.write(f"**Total Bitscore** human vs {title}: **{bitscore}**")
+                    st.write("---")
+                    st.write(f"**Bitscore** human Q9NXK8 vs {title} {protein1}: **{score1}**")
                     alignment = open("data/subset/figure_model/plant_Q9NXK8.mp4", "rb")
                     bytes = alignment.read()
                     st.video(bytes, autoplay=True, loop=True, muted=True)

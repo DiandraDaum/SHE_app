@@ -147,6 +147,7 @@ def extract_closest_species(newick_file, input_species, num_neighbors): #species
     
     return output_path, target_species
 
+
 def load_species_tree(species, layout, species_out):
 # File paths
     #species_out =  'SHE/species_trees/' + species +'_subtree.newick'
@@ -268,6 +269,7 @@ def extract_subtree(csv_file, newick_file, taxonomic_group): #taxon
         print("The resulting subtree has no leaves. No file was written.")
     return output_file
 
+
 def load_extracted_tree(taxon, layout, taxon_out):
 # File paths
     taxon = taxon
@@ -317,9 +319,10 @@ def get_species_id(protein_name):
     if isinstance(protein_name, str) and protein_name.startswith("UP"):
         return protein_name.split('-')[0].split('_')[0]
     return None
+
 def protein_in_family(protein, families_csv_path):
     """
-    Find the homologous family of a protein uniprot ID.
+    Find the homologs family of a protein uniprot ID.
     """
     families_df = pd.read_csv(families_csv_path)
     #new uniport id column
@@ -333,7 +336,7 @@ def protein_in_family(protein, families_csv_path):
         print(f"Mapped Protein Uniprot ID '{protein}' to family: {family}")
         return family, families_df
     else:
-        st.warning(f"This protein does not seem to have a structural homologous...")
+        st.warning(f"This protein does not seem to have a structural homologs...")
 
 def protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree):
     """
@@ -494,6 +497,7 @@ def get_tree_coordinates(tree):
 
     return tree
 
+
 def create_plotly_data(tree):
     # This collects all the branch line segments and node scatter points
     branch_lines_x = []
@@ -529,6 +533,7 @@ def create_plotly_data(tree):
             branch_lines_y.extend([node.y, parent.y, None])
             
     return branch_lines_x, branch_lines_y, node_coords
+
 
 def display_interactive_tree(tree_path):
     
@@ -649,6 +654,7 @@ def polar_coordinates_transform_c(tree):
         node.y_polar = r * math.sin(theta_rad)
     
     return tree
+
 
 def create_plotly_data_c(tree, layout):
     branch_lines_x = []
@@ -846,10 +852,486 @@ def display_interactive_tree_c(tree_path):
     fig.update_layout(**layout_params)
     st.plotly_chart(fig, use_container_width=True)
 
+#dark mode plotly
+def display_interactive_tree_c_dark(tree_path):
+    
+    try:
+        # Load the tree and calculate base coordinates
+        tree = Tree(tree_path, format=1)
+        tree = get_tree_coordinates(tree) 
+        
+        num_species = len(tree.get_leaves())
+        
+    except Exception as e:
+        st.error(f"Error processing tree file: {e}")
+        return
+
+    # --- 1. Layout Selection ---
+    available_layouts = ['Linear']
+    MIN_SPECIES_FOR_CIRCULAR = 400
+    if num_species >= MIN_SPECIES_FOR_CIRCULAR:
+        available_layouts.append('Circular')
+        
+    tree_layout = st.radio(
+        "Select Tree Layout:",
+        available_layouts,
+        horizontal=True
+    )
+    layout_key = tree_layout
+
+    # --- 2. Labels Visibility Toggle ---
+    show_labels_option = st.radio(
+        "Show Species Names (Labels):",
+        ('Yes', 'No'),
+        index=0, 
+        horizontal=True,
+        key='show_labels_toggle'
+    )
+    show_labels = (show_labels_option == 'Yes')
+    
+    # --- 3. Coordinate Calculation ---
+    try:
+        if layout_key == 'Circular':
+            tree = polar_coordinates_transform_c(tree) 
+            
+        branch_lines_x, branch_lines_y, node_coords = create_plotly_data_c(tree, layout=layout_key)
+        
+    except Exception as e:
+        st.error(f"Error generating tree coordinates: {e}")
+        return
+        
+    # --- 4. Proteomes loading and Color Generation ---
+    try:
+        proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
+        proteomes_df = pd.read_csv(proteomes_path)
+        proteomes_df.columns = proteomes_df.columns.str.strip().str.replace(' ', '_')
+        proteomes_df['Kingdom'] = proteomes_df['Taxonomic_lineage'].str.split(', ').str[1]
+        organism_to_kingdom = proteomes_df.set_index('Organism_formatted')['Kingdom'].to_dict()
+        unique_kingdoms = sorted(proteomes_df['Kingdom'].unique())
+        
+        node_colors = []
+        for node_name in node_coords['name']:
+            kingdom = organism_to_kingdom.get(node_name, 'Unknown') 
+            color = kingdom_color(kingdom)
+            node_colors.append(color)
+
+    except Exception as e:
+        st.warning(f"Could not load proteome data for coloring ({e}).")
+        node_colors = ['#1f77b4'] * len(node_coords['x'])
+        unique_kingdoms = ['Default']
+    
+    # --- 5. Define Plotly Traces (DARK MODE STYLING) ---
+    
+    # 1. Branch Traces (Lines) -> CHANGED TO LIGHTGREY
+    trace_branches = go.Scatter(
+        x=branch_lines_x, y=branch_lines_y,
+        mode='lines',
+        line=dict(color='lightgrey', width=1), # <--- Changed from black
+        hoverinfo='none', 
+        name='Branches'
+    )
+    
+    node_text = node_coords['name'] if show_labels else [''] * len(node_coords['x'])
+
+    # 2. Node Traces (Scatter Points) -> ADDED WHITE TEXT
+    trace_nodes = go.Scatter(
+        x=node_coords['x'], y=node_coords['y'],
+        mode='markers+text',
+        marker=dict(
+            size=10, 
+            color=node_colors, 
+            line=dict(width=1, color='white') # <--- White border looks better on black bg
+        ),
+        text=node_text, 
+        textposition="middle right",
+        textfont=dict(size=10, color='white'), # <--- Force text to be white
+        hovertext=node_coords['text'],
+        hoverinfo='text',
+        name='Nodes'
+    )
+
+    # 3. Legend Traces 
+    legend_traces = []
+    for kingdom in unique_kingdoms:
+        color = kingdom_color(kingdom)
+        legend_traces.append(
+            go.Scatter(
+                x=[None], y=[None],
+                mode='markers',
+                marker=dict(size=10, color=color, line=dict(width=1, color='white')),
+                name=kingdom,
+                legendgroup='kingdoms'
+            )
+        )
+
+    # --- 6. Create the Figure and Update Layout (DARK BACKGROUND) ---
+    fig = go.Figure(data=[trace_branches, trace_nodes] + legend_traces)
+
+    layout_params = dict(
+        title=f'{layout_key} Tree for evolution visualisation ({num_species} Species)',
+        height=800, 
+        showlegend=True,
+        hovermode="closest",
+        
+        # --- DARK MODE SETTINGS ---
+        template="plotly_dark",     # Sets default axis/grid colors to suit dark mode
+        plot_bgcolor='black',       # Plot area background
+        paper_bgcolor='black',      # Outside area background
+        font=dict(color='white'),   # Global font color
+        # --------------------------
+        
+        margin=dict(l=20, r=20, t=40, b=20),
+        autosize=True
+    )
+
+    if layout_key == 'Linear':
+        layout_params.update(
+            xaxis=dict(showgrid=False, title='Branch length', showticklabels=True), # ticklabels True helps read distance
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
+        )
+    else: # Circular
+        layout_params.update(
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="y", scaleratio=1),
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        )
+    
+    fig.update_layout(**layout_params)
+    st.plotly_chart(fig, use_container_width=True)
+
+def display_interactive_tree_c_zoom(tree_path):
+    
+    try:
+        tree = Tree(tree_path, format=1)
+        tree = get_tree_coordinates(tree) 
+        num_species = len(tree.get_leaves())
+    except Exception as e:
+        st.error(f"Error processing tree file: {e}")
+        return
+
+    # --- 1. Layout Selection ---
+    available_layouts = ['Linear']
+    MIN_SPECIES_FOR_CIRCULAR = 400
+    if num_species >= MIN_SPECIES_FOR_CIRCULAR:
+        available_layouts.append('Circular')
+        
+    col_layout, col_label = st.columns(2)
+    with col_layout:
+        tree_layout = st.radio("Select Tree Layout:", available_layouts, horizontal=True)
+    with col_label:
+        show_labels_option = st.radio("Show Labels:", ('Yes', 'No'), index=0, horizontal=True)
+    
+    layout_key = tree_layout
+    show_labels = (show_labels_option == 'Yes')
+    
+    # --- 2. Coordinate Calculation ---
+    try:
+        if layout_key == 'Circular':
+            tree = polar_coordinates_transform_c(tree) 
+        branch_lines_x, branch_lines_y, node_coords = create_plotly_data_c(tree, layout=layout_key)
+    except Exception as e:
+        st.error(f"Error generating coordinates: {e}")
+        return
+        
+    # --- 3. Proteomes & Coloring ---
+    try:
+        proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
+        proteomes_df = pd.read_csv(proteomes_path)
+        proteomes_df.columns = proteomes_df.columns.str.strip().str.replace(' ', '_')
+        proteomes_df['Kingdom'] = proteomes_df['Taxonomic_lineage'].str.split(', ').str[1]
+        organism_to_kingdom = proteomes_df.set_index('Organism_formatted')['Kingdom'].to_dict()
+        unique_kingdoms = sorted(proteomes_df['Kingdom'].unique())
+        
+        node_colors = []
+        for node_name in node_coords['name']:
+            kingdom = organism_to_kingdom.get(node_name, 'Unknown') 
+            color = kingdom_color(kingdom)
+            node_colors.append(color)
+    except:
+        node_colors = ['#1f77b4'] * len(node_coords['x'])
+        unique_kingdoms = ['Default']
+    
+    # --- 4. NEW: Find Node Feature ---
+    # Get all names
+    raw_node_names = list(node_coords['name'])
+    
+    # FILTER: Keep only names that contain at least one letter (a-z, A-Z)
+    # This removes "9606", "58.56", "100", etc.
+    filtered_node_names = [
+        name for name in raw_node_names 
+        if name and any(c.isalpha() for c in str(name))
+    ]
+    
+    # Use the filtered list for the dropdown
+    search_node = st.selectbox(
+        "🔍 Find a Species (Type to search):",
+        options=["None"] + sorted(filtered_node_names), 
+        index=0,
+        key="node_finder"
+    )
+
+    # --- 5. Define Traces ---
+    trace_branches = go.Scatter(
+        x=branch_lines_x, y=branch_lines_y,
+        mode='lines',
+        line=dict(color='lightgrey', width=1),
+        hoverinfo='none', 
+        name='Branches'
+    )
+    
+    node_text = node_coords['name'] if show_labels else [''] * len(node_coords['x'])
+
+    trace_nodes = go.Scatter(
+        x=node_coords['x'], y=node_coords['y'],
+        mode='markers+text',
+        marker=dict(size=8, color=node_colors, line=dict(width=1, color='white')),
+        text=node_text, 
+        textposition="middle right",
+        textfont=dict(size=10, color='white'),
+        hovertext=node_coords['text'],
+        hoverinfo='text',
+        name='Nodes'
+    )
+
+    data_traces = [trace_branches, trace_nodes]
+
+    # --- 6. Add Highlight Trace if Search is Active ---
+    if search_node != "None":
+        try:
+            # Find the index of the selected node
+            idx = node_coords['name'].index(search_node)
+            target_x = node_coords['x'][idx]
+            target_y = node_coords['y'][idx]
+            
+            # Create a "Highlight" trace (Big Red Star)
+            trace_highlight = go.Scatter(
+                x=[target_x], y=[target_y],
+                mode='markers+text',
+                marker=dict(
+                    size=20, 
+                    color='#FF0000', # Red
+                    symbol='star',   # Star shape
+                    line=dict(width=2, color='white')
+                ),
+                text=[search_node],
+                textposition="top center",
+                textfont=dict(size=16, color='#FF0000', family="Arial Black"),
+                name='Selected'
+            )
+            data_traces.append(trace_highlight)
+            
+            st.success(f"📍 Found: {search_node}")
+            
+        except ValueError:
+            st.warning("Node not found in coordinates.")
+
+    # --- 7. Legend Traces ---
+    for kingdom in unique_kingdoms:
+        color = kingdom_color(kingdom)
+        data_traces.append(
+            go.Scatter(
+                x=[None], y=[None],
+                mode='markers',
+                marker=dict(size=10, color=color, line=dict(width=1, color='white')),
+                name=kingdom,
+                legendgroup='kingdoms'
+            )
+        )
+
+    # --- 8. Layout ---
+    fig = go.Figure(data=data_traces)
+    
+    layout_params = dict(
+        title=f'{layout_key} Tree ({num_species} Species)',
+        height=800, 
+        showlegend=True,
+        hovermode="closest",
+        template="plotly_dark",     
+        plot_bgcolor='black',      
+        paper_bgcolor='black',      
+        font=dict(color='white'),
+        margin=dict(l=20, r=20, t=40, b=20),
+        autosize=True
+    )
+    
+    # Adjust layout based on type
+    if layout_key == 'Linear':
+        layout_params.update(xaxis=dict(showgrid=False, title='Branch length'), yaxis=dict(showgrid=False, showticklabels=False))
+    else:
+        layout_params.update(xaxis=dict(showgrid=False, showticklabels=False), yaxis=dict(showgrid=False, showticklabels=False))
+
+    fig.update_layout(**layout_params)
+    st.plotly_chart(fig, use_container_width=True)
+
+
+##for homologs
+
+def display_protein_presence_tree_plotly(protein, families_csv_path, new_proteomes_path, main_tree_path, layout='Linear'):
+    """
+    Generates an interactive Plotly tree (Dark Mode) colored by protein presence.
+    """
+    
+    # --- 1. Load Proteome Mapping (Name -> ID) ---
+    try:
+        new_proteomes_csv = pd.read_csv(new_proteomes_path)
+        new_proteomes_csv.columns = new_proteomes_csv.columns.str.strip().str.replace(' ', '_')
+        mapping_df = new_proteomes_csv[['Organism_formatted', 'Proteome_Id']].drop_duplicates()
+        name_to_id_map = mapping_df.set_index('Organism_formatted')['Proteome_Id'].to_dict()
+    except Exception as e:
+        st.error(f"Error loading proteomes: {e}")
+        return
+
+    # --- 2. Determine Presence/Absence ---
+    # We use your existing helper function logic here
+    try:
+        family, family_df = protein_in_family(protein, families_csv_path)
+        
+        if family is None:
+            st.warning(f"Protein {protein} not found in families file.")
+            return
+
+        # Define helper if missing
+        if 'get_species_id' not in globals():
+            get_species_id_func = lambda x: x.split('_')[0] 
+        else:
+            get_species_id_func = get_species_id
+
+        family_df['proteome_id'] = family_df['protein'].apply(get_species_id_func)
+        
+        # Filter for the relevant family rows
+        target_rows = family_df[family_df['family_id'] == family]
+        
+        # --- NEW LOGIC START ---
+        # Create a dictionary: { 'UP000005640': 'P12345, Q99999' }
+        # This groups multiple hits for the same species into one string
+        proteome_to_uniprot = target_rows.groupby('proteome_id')['protein'].apply(lambda x: ', '.join(x)).to_dict()
+        
+        # The set of IDs is simply the keys of this new dict
+        present_proteomes = set(proteome_to_uniprot.keys())
+        # --- NEW LOGIC END ---
+        
+    except Exception as e:
+        st.error(f"Error determining protein family presence: {e}")
+        return
+
+    # --- 3. Generate Tree Coordinates (Plotly) ---
+    try:
+        tree = Tree(main_tree_path, format=1)
+        tree = get_tree_coordinates(tree) 
+        if layout == 'Circular':
+            tree = polar_coordinates_transform_c(tree) 
+        branch_x, branch_y, node_coords = create_plotly_data_c(tree, layout=layout) 
+    except Exception as e:
+        st.error(f"Error generating coordinates: {e}")
+        return
+
+    # --- 4. Assign Colors to Nodes ---
+    node_colors = []
+    hover_texts = []
+    present_species_info = [] 
+    #present_species_names = []
+    
+    # Colors matching your original style (but adapted for Dark Mode)
+    COLOR_PRESENT = "#a0fc97" # Pale Green
+    COLOR_ABSENT  = "#a4a4aa" # Grey
+    
+    for node_name in node_coords['name']:
+        if not node_name: 
+            node_colors.append(COLOR_ABSENT)
+            continue
+            
+        proteome_id = name_to_id_map.get(node_name)
+        
+        # Check if ID is in our new dictionary
+        if proteome_id and proteome_id in proteome_to_uniprot:
+            node_colors.append(COLOR_PRESENT)
+            
+            # Get the UniProt ID string (e.g. "P12345")
+            hit_ids = proteome_to_uniprot[proteome_id]
+            
+            hover_texts.append(f"{node_name}<br>Hits: {hit_ids}")
+            
+            # --- SAVE: Format as "Species [TAB] UniprotIDs" ---
+            present_species_info.append(f"{node_name}\t{hit_ids}")
+            
+        else:
+            node_colors.append(COLOR_ABSENT)
+            hover_texts.append(f"{node_name}<br>Status: Absent")
+
+    # --- 5. Build Plotly Figure (Dark Mode) ---
+    
+    # Trace 1: Branches
+    trace_branches = go.Scatter(
+        x=branch_x, y=branch_y,
+        mode='lines',
+        line=dict(color='lightgrey', width=1), # Light grey for dark bg
+        hoverinfo='none',
+        name='Branches'
+    )
+
+    # Trace 2: Nodes
+    # Trace Nodes (Partial Update)
+    trace_nodes = go.Scatter(
+        x=node_coords['x'], y=node_coords['y'],
+        mode='markers', 
+        marker=dict(size=8, color=node_colors, line=dict(width=1, color='white')),
+        text=node_coords['name'],
+        hovertext=hover_texts, # <--- Updated hover
+        hoverinfo='text',
+        name='Species'
+    )
+    
+    # Trace 3: Legend Entries (Manual)
+    legend_traces = [
+        go.Scatter(
+            x=[None], y=[None], mode='markers',
+            marker=dict(size=10, color=COLOR_PRESENT, line=dict(width=1, color='white')),
+            name=f'Present ({protein})'
+        ),
+        go.Scatter(
+            x=[None], y=[None], mode='markers',
+            marker=dict(size=10, color=COLOR_ABSENT, line=dict(width=1, color='white')),
+            name='Absent'
+        )
+    ]
+
+    # Layout Configuration
+    fig = go.Figure(data=[trace_branches, trace_nodes] + legend_traces)
+    #fig = go.Figure(data=[trace_nodes])
+    
+    layout_params = dict(
+        title=f"Structural Homologs of {protein})",
+        height=900,
+        showlegend=True,
+        hovermode="closest",
+        template="plotly_dark",     # Dark Theme
+        plot_bgcolor='black',       # Pitch black background
+        paper_bgcolor='black',
+        font=dict(color='white'),
+        margin=dict(l=20, r=20, t=40, b=20),
+        autosize=True
+    )
+
+    if layout == 'Linear':
+        layout_params.update(
+            xaxis=dict(showgrid=False, title='Branch length', showticklabels=True),
+            yaxis=dict(showgrid=False, showticklabels=False)
+        )
+    else: # Circular
+        layout_params.update(
+            xaxis=dict(showgrid=False, showticklabels=False, scaleanchor="y", scaleratio=1),
+            yaxis=dict(showgrid=False, showticklabels=False)
+        )
+
+    fig.update_layout(**layout_params)
+
+    present_species_names = present_species_info
+    
+    return fig, present_species_names
+
 
 
 # --- Function to generate the Mol* HTML viewer ---
-
+@st.cache_data
 def render_3dmol(afdb_download_url: str):
     """
     Fetches the CIF data and renders it using py3Dmol via stmol.
@@ -1118,6 +1600,7 @@ def generate_distance_matrix(species_scores_dict, uniprot_ids, out_dir):
 
 
 # make tree from distance matrix -------------------------------------------
+
 def bootstrap_from_distance_matrix(distance_matrix):
     """Bootstrap by resampling cells in the distance matrix"""
     n = len(distance_matrix)
@@ -1213,28 +1696,65 @@ st.set_page_config(
 st.title('SHE: Structural History of Eukarya')
 
 st.subheader('Interactive Structural Phylogenetic Tree')
+st.write("Discover our instant interactive analysis option of the eukaryotic structural tree")
 #, main_tree_out = load_main_tree()
 # Display the main_tree image
 #st.image('data/tree/precomputed.png', caption='Strucutral Phylogenetic Tree of Eukarya')
+st.markdown("""
+<style>
+/* 1. Target the Expander Container (The 'details' HTML tag) */
+[data-testid="stExpander"] {
+    border: 1px solid rgba(250, 250, 250, 0.2); /* Subtle default border */
+    border-radius: 12px;                        /* Rounded corners */
+    transition: all 0.3s ease-in-out;           /* Smooth animation */
+}
 
+/* 2. HOVER STATE: The "Green Aura" */
+[data-testid="stExpander"]:hover {
+    border-color: #22c55e;   /* Brighter green border */
+    
+    /* The Aura Effect: Green Glow */
+    box-shadow: 0 0 20px rgba(74, 222, 128, 0.4), 
+                0 0 10px rgba(74, 222, 128, 0.2);
+}
+
+/* 3. OPTIONAL: Make the Title Green on Hover too */
+[data-testid="stExpander"]:hover summary {
+    color: #4ade80 !important;
+}
+
+/* 4. OPTIONAL: Customize the internal icon color */
+[data-testid="stExpander"] summary svg {
+    fill: #9ca3af !important; /* Default gray */
+    transition: fill 0.3s ease-in-out;
+}
+[data-testid="stExpander"]:hover summary svg {
+    fill: #4ade80 !important; /* Green on hover */
+}
+</style>
+""", unsafe_allow_html=True)
 row2 = st.columns(3)
-titles = ["3. Zoom on Species or Taxon", "4. Protein structural homologous", "5. Structural evolution of a set of proteins"]
+titles = ["3. Zoom on Species or Taxon", "4. Protein structural homologs", "5. Structural evolution of a set of proteins"]
 # Create the tiles and their content
 for col, content in zip(row2, titles):
     #with col:   tile = st.container(height=120)   tile.title(f"{emoji} {content}")
     with col.expander(f"**{content}**"):
         # --- zoom ---
         if content == "3. Zoom on Species or Taxon":
-            st.write(':orange[Interested in discovering the new structural phylogenetics of specific species or taxa? Use the "Extract Taxonomic Group" section in the sidebar.]')
+            st.write(':orange[Interested in discovering the new structural phylogenetics of a specific species? Use the "Find Species" option.]')
+            st.write(':orange[Interested in discovering the new structural phylogenetics of a taxa? Use the "Find Taxon" option.]')
+            st.checkbox('Find Species', key="find_species_box")
+            st.checkbox('Find Taxon', key="find_taxon_box")
 
         # --- Explore Tree Content ---
-        elif content == "4. Protein structural homologous":
-            st.write(':red[Interested in discovering in which organisms a certain protein can be found? Use the "Look for a protein" section in the sidebar.]')
-            
+        elif content == "4. Protein structural homologs":
+            st.write(':red[Interested in discovering in which organisms a certain protein can be found? Use the "Find protein structural homologs" option.]')
+            st.checkbox('Find Protein Structural Homologs', key="homologs")
+
         # --- Model Organism Search Content ---
         elif content == "5. Structural evolution of a set of proteins":
-            st.write(":red[What about studying the evolution of your proteins of interest? Click on 'Protein Evolution > Study the structural evolution set of proteins' in the sidebar and start building your tree!]")
-                
+            st.write(":red[What about studying the evolution of your proteins of interest? Click on 'Study the structural evolution set of proteins' and start building your tree!]")
+            st.checkbox('Study the Structural Evolution of a Set of Proteins', key='set')
 
 
 
@@ -1253,12 +1773,39 @@ proteomes_df = pd.read_csv(proteomes_path)
 
 # find species ------------------------------------------------------------------------------------------------------
 st.sidebar.subheader('3. Zoom on Taxonomic Group', divider="orange")
-if st.sidebar.checkbox('Find species'):
+with st.sidebar.expander("Help: How to find the structural tree for a species or a taxon"):
+    st.write("Select if you want to find:")
+    st.markdown("""
+    * a species (i.e. Homo sapiens)
+    * a taxa (i.e. Primates)
+    """)
+    st.write("The resulting structural phylogenetic tree is going to be interactive and colored based on 6 subkingdoms.")
+    st.write("For the species search, it is possible to choose the number of related neighbor species in the tree by using the appropriate slide.")
+    
+
+#if st.checkbox('Find Species'):
+if st.session_state.get("find_species_box"):
     st.title('Species subtree:')
     species = ''
     renamed_species = ''
-    species = st.sidebar.selectbox(
-    'Which species (name - Homo_sapiens)?', proteomes_df['Organism_formatted'], key = 'species_selector')
+    #
+    options = proteomes_df['Organism_formatted'].tolist()
+    target_search_term = 'homo_sapiens_human'
+    try:
+        # Find the index regardless of how it's capitalized in the CSV
+        default_index = [x.lower() for x in options].index(target_search_term)
+    except ValueError:
+        default_index = 0
+    # 1. .replace('_', ' ') -> "Homo sapiens Human"
+    # 2. .capitalize()      -> "Homo sapiens human" (First letter Big, rest small)
+    species = st.selectbox(
+        'Which organism would you like to study (i.e: Homo sapiens human)', 
+        options, 
+        index=default_index, 
+        key="target", 
+        format_func=lambda x: x.replace('_', ' ').capitalize()
+    )
+    #species = st.selectbox('Which species (name - Homo_sapiens)?', proteomes_df['Organism_formatted'], key = 'species_selector')
     if species == '':
         st.warning('Please enter species (i.e. Proteome ID - i.e. UP000005640 or Taxon ID - i.e. 9606 or name - Homo_sapiens) to extract a subtree.' \
             'Find all species names in "Show species branch rate in Kindom Eukarya"')
@@ -1281,13 +1828,14 @@ if st.sidebar.checkbox('Find species'):
             st.page_link("https://en.wikipedia.org/wiki/" + what, label="Wiki", icon="🌎")
         #species = renamed_species
         st.write('Close species in the tree share similar protein structures at the proteome level.')
-        display_interactive_tree_c(species_out)
+        display_interactive_tree_c_zoom(species_out)
 
 
 # find taxon --------------------------------------------------------------------------------------------------
-if st.sidebar.checkbox('Find taxon'): #it does not handle two new taxa in the same session
+#if st.checkbox('Find Taxon'): #it does not handle two new taxa in the same session
+if st.session_state.get("find_taxon_box"):
     st.title('Taxa subtree:')
-    taxon = st.sidebar.text_input(
+    taxon = st.text_input(
     'Which taxon?', key="taxon")
     st.write('Selected Taxon: ', taxon)
     st.write('Close species in the tree share similar protein structures at the proteome level.')
@@ -1298,16 +1846,21 @@ if st.sidebar.checkbox('Find taxon'): #it does not handle two new taxa in the sa
         what = taxon
         st.page_link("https://en.wikipedia.org/wiki/" + what, label="Wiki", icon="🌎")
         taxon_tree = extract_subtree(proteomes_path, main_tree_path, taxon)
-        display_interactive_tree_c(taxon_tree)
+        display_interactive_tree_c_zoom(taxon_tree)
             
 
 
 ############### Protein tree extraction -----------------------------------------------------------------------------------------
-st.sidebar.subheader('Protein Evolution', divider="red")
-if st.sidebar.checkbox('4.Find protein structural homologous'):
+st.sidebar.subheader('4. Structural Homologs', divider="red")
+with st.sidebar.expander("Help: How to Find Protein Structural Homologs"):
+    st.write("Digit the protein (Uniprot ID) you want to find the homologs of.")
+    st.write("The resulting structural phylogenetic tree will show you all the species sharing a protein structural homolog of your input protein.")
+
+#if st.checkbox('Find Protein Structural Homologs'):
+if st.session_state.get("homologs"):
     protein = ''
     st.title('Tree of all organisms sharing a protein structure:')
-    protein = st.sidebar.text_input(
+    protein = st.text_input(
     'Which protein (Uniprot ID)?', key="protein")
     st.write('Selected Protein: ', protein)
     if protein == '':
@@ -1315,15 +1868,12 @@ if st.sidebar.checkbox('4.Find protein structural homologous'):
     else:
         # uniprot link
         st.page_link("https://www.uniprot.org/uniprotkb/" + protein + "/entry", label="UniProt", icon="🌎")
-        #AFDB link
-        #st.page_link("https://alphafold.ebi.ac.uk/search/text/" + protein, label="AFDB", icon="🌎")
         # --- Configuration AFDB  ---
         UNIPROT_ID = protein 
         AFDB_API_URL = (
             "https://alphafold.ebi.ac.uk/api/prediction/" + UNIPROT_ID + "?")
             #f"{protein}?") #https://alphafold.ebi.ac.uk/api/prediction/Q5VSL9
         st.markdown(f"Loading predicted structure **{UNIPROT_ID}** from AlphaFold DB...")
-
         # Use requests.get() to query the API and retrieve the JSON metadata
         response = requests.get(AFDB_API_URL, timeout=59)
         # Check for general request errors (e.g., 404, 500)
@@ -1338,13 +1888,10 @@ if st.sidebar.checkbox('4.Find protein structural homologous'):
         )
         # The API returns a list of prediction objects (usually one)
         if data and isinstance(data, list) and data[0].get('cifUrl'):
-            
             # Extract the direct download link from the JSON response
             AFDB_DOWNLOAD_URL = data[0]['cifUrl']
-            
             # Render the Mol* viewer
             render_3dmol(AFDB_DOWNLOAD_URL)
-
             #st.success(f"Structure loaded successfully (AFDB ID: **{AFDB_ID}**).")
             st.caption(f"Source: [AlphaFold DB - {UNIPROT_ID}]({AFDB_DOWNLOAD_URL})")
         else:
@@ -1352,41 +1899,51 @@ if st.sidebar.checkbox('4.Find protein structural homologous'):
             st.warning(f"Error: Structure data for {UNIPROT_ID} was **not found** in the API response. Please make sure to input a protein Uniprot ID.")
         
         # get tree
-        protein_svg = pathlib.Path('results/protein_trees/' + protein +'_presence_tree_' + layout +'.svg')
+        #protein_svg = pathlib.Path('results/protein_trees/' + protein +'_presence_tree_' + layout +'.svg')
         for protein in [protein]:
-            #if protein == '':
-                #st.warning('Please enter protein uniprot ID without spaces.')
-            #elif protein_svg.exists():
-            if protein_svg.exists():
-                st.image(
-                    protein_svg, #svg file
-                    caption= protein + ' Structural Tree: green if protein homologous structures are present in species proteome, grey if absent',
-                    width='stretch')
-                protein = ''
-            else:
-                families_csv_path = 'data/core/protein_families_238.csv' #i.e. ./data/core/protein_families_238.csv
-                circular_svg, linear_svg = protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree_path)
-                if os.path.exists(circular_svg) and os.path.getsize(linear_svg) > 1000:
-                    if layout == 'Circular':
-                        st.image(
-                            circular_svg, #svg file
-                            caption= protein + ' Structural Tree: green if protein homologous structures are present in species proteome, grey if absent',
-                            width='stretch')
-                        protein = ''
-                    elif layout == 'Linear':
-                        st.image(
-                            linear_svg, #svg file
-                            caption= protein + ' Structural Tree: green if protein homologous structures are present in species proteome, grey if absent',
-                            width='stretch')
-                        protein = ''
+            families_csv_path = 'data/core/protein_families_238.csv' #i.e. ./data/core/protein_families_238.csv
+            fig, present_species = display_protein_presence_tree_plotly(
+                protein=protein, 
+                families_csv_path=families_csv_path, 
+                new_proteomes_path=new_proteomes_path, 
+                main_tree_path=main_tree_path, 
+                layout=layout
+            )
+            # Render the returned figure
+            if fig:
+                st.plotly_chart(fig, use_container_width=True)
+                
+                # 3. Handle the Species List and Download Button
+                if present_species:
+                    # Display a success message with the count
+                    st.markdown(f"**Found {len(present_species)} species with structural homologs.**")
+                    
+                    # Convert list to a string (one species per line)
+                    list_data = "\n".join(present_species)
+                    
+                    # Create the download button
+                    st.download_button(
+                        label=f"📥 Download list of species with structural homologs for {protein}",
+                        data=list_data,
+                        file_name=f"{protein}_structural_homologs_species.txt",
+                        mime="text/plain",
+                        help="Download a text file containing the names of all species colored green in the tree."
+                    )
                 else:
-                    st.warning("QApplication is creating an empty svg. Restart the app")
+                    st.info("No structural homologs found in the tree.")
 
-if st.sidebar.checkbox('5.Study the structural evolution set of proteins'):
+
+st.sidebar.subheader('5. Protein Set Structural Evolution', divider="red")
+with st.sidebar.expander("Help: how to build the Structural Tree from a Set of Proteins"):
+    st.write("Input the UniProt ID of the proteins to build the tree from.")
+    st.write("A structural phylogenetic tree is going to be build based on your input protein.")
+
+#if st.checkbox('Study the Structural Evolution of a Set of Proteins'):
+if st.session_state.get("set"):
     proteins = ''
     st.title('Tree built from your protein structures:')
     #st.warning('This function is going to be released soon')
-    proteins = st.sidebar.text_input(
+    proteins = st.text_input(
     'Which proteins (each Uniprot ID separated by a space, i.e: Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616)?', key="proteins")
     st.write('Selected Proteins: ', proteins)
     if proteins == '':

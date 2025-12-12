@@ -34,7 +34,7 @@ def kingdom_color(kingdom):
         return "#ddd6fe"
     else:
         # This will be used for internal nodes ('Unknown') or leaves with no match
-        return "#080808"
+        return "#FAF8F8"
     
 
 #### intro -----------------------------------------------------------------------------------------------------------------------------------
@@ -46,7 +46,39 @@ st.set_page_config(
 st.title('SHE: Structural History of Eukarya')
 
 st.subheader('Structural Phylogenetic Tree')
+st.markdown("""
+<style>
+/* 1. Target the Expander Container (The 'details' HTML tag) */
+[data-testid="stExpander"] {
+    border: 1px solid rgba(250, 250, 250, 0.2); /* Subtle default border */
+    border-radius: 12px;                        /* Rounded corners */
+    transition: all 0.3s ease-in-out;           /* Smooth animation */
+}
 
+/* 2. HOVER STATE: The "Green Aura" */
+[data-testid="stExpander"]:hover {
+    border-color: #22c55e;   /* Brighter green border */
+    
+    /* The Aura Effect: Green Glow */
+    box-shadow: 0 0 20px rgba(74, 222, 128, 0.4), 
+                0 0 10px rgba(74, 222, 128, 0.2);
+}
+
+/* 3. OPTIONAL: Make the Title Green on Hover too */
+[data-testid="stExpander"]:hover summary {
+    color: #4ade80 !important;
+}
+
+/* 4. OPTIONAL: Customize the internal icon color */
+[data-testid="stExpander"] summary svg {
+    fill: #9ca3af !important; /* Default gray */
+    transition: fill 0.3s ease-in-out;
+}
+[data-testid="stExpander"]:hover summary svg {
+    fill: #4ade80 !important; /* Green on hover */
+}
+</style>
+""", unsafe_allow_html=True)
 row1 = st.columns(2)
 #emojis = [":deciduous_tree:", ":mouse2:", ":material/download:"]
 titles = ["1. Explore Kingdoms", "2. Proteome evolutionary rate"]
@@ -98,10 +130,24 @@ color = kingdom_color(kingdom)
 st.markdown(
     f"""
     <style>
-    /* Target the selectbox input area */
+    /* 1. Target the background of the selectbox */
     div[data-baseweb="select"] > div:first-child {{
         background-color: {color};
-        border-radius: 0.5rem; /* Optional: for a nicer box look */
+        border-radius: 0.5rem;
+    }}
+    
+    /* 2. Force the text (selected value) to be BLACK */
+    div[data-baseweb="select"] > div:first-child div,
+    div[data-baseweb="select"] > div:first-child span {{
+        color: black !important;
+        -webkit-text-fill-color: black !important; /* Necessary for some browsers */
+        font-weight: 500; /* Optional: make it slightly bolder for readability */
+    }}
+    
+    /* 3. Force the dropdown arrow icon to be BLACK */
+    div[data-baseweb="select"] svg {{
+        fill: black !important;
+        color: black !important;
     }}
     </style>
     """,

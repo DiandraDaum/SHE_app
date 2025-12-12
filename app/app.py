@@ -228,16 +228,15 @@ st.markdown("""
         SHE: Structural History of Eukarya
     </h1>
 """, unsafe_allow_html=True)
-st.markdown("<h2 style='text-align: center; color: white;'>Beyond traditional phylogenetics — leverage proteome-wide structural comparisons for groundbreaking insights", unsafe_allow_html=True)
-
+st.markdown("<h2 style='text-align: center; color: white;'>Beyond traditional phylogenetics", unsafe_allow_html=True)
+st.markdown("<h2 style='text-align: center; color: white;'>leverage proteome-wide structural comparisons for groundbreaking insights", unsafe_allow_html=True)
 st.sidebar.success("Find more analysis options in the panels above.")
 
-try:
-    video_tree = open("data/tree/final_tree.mp4", "rb")
-    tree_bytes = video_tree.read()
-    st.video(tree_bytes, autoplay=True, loop=True, muted=True)
-except FileNotFoundError:
-    st.warning("Tree video not found (data/tree/final_tree.mp4)")
+
+video_tree = open("data/tree/final_tree.mp4", "rb")
+tree_bytes = video_tree.read()
+#st.video(tree_bytes, autoplay=True, loop=True, muted=True)
+
 
 # 4. Main Content Container
 with st.container():
@@ -372,6 +371,7 @@ with st.container():
 
     # --- A. STATISTICS TILES SECTION ---
     css = """
+        /* 1. Base Style */
         .green-tile-container {
             background: rgba(16, 185, 129, 0.1); 
             border: 1px solid rgba(16, 185, 129, 0.2);
@@ -382,11 +382,28 @@ with st.container():
             flex-direction: column;
             justify-content: center;
             text-align: center;
+            
+            /* Smooth animation for the hover effect */
+            transition: all 0.3s ease-in-out; 
         }
+        
         .green-tile-container h2 { margin: 0; color: #10b981; font-weight: 800; }
         .green-tile-container p { margin: 0; color: #a0a0a0; font-size: 0.9rem; }
+
+        /* 2. HOVER STATE: The "Green Aura" */
+        .green-tile-container:hover {
+            border-color: #22c55e;   /* Brighter green border */
+            
+            /* The Aura Effect: Green Glow */
+            box-shadow: 0 0 20px rgba(74, 222, 128, 0.4), 
+                        0 0 10px rgba(74, 222, 128, 0.2);
+            
+            /* Optional: Slight pop effect */
+            transform: scale(1.03);
+        }
         """
     st.html(f"<style>{css}</style>")
+
 
     row1 = st.columns(4)
     titles = ["Organisms", "Proteins", "Kingdoms", "Powered By"]
@@ -412,16 +429,16 @@ with st.container():
                 Discover What Makes SHE Different
             </h2>
             <p style="color: var(--muted-foreground-color);">
-                Explore the complete structural phylogeny of eukaryotes with our interactive analysis platform.
+                Explore the complete structural phylogeny of eukaryotes with our instant interactive analysis platform.
             </p>
         </div>
     """, unsafe_allow_html=True)
 
     # Features Grid using the new 'dashboard-card' style
-    cols = st.columns(3)
+    cols = st.columns(2)
     
     for i, feature in enumerate(FEATURES):
-        col_index = i % 3
+        col_index = i % 2
         with cols[col_index]:
             # Use 'dashboard-card' here instead of 'glass-panel'
             st.markdown(f"""
