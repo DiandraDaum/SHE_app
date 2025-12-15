@@ -1748,6 +1748,7 @@ with st.sidebar:
     for item in NAV_ITEMS:
         st.page_link(item["path"], label=item["label"], icon=item["icon"])
 st.sidebar.divider()
+
 #set_background('data/logos/interactive.png')
 #st.title(':green[SHE: Structural History of Eukarya]')
 st.markdown("""

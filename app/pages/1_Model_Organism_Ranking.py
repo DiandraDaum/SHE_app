@@ -1206,6 +1206,7 @@ with st.sidebar:
     for item in NAV_ITEMS:
         st.page_link(item["path"], label=item["label"], icon=item["icon"])
 st.sidebar.divider()
+
 #st.title('Model Organism Ranking')
 st.markdown("""
     <h2 style='
@@ -1340,7 +1341,7 @@ with st.expander(":violet[See Example Usage]"):
     </div>
     """,
     unsafe_allow_html=True)
-    st.image("data/subset/figure_model/ranking.png", caption="Organisms Ranking based on bitscore (the higher, the better)", use_container_width=True)
+    st.image("data/subset/figure_model/ranking2.png", caption="Organisms Ranking based on bitscore (the higher, the better)", use_container_width=True)
 
     row2 = st.columns(3)
     emojis = [":mouse2:", ":tropical_fish:", ":seedling:"]

@@ -155,7 +155,36 @@ def get_base64_image(image_path):
     with open(image_path, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode()
 
+@st.cache_data
+def set_background(image_path):
+    """
+    Adds a background image to the main Streamlit app container.
+    """
+    if not os.path.exists(image_path):
+        st.error(f"Background image not found at: {image_path}")
+        return
 
+    with open(image_path, "rb") as f:
+        data = f.read()
+    
+    # Convert image to Base64
+    encoded_image = base64.b64encode(data).decode()
+
+    # Inject CSS with the Base64 image
+    st.markdown(
+        f"""
+        <style>
+        .stApp {{
+            background-image: url("data:image/png;base64,{encoded_image}");
+            background-size: cover;        /* Scale image to cover entire screen */
+            background-position: center;   /* Center the image */
+            background-repeat: no-repeat;  /* Do not repeat */
+            background-attachment: fixed;  /* Keep background fixed when scrolling */
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
 
 # --- APP EXECUTION ---
 #sidebar navigation
@@ -164,7 +193,18 @@ with st.sidebar:
     for item in NAV_ITEMS:
         st.page_link(item["path"], label=item["label"], icon=item["icon"])
 st.sidebar.divider()
-
+st.markdown("""
+<style>
+    /* Force all standard Streamlit text to use your readable style */
+    .stMarkdown p, .stMarkdown li {
+        color: #ffffff !important;
+        font-weight: 600 !important;
+        text-shadow: 2px 2px 0 #000000, 0 0 10px rgba(0,0,0,0.8);
+        line-height: 1.6;
+        font-size: 1.1rem;
+    }
+</style>
+""", unsafe_allow_html=True)
 # 1. Set Page Config
 st.set_page_config(
     page_title="SHE: Structural History of Eukarya",
@@ -253,22 +293,22 @@ st.markdown("""
 
 # 3. Main Title & Tree Video
 #st.markdown("""<h1 style='text-align: center; color: green; font-size: 4rem; font-weight: bold;'>Structural History of Eukarya</h1>""", unsafe_allow_html=True)
-
 st.markdown("""
-    <h1 style='
-        text-align: center; 
-        font-size: 4rem; 
-        font-weight: bold; 
-        /* Gradient Background */
-        background: linear-gradient(to right, #00FF7F, #40E0D0); 
-        /* Clip background to text */
-        -webkit-background-clip: text; 
-        -webkit-text-fill-color: transparent; 
-        background-clip: text; 
-        color: transparent;'>
-        Structural History of Eukarya
-    </h1>
-""", unsafe_allow_html=True)
+        <div style="text-align: center; max-width: 60rem; margin: 0 auto 3rem;">
+            <h1 style='
+                font-size: 5rem; 
+                font-weight: 800; 
+                margin-bottom: 1rem;
+                line-height: 1.1;
+                background: linear-gradient(to right, #00FF7F, #40E0D0);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                filter: drop-shadow(4px 4px 0px rgba(0,0,0,0.9));
+                '>
+                Structural History of Eukarya
+            </h1>
+        </div>
+    """, unsafe_allow_html=True)
 #st.markdown("<h2 style='text-align: center; color: white;'>Beyond traditional phylogenetics", unsafe_allow_html=True)
 #st.markdown("<h2 style='text-align: center; color: white;'>Leverage proteome-wide structural comparisons for groundbreaking insights", unsafe_allow_html=True)
 st.sidebar.success("Find more analysis options in the panels above.")
@@ -280,6 +320,7 @@ st.sidebar.success("Find more analysis options in the panels above.")
 # 1. Define image path
 #image_path = 'data/logos/SHE.png'
 image_path = 'data/logos/interactive.png'
+set_background(image_path)
 # 2. Check if file exists and encode
 if os.path.exists(image_path):
     img_b64 = get_base64_image(image_path)
@@ -341,7 +382,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-img_ranking = get_base64_image("data/subset/figure_model/ranking.png") 
+img_ranking = get_base64_image("data/subset/figure_model/ranking2.png") 
 img_evolution = get_base64_image("data/logos/evorate.png")
 img_homologs = get_base64_image("data/logos/homolog.png")
 
@@ -480,12 +521,16 @@ with st.container():
                     unsafe_allow_html=True
                 )
             else:
-                # --- STANDARD CARDS ---
+                # --- STANDARD CARDS (Semi-Transparent Green) ---
                 st.markdown(
                     f"""
-                    <div class="green-tile-container">
-                        <h2>{value}</h2>
-                        <p>{title}</p>
+                    <div class="green-tile-container" style="
+                        background-color: rgba(0, 50, 0, 0.80); 
+                        color: white;
+                        backdrop-filter: blur(4px); /* Optional: blurs the background behind the card */
+                        ">
+                        <h2 style="color: white; margin: 0; text-shadow: 1px 1px 2px black;">{value}</h2>
+                        <p style="color: rgba(255, 255, 255, 0.9); margin: 0; text-shadow: 1px 1px 2px black;">{title}</p>
                     </div>
                     """,
                     unsafe_allow_html=True
@@ -494,43 +539,61 @@ with st.container():
     # --- B. FEATURES GRID SECTION (Updated to Match Dashboard Style) ---
     st.write("---") 
     st.markdown("""
-        <div style="text-align: center; max-width: 42rem; margin: 0 auto 3rem;">
-            <h2 style='
-                font-size: 2rem; 
-                font-weight: 700; 
-                margin-bottom: 1rem;
-                background: linear-gradient(to right, #00FF7F, #40E0D0);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                '>
-                Discover What Makes SHE Different
-            </h2>
-            <p style="color: var(--muted-foreground-color);">
-                Explore the complete structural phylogeny of eukaryotes with our interactive analysis platform.
-            </p>
-        </div>
-    """, unsafe_allow_html=True)
+    <div style="text-align: center; max-width: 42rem; margin: 0 auto 3rem;">
+        <h2 style='
+            font-size: 2rem; 
+            font-weight: 800; 
+            margin-bottom: 1rem;
+            /* Gradient text needs a filter drop-shadow, not text-shadow */
+            background: linear-gradient(to right, #00FF7F, #40E0D0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(3px 3px 0px rgba(0,0,0,0.8));
+            '>
+            Discover What Makes SHE Different
+        </h2>
+        <p class="readable-text" style="font-size: 1.2rem;">
+            Explore the complete structural phylogeny of eukaryotes with our interactive analysis platform.
+        </p>
+    </div>
+""", unsafe_allow_html=True)
 
     # Features Grid using the new 'dashboard-card' style
     cols = st.columns(3)
-    
+
     for i, feature in enumerate(FEATURES):
         col_index = i % 3
         with cols[col_index]:
-            # Use 'dashboard-card' here instead of 'glass-panel'
+            
+            # --- 1. Calculate the URL Slug ---
+            # Get filename (e.g., "2_Explore_Tree.py")
+            file_name = os.path.basename(feature["link_path"]) 
+            # Remove extension (e.g., "2_Explore_Tree")
+            slug_raw = os.path.splitext(file_name)[0] 
+            # Remove leading numbers/underscores if present (e.g., "Explore_Tree")
+            # This assumes your files are named like "1_Name.py". 
+            # If they are just "Name.py", this logic still works safely.
+            if slug_raw[0].isdigit() and "_" in slug_raw:
+                slug = slug_raw.split("_", 1)[1]
+            else:
+                slug = slug_raw
+
+            # --- 2. Render the Clickable Card ---
+            # We wrap the card div in an <a> tag pointing to the calculated slug
             st.markdown(f"""
-                <div class="dashboard-card" style="min-height: 280px; margin-bottom: 20px;">
-                    <div class="card-header">
-                        <div class="card-icon">{feature["icon"]}</div>
-                        <h3>{feature["title"]}</h3>
-                        <p class="card-description">{feature["description"]}</p>
+                <a href="{slug}" target="_self" class="card-link">
+                    <div class="dashboard-card" style="min-height: 200px; margin-bottom: 20px;">
+                        <div class="card-header">
+                            <div class="card-icon">{feature["icon"]}</div>
+                            <h3>{feature["title"]}</h3>
+                            <p class="card-description">{feature["description"]}</p>
+                        </div>
                     </div>
-                </div>
+                </a>
             """, unsafe_allow_html=True)
             
-            # Place the link directly under the visual card
-            st.page_link(feature["link_path"], label=f"Go to: {feature['title']}", icon="🔗")
-        
+            # --- 3. The Demo Button (Must stay outside the link) ---
+            # Note: We cannot put a button INSIDE an <a> tag, so it stays below.
             with st.popover(f"▶️ Watch Demo", use_container_width=True):
                 st.markdown(f"**Demo for {feature['title']}**")
                 if "demo" in feature:
@@ -544,65 +607,100 @@ with st.container():
                     st.warning("No video demo available for this feature yet.")
                 st.markdown("<br>", unsafe_allow_html=True)
 
-    st.markdown("<hr style='margin: 4rem 0;'>", unsafe_allow_html=True) 
+    st.markdown("<hr style='margin: 4rem 0;'>", unsafe_allow_html=True)
 
+# --- C. METHODOLOGY SECTION ---
+    # Add text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+# 1. Define a reusable style for maximum readability
+st.markdown("""
+<style>
+    .readable-text {
+        color: #ffffff !important;
+        font-weight: 600 !important; /* Semi-bold */
+        /* The "Double Shadow" technique: 
+           Layer 1: A hard dark drop shadow 
+           Layer 2: A soft dark glow around the letters */
+        text-shadow: 2px 2px 0 #000000, 0 0 10px rgba(0,0,0,0.8);
+        line-height: 1.5;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-    # --- C. METHODOLOGY SECTION ---
-    st.markdown("""
+# 2. The Header Section
+st.markdown("""
     <div style="text-align: center; max-width: 42rem; margin: 0 auto 3rem;">
         <h2 style='
             font-size: 2rem; 
-            font-weight: 700; 
+            font-weight: 800; 
             margin-bottom: 1rem;
+            /* Gradient text needs a filter drop-shadow, not text-shadow */
             background: linear-gradient(to right, #00FF7F, #40E0D0);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
+            filter: drop-shadow(3px 3px 0px rgba(0,0,0,0.8));
             '>
             How SHE Works
         </h2>
-        <p style="color: var(--muted-foreground-color);">
+        <p class="readable-text" style="font-size: 1.2rem;">
             SHE compares entire proteomes across all of Eukarya based on 3D protein structures - capturing relationships beyond what sequence and single gene analysis can provide.
         </p>
     </div>
 """, unsafe_allow_html=True)
-    
-    step_cols = st.columns(4)
-    for i, step in enumerate(STEPS):
-        with step_cols[i]:
-            st.markdown(f"""
-                <div class="method-step">
-                    <div class="glass-panel method-number-bubble">
-                        <span class="method-number text-gradient">{step["number"]}</span>
-                    </div>
-                    <div class="step-content">
-                        <h3 class="step-title">{step["title"]}</h3>
-                        <p style="font-size: 0.875rem; color: var(--muted-foreground-color);">{step["description"]}</p>
-                    </div>
-                </div>
-            """, unsafe_allow_html=True)
 
-    st.markdown("<hr style='margin: 4rem 0;'>", unsafe_allow_html=True) 
+# 3. The Steps Loop (FIXED)
+step_cols = st.columns(4)
+for i, step in enumerate(STEPS):
+    with step_cols[i]:
+        # NOTICE: The HTML strings below are pushed to the left to avoid being seen as code blocks
+        st.markdown(f"""
+<div class="method-step">
+    <div class="glass-panel method-number-bubble">
+        <span class="method-number text-gradient">{step["number"]}</span>
+    </div>
+    <div class="step-content">
+        <h3 class="step-title" style="color: white; text-shadow: 3px 3px 0 #000; font-weight: 900;">
+            {step["title"]}
+        </h3>
+        <p style="color: white !important; font-weight: 700 !important; font-size: 1rem; text-shadow: 2px 2px 0 #000000; background-color: transparent; line-height: 1.5;">
+            {step["description"]}
+        </p>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+        
+st.write("---")
 
-    # --- D. CITATION AND UPDATES ---
-    st.subheader('Cite', divider="rainbow")
-    st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
+# --- D. CITATION AND UPDATES ---
+st.markdown("""
+    <h3 style='
+        color: white;
+        text-shadow: 3px 3px 0 #000000;  /* The hard black shadow */
+        font-weight: 800;
+        font-size: 1.75rem;
+        margin-bottom: 0px;             /* Remove gap between text and line */
+    '>
+        Cite
+    </h3>
+""", unsafe_allow_html=True)
+st.subheader('', divider="rainbow")
+st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
 
-    colm1, colm2, colm3, colm4 = st.columns(4)
-    with colm2:
-        st.image("data/logos/scilifelab.png", use_container_width=False)
-    with colm3:
-        st.image("data/logos/su.png", use_container_width=False)
+colm1, colm2, colm3, colm4 = st.columns(4)
+with colm2:
+    st.image("data/logos/scilifelab.png", use_container_width=True)
+with colm3:
+    st.image("data/logos/su.png", use_container_width=True)
 
 
 
-    st.sidebar.subheader('Updates', divider="rainbow")
-    st.sidebar.write('Sign up for updates!')
-    email = st.sidebar.text_input('Your email', key="email_input") 
-    if st.sidebar.button('Subscribe'):
-        user_email = st.session_state.email_input.strip()
-        if not user_email:
-            st.error("Please enter an email address.")
-        else:
-            if save_email(user_email):
-                st.balloons()
-                st.sidebar.success(f"Thank you! **{user_email}** is where you will receive updates regarding SHE!")
+st.sidebar.subheader('Updates', divider="rainbow")
+st.sidebar.write('Sign up for updates!')
+email = st.sidebar.text_input('Your email', key="email_input") 
+if st.sidebar.button('Subscribe'):
+    user_email = st.session_state.email_input.strip()
+    if not user_email:
+        st.error("Please enter an email address.")
+    else:
+        if save_email(user_email):
+            st.balloons()
+            st.sidebar.success(f"Thank you! **{user_email}** is where you will receive updates regarding SHE!")
