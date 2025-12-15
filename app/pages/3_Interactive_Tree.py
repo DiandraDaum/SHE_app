@@ -1736,12 +1736,40 @@ st.set_page_config(
 )
 #set_background('data/logos/interactive.png')
 #st.title(':green[SHE: Structural History of Eukarya]')
-
-st.title('Interactive Structural Phylogenetic Tree')
+st.markdown("""
+    <style>
+    /* Hide the link button (anchor) next to headers */
+    [data-testid="stHeaderActionElements"] {
+        display: none !important;
+    }
+    
+    /* Optional: If the title still looks shifted, remove the padding usually reserved for the icon */
+    h1, h2, h3, h4, h5, h6 {
+        padding-top: 0rem !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+#st.title('Interactive Structural Phylogenetic Tree')
+st.markdown("""
+    <h2 style='
+        text-align: center; 
+        font-size: 3rem; 
+        font-weight: bold; 
+        /* Gradient Background */
+        background: linear-gradient(to right, #00FF7F, #40E0D0); 
+        /* Clip background to text */
+        -webkit-background-clip: text; 
+        -webkit-text-fill-color: transparent; 
+        background-clip: text; 
+        color: transparent;'>
+        Interactive Structural Phylogenetic Tree
+    </h2>
+""", unsafe_allow_html=True)
 image_path = 'data/logos/interactive.png'
 # 2. Check if file exists and encode
 if os.path.exists(image_path):
     img_b64 = get_base64_image(image_path)
+
 st.markdown(
     f"""
     <style>
@@ -1788,14 +1816,14 @@ st.markdown(
     <div class="banner-container">
         <div class="banner-overlay"></div>
         <div class="banner-text">
-            <h2>Discover our instant interactive analysis options from the eukaryotic structural tree</h2>
+            <h2>Discover interactive analysis options from the SHE tree</h2>
         </div>
     </div>
     """,
     unsafe_allow_html=True
 )
 
-#st.write("Discover our instant interactive analysis option of the eukaryotic structural tree")
+#st.write("Discover our interactive analysis option of the eukaryotic structural tree")
 st.markdown("""
 <style>
 /* 1. Target the Expander Container (The 'details' HTML tag) */
@@ -1830,25 +1858,25 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 row2 = st.columns(3)
-titles = ["3. Zoom on Species or Taxon", "4. Protein structural homologs", "5. Structural evolution of a set of proteins"]
+titles = ["1. Zoom on Species or Taxon", "2. Protein structural homologs", "3. Structural evolution of a set of proteins"]
 # Create the tiles and their content
 for col, content in zip(row2, titles):
     #with col:   tile = st.container(height=120)   tile.title(f"{emoji} {content}")
     with col.expander(f"**{content}**"):
         # --- zoom ---
-        if content == "3. Zoom on Species or Taxon":
+        if content == "1. Zoom on Species or Taxon":
             st.write(':orange[Interested in discovering the new structural phylogenetics of a specific species? Use the "Find Species" option.]')
             st.write(':orange[Interested in discovering the new structural phylogenetics of a taxon? Use the "Find Taxon" option.]')
             st.checkbox('Find Species', key="find_species_box")
             st.checkbox('Find Taxon', key="find_taxon_box")
 
         # --- Explore Tree Content ---
-        elif content == "4. Protein structural homologs":
+        elif content == "2. Protein structural homologs":
             st.write(':red[Interested in discovering in which organisms a certain protein can be found? Use the "Find protein structural homologs" option.]')
             st.checkbox('Find Protein Structural Homologs', key="homologs")
 
         # --- Model Organism Search Content ---
-        elif content == "5. Structural evolution of a set of proteins":
+        elif content == "3. Structural evolution of a set of proteins":
             st.write(":red[What about studying the evolution of your proteins of interest? Click on 'Study the structural evolution set of proteins' and start building your tree!]")
             st.checkbox('Study the Structural Evolution of a Set of Proteins', key='set')
 
@@ -1868,7 +1896,7 @@ new_proteomes_path =  'data/core/merged_evo_rate.csv'
 proteomes_df = pd.read_csv(new_proteomes_path) # old: proteomes_path
 
 # find species ------------------------------------------------------------------------------------------------------
-st.sidebar.subheader('3. Zoom on Taxonomic Group', divider="orange")
+st.sidebar.subheader('1. Zoom on Taxonomic Group', divider="orange")
 with st.sidebar.expander("Help: How to find the structural tree for a species or a taxon"):
     st.write("Select if you want to find:")
     st.markdown("""
@@ -1947,7 +1975,7 @@ if st.session_state.get("find_taxon_box"):
 
 
 ############### Protein tree extraction -----------------------------------------------------------------------------------------
-st.sidebar.subheader('4. Structural Homologs', divider="red")
+st.sidebar.subheader('2. Structural Homologs', divider="red")
 with st.sidebar.expander("Help: How to Find Protein Structural Homologs"):
     st.write("Digit the protein (UniProt ID) you want to find the homologs of.")
     st.write("The resulting structural phylogenetic tree will show you all the species sharing a protein structural homolog of your input protein.")
@@ -2032,7 +2060,7 @@ if st.session_state.get("homologs"):
                     st.info("No structural homologs found in the tree.")
 
 
-st.sidebar.subheader('5. Protein Set Structural Evolution', divider="red")
+st.sidebar.subheader('3. Protein Set Structural Evolution', divider="red")
 with st.sidebar.expander("Help: how to build the Structural Tree from a Set of Proteins"):
     st.write("Input the UniProt ID of the proteins to build the tree from.")
     st.write("A structural phylogenetic tree is going to be build based on your input protein.")

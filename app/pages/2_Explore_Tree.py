@@ -10,6 +10,7 @@ from io import StringIO
 import copy
 import glob
 import math
+import base64
 
 #github_path = '/' #change to your path
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
@@ -36,6 +37,13 @@ def kingdom_color(kingdom):
         # This will be used for internal nodes ('Unknown') or leaves with no match
         return "#FAF8F8"
     
+@st.cache_data
+def get_base64_image(image_path):
+    """Converts a local file to a base64 string for HTML embedding."""
+    if not os.path.exists(image_path):
+        return "" # Return empty if file not found to prevent errors
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
 
 #### intro -----------------------------------------------------------------------------------------------------------------------------------
 st.set_page_config(
@@ -43,9 +51,97 @@ st.set_page_config(
     page_icon= "data/tree/logo_tree.png", 
     layout="wide"
 )
+st.markdown("""
+    <style>
+    /* Hide the link button (anchor) next to headers */
+    [data-testid="stHeaderActionElements"] {
+        display: none !important;
+    }
+    
+    /* Optional: If the title still looks shifted, remove the padding usually reserved for the icon */
+    h1, h2, h3, h4, h5, h6 {
+        padding-top: 0rem !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
 #st.title(':green[SHE: Structural History of Eukarya]')
+#st.title("Explore SHE tree")
+st.markdown("""
+    <h2 style='
+        text-align: center; 
+        font-size: 3rem; 
+        font-weight: bold; 
+        /* Gradient Background */
+        background: linear-gradient(to right, #00FF7F, #40E0D0); 
+        /* Clip background to text */
+        -webkit-background-clip: text; 
+        -webkit-text-fill-color: transparent; 
+        background-clip: text; 
+        color: transparent;'>
+        Explore SHE tree
+    </h2>
+""", unsafe_allow_html=True)
+#st.subheader('Structural Phylogenetic Tree')
+image_path = 'data/logos/SHE.png'
+# 2. Check if file exists and encode
+if os.path.exists(image_path):
+    img_b64 = get_base64_image(image_path)
 
-st.subheader('Structural Phylogenetic Tree')
+st.markdown(
+    f"""
+    <style>
+    .banner-container {{
+        /* Use the Base64 image as a background */
+        background-image: url("data:image/png;base64,{img_b64}");
+        background-size: cover; /* Ensures image fills the box */
+        background-position: center;
+        border-radius: 15px;
+        padding: 100px 20px; /* Top/Bottom padding creates the height */
+        text-align: center;
+        position: relative;
+        margin-bottom: 20px;
+    }}
+    
+    /* Adds a dark overlay so text pops */
+    .banner-overlay {{
+        background-color: rgba(0, 0, 0, 0.4); /* 40% opaque black */
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border-radius: 15px;
+        z-index: 1;
+    }}
+
+    /* The text styling */
+    .banner-text {{
+        position: relative;
+        z-index: 2; /* Ensures text is above the dark overlay */
+        color: white;
+        transition: all 0.3s ease-in-out;
+        text-shadow: 2px 2px 5px rgba(0,0,0,0.8);
+    }}
+
+    /* The Glow Effect on Hover */
+    .banner-text:hover {{
+        text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #e60073;
+        transform: scale(1.02); /* Slight zoom for effect */
+    }}
+    </style>
+
+    <div class="banner-container">
+        <div class="banner-overlay"></div>
+        <div class="banner-text">
+            <h2>Discover the eukaryotic structural phylogeny and evolutionary rates</h2>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+
+
 st.markdown("""
 <style>
 /* 1. Target the Expander Container (The 'details' HTML tag) */
@@ -120,7 +216,7 @@ else:
 # Choose Taxon
 st.sidebar.subheader('1. Visualise Clades', divider=True)
 kingdom = st.sidebar.selectbox(
-    'Which kingdom? (default: Eukarya)',
+    'Which major Taxon? (default: Eukarya)',
     df['kingdom'],
     key = 'kingdom_selector')
 

@@ -78,16 +78,112 @@ def set_background(image_path):
         """,
         unsafe_allow_html=True
     )
+
+
+@st.cache_data
+def get_base64_image(image_path):
+    """Converts a local file to a base64 string for HTML embedding."""
+    if not os.path.exists(image_path):
+        return "" # Return empty if file not found to prevent errors
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
 ##########page-----------------------------------------------
 st.set_page_config(
     page_title="SHE: Downloads",
     page_icon= "data/tree/logo_tree.png", 
     layout="wide"
 )
-set_background('data/logos/SHE.png')
+st.markdown("""
+    <style>
+    /* Hide the link button (anchor) next to headers */
+    [data-testid="stHeaderActionElements"] {
+        display: none !important;
+    }
+    
+    /* Optional: If the title still looks shifted, remove the padding usually reserved for the icon */
+    h1, h2, h3, h4, h5, h6 {
+        padding-top: 0rem !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+#set_background('data/logos/SHE.png')
 #st.title(':green[SHE: Structural History of Eukarya]')
-st.subheader('Downloads')
-st.write('Here it is possible to download the data (structures and trees) from our analysis.')
+#st.title('Downloads')
+st.markdown("""
+    <h2 style='
+        text-align: center; 
+        font-size: 3rem; 
+        font-weight: bold; 
+        /* Gradient Background */
+        background: linear-gradient(to right, #00FF7F, #40E0D0); 
+        /* Clip background to text */
+        -webkit-background-clip: text; 
+        -webkit-text-fill-color: transparent; 
+        background-clip: text; 
+        color: transparent;'>
+        Downloads
+    </h2>
+""", unsafe_allow_html=True)
+image_path = 'data/logos/SHE.png'
+# 2. Check if file exists and encode
+if os.path.exists(image_path):
+    img_b64 = get_base64_image(image_path)
+
+st.markdown(
+    f"""
+    <style>
+    .banner-container {{
+        /* Use the Base64 image as a background */
+        background-image: url("data:image/png;base64,{img_b64}");
+        background-size: cover; /* Ensures image fills the box */
+        background-position: center;
+        border-radius: 15px;
+        padding: 100px 20px; /* Top/Bottom padding creates the height */
+        text-align: center;
+        position: relative;
+        margin-bottom: 20px;
+    }}
+    
+    /* Adds a dark overlay so text pops */
+    .banner-overlay {{
+        background-color: rgba(0, 0, 0, 0.4); /* 40% opaque black */
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border-radius: 15px;
+        z-index: 1;
+    }}
+
+    /* The text styling */
+    .banner-text {{
+        position: relative;
+        z-index: 2; /* Ensures text is above the dark overlay */
+        color: white;
+        transition: all 0.3s ease-in-out;
+        text-shadow: 2px 2px 5px rgba(0,0,0,0.8);
+    }}
+
+    /* The Glow Effect on Hover */
+    .banner-text:hover {{
+        text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #e60073;
+        transform: scale(1.02); /* Slight zoom for effect */
+    }}
+    </style>
+
+    <div class="banner-container">
+        <div class="banner-overlay"></div>
+        <div class="banner-text">
+            <h2>Download data and results from our analysis</h2>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+
+#st.write('Download the data and results from our analysis.')
 st.write('Please, below select the type of file you want to download.')
 #----sidebar-------
 st.sidebar.subheader('Downloads', divider="yellow")
@@ -133,6 +229,29 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+with st.expander('Alignment scores by Organism'):
+    st.subheader('Protein-protein alignment bitscores by Organism')
+    st.write('Here it is possible to download the Foldseek proteome-proteome comparison bitscores (.csv) only by organism')
+    proteome = st.text_input(
+    'Which proteome: UniProt ID?', key="proteome2")
+    st.write('Proteome selected for download: ', proteome)
+    st.page_link("https://www.uniprot.org/proteomes/" + proteome, label="UniProt Proteomes", icon="🌎")
+    if proteome == '':
+        st.warning('Please input the UniProt proteome ID (i.e. UP000005640)')
+    else: 
+        root_dir_bitscores='data/decompressed' #350 gb
+        file_pattern= f"{root_dir_bitscores}/{proteome}_*"
+        matching_paths = glob.glob(file_pattern)
+        if matching_paths:
+            st.info("Zipping all the comparison bitscore csvs for your proteome ... Please wait some seconds for the download button to appear :)")
+            st.snow()
+            label2="Download all bitscores for " + proteome + " (.zip)"
+            zip_file_name = f"{proteome}_bitscores"
+            zip_download(matching_paths, zip_file_name, label2)
+        else:
+            st.error(f"Proteome {proteome} not found. The **UniProt Proteomes** link above might help you find the ID you are looking for. Try again :)")
+
+
 with st.expander('Complete Foldcomp results by Proteome'):
     st.subheader('Foldcomp results for all Proteome')
     st.write('Here it is possible to download the Foldcomp results per Proteome. To read the files, see https://github.com/steineggerlab/foldcomp and our code on https://github.com/DiandraDaum/SHE_app/')
@@ -157,38 +276,15 @@ with st.expander('Complete Foldcomp results by Proteome'):
         else:
             st.error(f"Proteome {proteome} not found. The **UniProt Proteomes** link above might help you find the ID you are looking for. Try again :)")
 
-with st.expander('Alignment scores by Organism'):
-    st.subheader('Protein-protein alignment bitscores by Organism')
-    st.write('Here it is possible to download the Foldseek proteome-proteome comparison bitscores (.csv) only by organism')
-    proteome = st.text_input(
-    'Which proteome: UniProt ID?', key="proteome2")
-    st.write('Proteome selected for download: ', proteome)
-    st.page_link("https://www.uniprot.org/proteomes/" + proteome, label="UniProt Proteomes", icon="🌎")
-    if proteome == '':
-        st.warning('Please input the UniProt proteome ID (i.e. UP000005640)')
-    else: 
-        root_dir_bitscores='data/decompressed' #350 gb
-        file_pattern= f"{root_dir_bitscores}/{proteome}_*"
-        matching_paths = glob.glob(file_pattern)
-        if matching_paths:
-            st.info("Zipping all the comparison bitscore csvs for your proteome ... Please wait some seconds for the download button to appear :)")
-            st.snow()
-            label2="Download all bitscores for " + proteome + " (.zip)"
-            zip_file_name = f"{proteome}_bitscores"
-            zip_download(matching_paths, zip_file_name, label2)
-        else:
-            st.error(f"Proteome {proteome} not found. The **UniProt Proteomes** link above might help you find the ID you are looking for. Try again :)")
-
-
 
 
 with st.expander('Protein Structure Predictions'):
+    st.subheader('Protein structure predictions by protein')
     st.write('Here it is possible to download the predicted protein structures (.pdb) by protein ID, originally retrieved from AFDB v4')
     proteome = st.text_input(
     'Which proteome: UniProt ID?', key="proteome3")
     st.write('Proteome selected for download: ', proteome)
     st.page_link("https://www.uniprot.org/proteomes/" + proteome, label="UniProt Proteomes", icon="🌎")
-    st.subheader('Protein structure predictions by protein')
     protein = st.text_input(
     'Which protein: UniProt ID?', key="protein")
     st.write('Protein structure selected for download: ', protein)
@@ -273,9 +369,9 @@ with st.expander('Protein Structure Predictions'):
 
 
 #if st.checkbox('Tree by Kingdom'):
-with st.expander('Tree by Kingdom'):
-    st.subheader('Tree (newick file) by Kingdom')
-    st.write('Here it is possible to download the tree file (.newick) for each kingdom. To open it, try uploading it on iTOL (https://itol.embl.de/upload.cgi)!')
+with st.expander('Tree by Clade'):
+    st.subheader('Tree (newick file) by Clade')
+    st.write('Here it is possible to download the tree file (.newick) for each main clade. To open it, try uploading it on iTOL (https://itol.embl.de/upload.cgi)!')
     df = pd.DataFrame({
         'kingdom': ["All", "Opisthokonta", "Amoebozoa", "Sar", "Viridiplantae", "Discoba", "Rhodophyta"],
         'number_species': [10, 20, 30, 40, 50, 70, 80] # change to actual number of species

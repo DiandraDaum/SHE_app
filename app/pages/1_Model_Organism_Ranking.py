@@ -1174,20 +1174,48 @@ def get_base64_image(image_path):
     with open(image_path, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode()
 #---------------------------------------
+st.markdown("""
+    <style>
+    /* Hide the link button (anchor) next to headers */
+    [data-testid="stHeaderActionElements"] {
+        display: none !important;
+    }
+    
+    /* Optional: If the title still looks shifted, remove the padding usually reserved for the icon */
+    h1, h2, h3, h4, h5, h6 {
+        padding-top: 0rem !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
 ##MAIN##
 st.set_page_config(
     page_title="SHE: Model",
     page_icon= "data/tree/logo_tree.png", 
     layout="wide"
 )
-st.title('Model Organism Ranking')
+#st.title('Model Organism Ranking')
+st.markdown("""
+    <h2 style='
+        text-align: center; 
+        font-size: 3rem; 
+        font-weight: bold; 
+        /* Gradient Background */
+        background: linear-gradient(to right, #00FF7F, #40E0D0); 
+        /* Clip background to text */
+        -webkit-background-clip: text; 
+        -webkit-text-fill-color: transparent; 
+        background-clip: text; 
+        color: transparent;'>
+        Model Organism Ranking
+    </h2>
+""", unsafe_allow_html=True)
 #set_background('data/logos/model.png')
 image_path = 'data/logos/model.png'
 # 2. Check if file exists and encode
 if os.path.exists(image_path):
     img_b64 = get_base64_image(image_path)
 
-#st.write("Find the best model organism match for your biological pathway by instant structural matching")
+#st.write("Find the best model organism match for your biological pathway by combined structural matching for all pathway proteins.")
 
 st.markdown(
     f"""
@@ -1235,7 +1263,7 @@ st.markdown(
     <div class="banner-container">
         <div class="banner-overlay"></div>
         <div class="banner-text">
-            <h2>Find the best model organism match for your biological pathway by instant structural matching</h2>
+            <h2>Find the best model organism for your biological pathway by combined structural matching for all pathway proteins</h2>
         </div>
     </div>
     """,
@@ -1347,7 +1375,7 @@ with st.expander(":violet[See Example Usage]"):
                     st.markdown("<br>", unsafe_allow_html=True)
                     st.write("---")
                     st.write(f"**Bitscore** human Q9NXK8 vs {title} {protein1}: **{score1}**")
-                    st.markdown("<br>", unsafe_allow_html=True)
+                    #st.markdown("<br>", unsafe_allow_html=True)
                     alignment = open("data/subset/figure_model/fish_Q9NXK8.mp4", "rb")
                     bytes = alignment.read()
                     st.video(bytes, autoplay=True, loop=True, muted=True)
@@ -1381,7 +1409,7 @@ with st.expander(":violet[See Example Usage]"):
                     st.video(bytes3, autoplay=True, loop=True, muted=True)
 
 #st.subheader("Start your analysis by clicking on 'Rank Model Organisms' !")
-st.warning("Please note that this analysis might require some time. It is possible to register your email in the sidebar, so that your results will be sent to you as soon as they are ready!")
+st.warning("Please note that this analysis might take longer the more structural matching have to performed for all pathway proteins. It is possible to register your email in the sidebar, so that your results will be sent to you as soon as they are ready!")
 
 
 ###------sidebar sign up--------------------
@@ -1545,7 +1573,7 @@ if st.session_state['ranking_active']:
         status_placeholder.info(f"a. Ranking your model organisms...")
 
         # --- CALL CACHED FUNCTION ---
-        # This runs instantly if cached!
+        # This runs immediately if cached: #st.chache_data()
         df_final, comparison_df, error_msg = prepare_ranking_data(target_species, model_organisms, protein_list)
 
         if error_msg:

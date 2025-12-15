@@ -17,28 +17,28 @@ VIDEO_PATH_BG = "data/tree/bg.mp4"
 
 # Define navigation items for the custom header
 NAV_ITEMS = [
-    {"label": "Home", "icon": "🏠", "path": "app.py"},
-    {"label": "Tree Viewer", "icon": "🌳", "path": "pages/1_Explore_Tree.py"},
-    {"label": "Interactive Tree", "icon": "🍃", "path": "pages/2_Interactive_Tree.py"},
-    {"label": "Model Organisms Ranking", "icon": "🐁", "path": "pages/3_Model_Organism_Ranking.py"},
-    {"label": "Downloads", "icon": "⬇️", "path": "pages/4_Downloads.py"},
+    {"label": "SHE", "icon": "🏠", "path": "app.py"},
+    {"label": "Model Organisms Ranking", "icon": "🐁", "path": "pages/1_Model_Organism_Ranking.py"},
+    {"label": "Explore SHE tree", "icon": "🌳", "path": "pages/2_Explore_Tree.py"},
+    {"label": "Interactive SHE Tree", "icon": "🔎", "path": "pages/3_Interactive_Tree.py"},
+    {"label": "Downloads", "icon": ":material/download:", "path": "pages/4_Downloads.py"},
 ]
 
 # Define features for the main grid section
 FEATURES = [
-    {"icon": "🌳", "title": "Structural Phylogeny", "description": "Explore the structural phylogenetic tree for the main eukaryotic clades.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/plant_Q9NXK8.mp4"}, #"demo": "data/demos/demo1.mp4"
-    {"icon": "📈", "title": "Evolutionary Rate", "description": "Visualize colored branches by evolutionary rate to identify fast and slow-evolving proteomes.", "link_path": "pages/1_Explore_Tree.py", "demo": "data/subset/figure_model/mouse_Q9NXK8.mp4"},
-    {"icon": "🍄", "title": "Taxon Interactive Search", "description": "Zoom on specific taxa or species to discover new evolutionary relationships.", "link_path": "pages/2_Interactive_Tree.py", "demo": "data/subset/figure_model/fish_Q9NXK8.mp4"},
-    {"icon": "🔎", "title": "Structural Homologs Search", "description": "Analyze the presence/absence of protein structural homologs across all eukaryotic organisms.", "link_path": "pages/2_Interactive_Tree.py", "demo": "data/subset/figure_model/plant_Q9NVI1.mp4"}, # Reusing Model Organisms page for search
-    {"icon": "🐁", "title": "Model Organism Ranking", "description": "Find the best model organism match for your biological pathway by instant structural matching.", "link_path": "pages/3_Model_Organism_Ranking.py", "demo": "data/subset/figure_model/mouse_Q9NVI1.mp4"},
-    {"icon": "⬇️", "title": "Data Downloads", "description": "Download the trees, the structural alignment scores and the predicted protein structures.", "link_path": "pages/4_Downloads.py", "demo": "data/subset/figure_model/fish_Q9NVI1.mp4"},
+    {"icon": "🌳", "title": "Structural Phylogeny", "description": "Explore the structural phylogenetic tree for the main eukaryotic clades.", "link_path": "pages/2_Explore_Tree.py", "demo": "data/subset/figure_model/plant_Q9NXK8.mp4"}, #"demo": "data/demos/demo1.mp4"
+    {"icon": "📈", "title": "Evolutionary Rate", "description": "Visualize colored branches by evolutionary rate to identify fast and slow-evolving proteomes.", "link_path": "pages/2_Explore_Tree.py", "demo": "data/subset/figure_model/mouse_Q9NXK8.mp4"},
+    {"icon": "🍄", "title": "Taxon Interactive Search", "description": "Zoom on specific taxa or species to discover new evolutionary relationships.", "link_path": "pages/3_Interactive_Tree.py", "demo": "data/subset/figure_model/fish_Q9NXK8.mp4"},
+    {"icon": "🔎", "title": "Structural Homologs Search", "description": "Analyze the presence/absence of protein structural homologs across all eukaryotic organisms.", "link_path": "pages/3_Interactive_Tree.py", "demo": "data/subset/figure_model/plant_Q9NVI1.mp4"}, # Reusing Model Organisms page for search
+    {"icon": "🐁", "title": "Model Organism Ranking", "description": "Find the best model organism match for your biological pathway by combined structural matching for all pathway proteins.", "link_path": "pages/1_Model_Organism_Ranking.py", "demo": "data/subset/figure_model/mouse_Q9NVI1.mp4"},
+    {"icon": ":material/download:", "title": "Data Downloads", "description": "Download the trees, the structural alignment scores and the predicted protein structures.", "link_path": "pages/4_Downloads.py", "demo": "data/subset/figure_model/fish_Q9NVI1.mp4"},
 ]
 
 # Define methodology steps
 STEPS = [
-    {"number": "01", "title": "Proteome Collection", "description": "1,542 complete eukaryotic proteomes from UniProt with predicted structures."},
-    {"number": "02", "title": "Structural Alignment", "description": "All-vs-all protein alignment using FoldSeek for rapid structure comparison."},
-    {"number": "03", "title": "Distance Matrix", "description": "Calculate proteome similarity from sum of bit scores between organisms."},
+    {"number": "01", "title": "Proteome Collection", "description": "1,542 complete eukaryotic proteomes from UniProt with predicted protein structures."},
+    {"number": "02", "title": "Structural Alignment", "description": "Foldseek all-vs-all protein structure comparison at the proteome level - 296,000B alignments."},
+    {"number": "03", "title": "Distance Matrix", "description": " Calculate proteome similarity from sum of bit scores between organisms."},
     {"number": "04", "title": "Tree Construction", "description": "Phylogenetic inference using neighbour-joining with bootstrapping."},
 ]
 
@@ -158,13 +158,31 @@ def get_base64_image(image_path):
 
 
 # --- APP EXECUTION ---
-
+#sidebar navigation
+with st.sidebar:
+    st.title("Pages")
+    for item in NAV_ITEMS:
+        st.page_link(item["path"], label=item["label"], icon=item["icon"])
+st.sidebar.divider()
 # 1. Set Page Config
 st.set_page_config(
     page_title="SHE: Structural History of Eukarya",
     page_icon= "data/tree/logo_tree.png", 
     layout="wide"
 )
+st.markdown("""
+    <style>
+    /* Hide the link button (anchor) next to headers */
+    [data-testid="stHeaderActionElements"] {
+        display: none !important;
+    }
+    
+    /* Optional: If the title still looks shifted, remove the padding usually reserved for the icon */
+    h1, h2, h3, h4, h5, h6 {
+        padding-top: 0rem !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 # 2. Add Styles for Dashboard (Applied Globally)
 st.markdown("""
@@ -233,8 +251,20 @@ st.markdown("""
 
 
 # 3. Main Title & Tree Video
+#st.markdown("""<h1 style='text-align: center; color: green; font-size: 4rem; font-weight: bold;'>Structural History of Eukarya</h1>""", unsafe_allow_html=True)
+
 st.markdown("""
-    <h1 style='text-align: center; color: green; font-size: 4rem; font-weight: bold;'>
+    <h1 style='
+        text-align: center; 
+        font-size: 4rem; 
+        font-weight: bold; 
+        /* Gradient Background */
+        background: linear-gradient(to right, #00FF7F, #40E0D0); 
+        /* Clip background to text */
+        -webkit-background-clip: text; 
+        -webkit-text-fill-color: transparent; 
+        background-clip: text; 
+        color: transparent;'>
         Structural History of Eukarya
     </h1>
 """, unsafe_allow_html=True)
@@ -247,7 +277,8 @@ st.sidebar.success("Find more analysis options in the panels above.")
 
 #st.image('data/logos/SHE.png')
 # 1. Define image path
-image_path = 'data/logos/SHE.png'
+#image_path = 'data/logos/SHE.png'
+image_path = 'data/logos/interactive.png'
 # 2. Check if file exists and encode
 if os.path.exists(image_path):
     img_b64 = get_base64_image(image_path)
@@ -293,7 +324,7 @@ st.markdown(
 
     /* The Glow Effect on Hover */
     .banner-text:hover {{
-        text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #e60073;
+        text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #00e6b8ff;
         transform: scale(1.02); /* Slight zoom for effect */
     }}
     </style>
@@ -326,9 +357,9 @@ with st.container():
         <a href="Model_Organism_Ranking" target="_self" class="card-link">
             <div class="dashboard-card">
                 <div class="card-header">
-                    <h3>Model Organism Ranking</h3>
+                    <h3>🐁 Model Organism Ranking</h3>
                     <p class="card-description">
-                        Find the best model organism match for your biological pathway by instant structural matching.
+                        Find the best model organism match for your biological pathway by  combined structural matching for all pathway proteins.
                     </p>
                 </div>
                 <div style="background: #1f2937; padding: 10px; border-radius: 12px;">
@@ -338,7 +369,7 @@ with st.container():
         </a>
         """, unsafe_allow_html=True)
         # Keep the st.page_link as a secondary navigation option
-        st.page_link("pages/3_Model_Organism_Ranking.py", label="Find Best Model Organism", icon="🐁", use_container_width=True)
+        #st.page_link("pages/1_Model_Organism_Ranking.py", label="Find Best Model Organism", icon="🐁", use_container_width=True)
 
     # --- CARD 2 ---
     with dashboard_row1[1]:
@@ -346,9 +377,9 @@ with st.container():
         <a href="Explore_Tree" target="_self" class="card-link">
             <div class="dashboard-card">
                 <div class="card-header">
-                    <h3>Tree & Evolutionary Rate</h3>
+                    <h3>🌳 SHE Tree & Evolutionary Rates</h3>
                     <p class="card-description">
-                        Identify fast and slow-evolving proteomes by visualizing evolutionary rates across the tree.
+                        Explore the structural phylogeny of Eukarya and identify fast/slow-evolving proteomes by visualizing the evolutionary rates across the tree.
                     </p>
                 </div>
                 <div style="background: #1f2937; padding: 10px; border-radius: 12px;">
@@ -357,7 +388,7 @@ with st.container():
             </div>
         </a>
         """, unsafe_allow_html=True)
-        st.page_link("pages/1_Explore_Tree.py", label="Explore Evolutionary Rates", icon="📈", use_container_width=True)
+        #st.page_link("pages/2_Explore_Tree.py", label="Explore Evolutionary Rates", icon="📈", use_container_width=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -366,9 +397,9 @@ with st.container():
     <a href="Interactive_Tree" target="_self" class="card-link">
         <div class="dashboard-card" style="flex-direction: row; display: flex; align-items: center; min-height: auto;">
             <div style="flex: 1.5; padding-right: 20px; min-width: 300px;">
-                <h3 style="color:white; margin:0; font-size: 1.5rem; font-weight: 700;">Protein Homolog Discovery</h3>
+                <h3 style="color:white; margin:0; font-size: 1.5rem; font-weight: 700;">🔎 Interactive SHE tree</h3>
                 <p style="color:#9ca3af; margin-top:10px; margin-bottom: 20px;">
-                    Instantly discover all the structural homologs across all 24.3 million proteins.
+                    Zoom on specific taxa and discover protein structural homologs across all 24.3 million proteins.
                     Map the evolutionary distribution of your protein family.
                 </p>
             </div>
@@ -380,7 +411,8 @@ with st.container():
         </div>
     </a>
     """, unsafe_allow_html=True)
-    st.page_link("pages/2_Interactive_Tree.py", label="Search Homologs", icon="🔎", use_container_width=True)
+    #st.page_link("pages/3_Interactive_Tree.py", label="Search Homologs", icon="🔎", use_container_width=True)
+    st.markdown("<br>", unsafe_allow_html=True)
     # --- A. STATISTICS TILES SECTION ---
     css = """
         /* 1. Base Style */
@@ -420,7 +452,7 @@ with st.container():
 
     row1 = st.columns(4)
     titles = ["Organisms", "Proteins", "Structure Alignments", "Powered By"]
-    values = ["1'542", "24.3M", "296'000B", "Foldseek"]
+    values = ["1,542", "24.3M", "296,000B", "Foldseek"]
 
     for i, (col, value, title) in enumerate(zip(row1, values, titles)):
         with col:
@@ -462,11 +494,18 @@ with st.container():
     st.write("---") 
     st.markdown("""
         <div style="text-align: center; max-width: 42rem; margin: 0 auto 3rem;">
-            <h2 style="font-size: 2rem; font-weight: 700; color: green; margin-bottom: 1rem;">
+            <h2 style='
+                font-size: 2rem; 
+                font-weight: 700; 
+                margin-bottom: 1rem;
+                background: linear-gradient(to right, #00FF7F, #40E0D0);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                '>
                 Discover What Makes SHE Different
             </h2>
             <p style="color: var(--muted-foreground-color);">
-                Explore the complete structural phylogeny of eukaryotes with our instant interactive analysis platform.
+                Explore the complete structural phylogeny of eukaryotes with our interactive analysis platform.
             </p>
         </div>
     """, unsafe_allow_html=True)
@@ -509,15 +548,22 @@ with st.container():
 
     # --- C. METHODOLOGY SECTION ---
     st.markdown("""
-        <div style="text-align: center; max-width: 42rem; margin: 0 auto 3rem;">
-            <h2 style="font-size: 2rem; font-weight: 700; color: green; margin-bottom: 1rem;">
-                How It Works
-            </h2>
-            <p style="color: var(--muted-foreground-color);">
-                Our novel methodology compares entire proteomes based on 3D protein structure rather than sequence alone.
-            </p>
-        </div>
-    """, unsafe_allow_html=True)
+    <div style="text-align: center; max-width: 42rem; margin: 0 auto 3rem;">
+        <h2 style='
+            font-size: 2rem; 
+            font-weight: 700; 
+            margin-bottom: 1rem;
+            background: linear-gradient(to right, #00FF7F, #40E0D0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            '>
+            How SHE Works
+        </h2>
+        <p style="color: var(--muted-foreground-color);">
+            SHE compares entire proteomes across all of Eukarya based on 3D protein structures - capturing relationships beyond what sequence and single gene analysis can provide.
+        </p>
+    </div>
+""", unsafe_allow_html=True)
     
     step_cols = st.columns(4)
     for i, step in enumerate(STEPS):
@@ -533,7 +579,6 @@ with st.container():
                     </div>
                 </div>
             """, unsafe_allow_html=True)
-
 
     st.markdown("<hr style='margin: 4rem 0;'>", unsafe_allow_html=True) 
 
