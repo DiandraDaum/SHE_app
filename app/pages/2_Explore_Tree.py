@@ -12,7 +12,14 @@ import glob
 import math
 import base64
 
-#github_path = '/' #change to your path
+# Define navigation items for the custom header
+NAV_ITEMS = [
+    {"label": "SHE", "icon": "🏠", "path": "app.py"},
+    {"label": "Model Organisms Ranking", "icon": "🐁", "path": "pages/1_Model_Organism_Ranking.py"},
+    {"label": "Explore SHE tree", "icon": "🌳", "path": "pages/2_Explore_Tree.py"},
+    {"label": "Interactive SHE Tree", "icon": "🔎", "path": "pages/3_Interactive_Tree.py"},
+    {"label": "Downloads", "icon": ":material/download:", "path": "pages/4_Downloads.py"},
+]
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
 @st.cache_data
 # for coloring the selectbox
@@ -51,6 +58,13 @@ st.set_page_config(
     page_icon= "data/tree/logo_tree.png", 
     layout="wide"
 )
+
+#sidebar navigation
+with st.sidebar:
+    st.title("Pages")
+    for item in NAV_ITEMS:
+        st.page_link(item["path"], label=item["label"], icon=item["icon"])
+        
 st.markdown("""
     <style>
     /* Hide the link button (anchor) next to headers */
