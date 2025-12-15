@@ -164,6 +164,7 @@ with st.sidebar:
     for item in NAV_ITEMS:
         st.page_link(item["path"], label=item["label"], icon=item["icon"])
 st.sidebar.divider()
+
 # 1. Set Page Config
 st.set_page_config(
     page_title="SHE: Structural History of Eukarya",

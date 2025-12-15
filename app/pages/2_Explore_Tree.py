@@ -64,7 +64,7 @@ with st.sidebar:
     st.title("Browse")
     for item in NAV_ITEMS:
         st.page_link(item["path"], label=item["label"], icon=item["icon"])
-        
+st.sidebar.divider()    
 st.markdown("""
     <style>
     /* Hide the link button (anchor) next to headers */
