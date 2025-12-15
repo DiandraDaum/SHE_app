@@ -160,7 +160,7 @@ def get_base64_image(image_path):
 # --- APP EXECUTION ---
 #sidebar navigation
 with st.sidebar:
-    st.title("Pages")
+    st.title("Browse")
     for item in NAV_ITEMS:
         st.page_link(item["path"], label=item["label"], icon=item["icon"])
 st.sidebar.divider()

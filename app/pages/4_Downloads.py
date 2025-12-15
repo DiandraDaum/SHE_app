@@ -101,7 +101,7 @@ st.set_page_config(
 )
 #sidebar navigation
 with st.sidebar:
-    st.title("Pages")
+    st.title("Browse")
     for item in NAV_ITEMS:
         st.page_link(item["path"], label=item["label"], icon=item["icon"])
         
@@ -179,7 +179,7 @@ st.markdown(
 
     /* The Glow Effect on Hover */
     .banner-text:hover {{
-        text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #e60073;
+        text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #00e6b8ff;
         transform: scale(1.02); /* Slight zoom for effect */
     }}
     </style>
