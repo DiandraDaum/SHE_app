@@ -293,22 +293,6 @@ st.markdown("""
 
 # 3. Main Title & Tree Video
 #st.markdown("""<h1 style='text-align: center; color: green; font-size: 4rem; font-weight: bold;'>Structural History of Eukarya</h1>""", unsafe_allow_html=True)
-st.markdown("""
-        <div style="text-align: center; max-width: 60rem; margin: 0 auto 3rem;">
-            <h1 style='
-                font-size: 5rem; 
-                font-weight: 800; 
-                margin-bottom: 1rem;
-                line-height: 1.1;
-                background: linear-gradient(to right, #00FF7F, #40E0D0);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-                filter: drop-shadow(4px 4px 0px rgba(0,0,0,0.9));
-                '>
-                Structural History of Eukarya
-            </h1>
-        </div>
-    """, unsafe_allow_html=True)
 #st.markdown("<h2 style='text-align: center; color: white;'>Beyond traditional phylogenetics", unsafe_allow_html=True)
 #st.markdown("<h2 style='text-align: center; color: white;'>Leverage proteome-wide structural comparisons for groundbreaking insights", unsafe_allow_html=True)
 st.sidebar.success("Find more analysis options in the panels above.")
@@ -374,6 +358,21 @@ st.markdown(
     <div class="banner-container">
         <div class="banner-overlay"></div>
         <div class="banner-text">
+            <h1 style='
+                font-size: 5rem; 
+                font-weight: 800; 
+                margin-bottom: 1rem;
+                line-height: 1.1;
+                position: relative;
+                z-index: 10;
+                text-shadow: none !important;
+                background: linear-gradient(to right, #00FF7F, #40E0D0);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                filter: brightness(1.2) drop-shadow(4px 4px 0px rgba(0,0,0,1));
+                '>
+                Structural History of Eukarya
+            </h1>
             <h2>Beyond traditional phylogenetics</h2>
             <h3>Leverage proteome-wide structural comparisons for groundbreaking insights</h3>
         </div>

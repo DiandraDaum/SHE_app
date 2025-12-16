@@ -1335,12 +1335,20 @@ with st.expander(":violet[See Example Usage]"):
     st.subheader(':green[Step 4. Check Model Organism ranking based on protein structure similarity to the target proteins]')
     #st.markdown(f":orange[**The top model organism for your study is: Mus musculus**]")
     st.markdown(
-    f"""
-    <div style='text-align: center; color: orange;'>
-        <strong>The top model organism for your study is: Mus musculus</strong>
-    </div>
-    """,
-    unsafe_allow_html=True)
+            f"""
+            <div style='
+                text-align: center; 
+                color: orange; 
+                font-size: 2rem;           /* Much bigger size */
+                font-weight: 800;          /* Bold weight */
+                margin-bottom: 20px;       /* Space below */
+                text-shadow: 2px 2px 0 #000000; /* Black shadow for readability */
+            '>
+                The top model organism for your study is: Mus musculus mouse
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
     st.image("data/subset/figure_model/ranking2.png", caption="Organisms Ranking based on bitscore (the higher, the better)", use_container_width=True)
 
     row2 = st.columns(3)
@@ -1368,7 +1376,7 @@ with st.expander(":violet[See Example Usage]"):
                 # Content that appears when the user clicks/expands
                 if title == "House Mouse":
                     st.write(f"**Total Bitscore** human vs {title}: **{bitscore}**")
-                    st.markdown("<br>", unsafe_allow_html=True)
+                    #st.markdown("<br>", unsafe_allow_html=True)
                     st.write("---")
                     st.write(f"**Bitscore** human Q9NXK8 vs {title} {protein1}: **{score1}**")
                     alignment = open("data/subset/figure_model/mouse_Q9NXK8.mp4", "rb")
@@ -1386,15 +1394,16 @@ with st.expander(":violet[See Example Usage]"):
                     st.video(bytes3, autoplay=True, loop=True, muted=True)
                 elif title == "Zebrafish":
                     st.write(f"**Total Bitscore** human vs {title}: **{bitscore}**")
-                    st.markdown("<br>", unsafe_allow_html=True)
                     st.write("---")
                     st.write(f"**Bitscore** human Q9NXK8 vs {title} {protein1}: **{score1}**")
-                    #st.markdown("<br>", unsafe_allow_html=True)
+                    st.markdown("<br>", unsafe_allow_html=True)
                     alignment = open("data/subset/figure_model/fish_Q9NXK8.mp4", "rb")
                     bytes = alignment.read()
                     st.video(bytes, autoplay=True, loop=True, muted=True)
+                    #st.markdown("<br>", unsafe_allow_html=True)
                     st.write("---")
                     st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein2}: **{score2}**")
+                    st.markdown("<br>", unsafe_allow_html=True)
                     alignment2 = open("data/subset/figure_model/fish_Q9Y2M0.mp4", "rb")
                     bytes2 = alignment2.read()
                     st.video(bytes2, autoplay=True, loop=True, muted=True)
@@ -1615,8 +1624,15 @@ if st.session_state['ranking_active']:
         
         st.markdown(
             f"""
-            <div style='text-align: center; color: orange;'>
-                <strong>The top model organism for your study is: {top_model_organism}</strong>
+            <div style='
+                text-align: center; 
+                color: orange; 
+                font-size: 2rem;           /* Much bigger size */
+                font-weight: 800;          /* Bold weight */
+                margin-bottom: 20px;       /* Space below */
+                text-shadow: 2px 2px 0 #000000; /* Black shadow for readability */
+            '>
+                The top model organism for your study is: {top_model_organism}
             </div>
             """,
             unsafe_allow_html=True
