@@ -416,11 +416,36 @@ with st.expander('Tree by Clade'):
                 )
 
 # --- CITATION
-st.subheader('Cite', divider="rainbow")
+st.markdown("""
+    <h3 style='
+        color: white;
+        text-shadow: 3px 3px 0 #000000;  /* The hard black shadow */
+        font-weight: 800;
+        font-size: 1.75rem;
+        margin-bottom: 0px;             /* Remove gap between text and line */
+    '>
+        Cite
+    </h3>
+""", unsafe_allow_html=True)
+st.subheader('', divider="rainbow")
 st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
-
+#align figs
+st.markdown("""
+    <style>
+    [data-testid="stImage"] {
+        display: flex;
+        align-items: flex-start !important;
+        justify-content: center;
+        height: 100%;
+    }
+    img {
+        margin-top: 0 !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
 colm1, colm2, colm3, colm4 = st.columns(4)
 with colm2:
+    st.markdown("<br>", unsafe_allow_html=True)
     st.image("data/logos/scilifelab.png", use_container_width=False)
 with colm3:
     st.image("data/logos/su.png", use_container_width=False)

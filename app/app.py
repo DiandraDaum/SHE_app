@@ -31,7 +31,7 @@ FEATURES = [
     {"icon": "🍄", "title": "Taxon Interactive Search", "description": "Zoom on specific taxa or species to discover new evolutionary relationships.", "link_path": "pages/3_Interactive_Tree.py", "demo": "data/subset/figure_model/fish_Q9NXK8.mp4"},
     {"icon": "🔎", "title": "Structural Homologs Search", "description": "Analyze the presence/absence of protein structural homologs across all eukaryotic organisms.", "link_path": "pages/3_Interactive_Tree.py", "demo": "data/subset/figure_model/plant_Q9NVI1.mp4"}, # Reusing Model Organisms page for search
     {"icon": "🐁", "title": "Model Organism Ranking", "description": "Find the best model organism match for your biological pathway by combined structural matching for all pathway proteins.", "link_path": "pages/1_Model_Organism_Ranking.py", "demo": "data/subset/figure_model/mouse_Q9NVI1.mp4"},
-    {"icon": ":material/download:", "title": "Data Downloads", "description": "Download the trees, the structural alignment scores and the predicted protein structures.", "link_path": "pages/4_Downloads.py", "demo": "data/subset/figure_model/fish_Q9NVI1.mp4"},
+    {"icon": "📥", "title": "Data Downloads", "description": "Download the trees, the structural alignment scores and the predicted protein structures.", "link_path": "pages/4_Downloads.py", "demo": "data/subset/figure_model/fish_Q9NVI1.mp4"},
 ]
 
 # Define methodology steps
@@ -62,7 +62,8 @@ def save_email(email):
         st.error(f"An error occurred while saving: {e}")
         return False
 
-@st.cache_data
+#@st.cache_data
+@st.fragment
 def get_base64_of_bin_file(bin_file):
     """Encodes a binary file (like a video) to base64 for embedding in HTML."""
     try:
@@ -72,7 +73,8 @@ def get_base64_of_bin_file(bin_file):
     except FileNotFoundError:
         return None
 
-@st.cache_data
+#@st.cache_data
+@st.fragment
 def embed_video_background(video_path):
     """Embeds the video and custom CSS for styling the landing page."""
     video_base64 = get_base64_of_bin_file(video_path)
@@ -147,7 +149,8 @@ def embed_video_background(video_path):
         unsafe_allow_html=True
     )
 
-@st.cache_data
+#@st.cache_data
+@st.fragment
 def get_base64_image(image_path):
     """Converts a local file to a base64 string for HTML embedding."""
     if not os.path.exists(image_path):
@@ -155,7 +158,8 @@ def get_base64_image(image_path):
     with open(image_path, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode()
 
-@st.cache_data
+#@st.cache_data
+@st.fragment
 def set_background(image_path):
     """
     Adds a background image to the main Streamlit app container.
@@ -366,7 +370,7 @@ st.markdown(
                 position: relative;
                 z-index: 10;
                 text-shadow: none !important;
-                background: linear-gradient(to right, #00FF7F, #40E0D0);
+                background: linear-gradient(to right, #00FF7F, #e9f5ef); 
                 -webkit-background-clip: text;
                 -webkit-text-fill-color: transparent;
                 filter: brightness(1.2) drop-shadow(4px 4px 0px rgba(0,0,0,1));
@@ -380,7 +384,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
+##40E0D0
 img_ranking = get_base64_image("data/subset/figure_model/ranking2.png") 
 img_evolution = get_base64_image("data/logos/evorate.png")
 img_homologs = get_base64_image("data/logos/homolog.png")
@@ -683,12 +687,26 @@ st.markdown("""
 """, unsafe_allow_html=True)
 st.subheader('', divider="rainbow")
 st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
-
+#align figs
+st.markdown("""
+    <style>
+    [data-testid="stImage"] {
+        display: flex;
+        align-items: flex-start !important;
+        justify-content: center;
+        height: 100%;
+    }
+    img {
+        margin-top: 0 !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
 colm1, colm2, colm3, colm4 = st.columns(4)
 with colm2:
-    st.image("data/logos/scilifelab.png", use_container_width=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.image("data/logos/scilifelab.png", use_container_width=False)
 with colm3:
-    st.image("data/logos/su.png", use_container_width=True)
+    st.image("data/logos/su.png", use_container_width=False)
 
 
 

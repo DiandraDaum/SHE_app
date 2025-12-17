@@ -1754,6 +1754,7 @@ if st.session_state['ranking_active']:
                 st.warning(f"No comparison hits found for {selected_protein_A}.")
             else:
                 selected_group = selected_protein_df['Color_Group'].iloc[0]
+                selected_protein_df=selected_protein_df.sort_values(by='bit_score', ascending=False)
                 
                 # --- Single Protein Radar Chart ---
                 radar_fig_alone = px.line_polar(

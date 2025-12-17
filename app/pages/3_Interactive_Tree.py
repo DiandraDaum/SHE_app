@@ -1100,7 +1100,7 @@ def display_interactive_tree_c_zoom(tree_path, name):
         marker=dict(size=8, color=node_colors, line=dict(width=1, color='white')),
         text=node_text, 
         textposition="middle right",
-        textfont=dict(size=10, color='white'),
+        textfont=dict(size=14, color='white'),
         hovertext=node_coords['text'],
         hoverinfo='text',
         name='Nodes'

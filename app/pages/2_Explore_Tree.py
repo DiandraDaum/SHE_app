@@ -348,7 +348,9 @@ if st.sidebar.toggle('See tree with evolutionary rate'):
                     caption= 'Linear Tree with evolutionary rate; color legend: yellow high, purple low',
                     width='stretch')
 
-st.sidebar.page_link("pages/4_Downloads.py", label="Download trees", icon="⬇️")
+st.sidebar.divider()
+# --- DOWNLOADS
+st.sidebar.page_link("pages/4_Downloads.py", label="Download trees", icon="📥")
 # --- CITATION
 st.subheader('Cite', divider="rainbow")
 st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
