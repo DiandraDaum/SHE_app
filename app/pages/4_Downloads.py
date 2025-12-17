@@ -187,7 +187,8 @@ with st.expander('Alignment scores by Organism'):
                         # Cleanup done automatically on next run or via OS, 
                         # strictly deleting here might break the download stream if not careful.
                     except Exception as e:
-                        st.error(f"Error creating zip file: {e}")
+                        print(f"Error creating zip file: {e}")
+                        st.stop()
             else:
                 st.error(f"Proteome {proteome_bit} not found.")
 
@@ -219,7 +220,7 @@ with st.expander('Complete Foldcomp results by Proteome'):
                                 icon=":material/download:",
                             )
                     except Exception as e:
-                        st.error(f"Error: {e}")
+                        print(f"Error: {e}")
             else:
                 st.error(f"Proteome {proteome_fc} not found.")
 
@@ -255,7 +256,7 @@ with st.expander('Protein Structure Predictions'):
                         match = df_index[df_index['afdb_id'] == af_protein_id]
                         
                         if match.empty:
-                            st.error(f"Structure {af_protein_id} not found in this proteome.")
+                            st.error(f"Protein {af_protein_id} not found in this proteome.")
                         else:
                             # 3. Extract from Foldcomp
                             retrieved_index = match['fc_db_index'].iloc[0]
@@ -282,9 +283,9 @@ with st.expander('Protein Structure Predictions'):
                                         icon=":material/download:",
                                     )
                                 except Exception as e:
-                                    st.error(f"Error reading database: {e}")
+                                    print(f"Error reading database: {e}")
                             else:
-                                st.error("Database files missing.")
+                                st.error("Database files not found for {proteome_struct}.")
 
 
 # --- SECTION 4: TREE DOWNLOADS ---

@@ -56,30 +56,35 @@ NAV_ITEMS = [
 # save user email
 EMAIL_FILE = 'data/email_results.csv'
 def save_email(email):
-    """Saves the email and current timestamp to the CSV file. 
-    It ensures the directory exists before attempting to write."""
+    """Saves the email and current timestamp to the CSV file."""
     try:
-        # Ensure the directory exists (necessary for 'data/emails_results.csv')
         os.makedirs(os.path.dirname(EMAIL_FILE), exist_ok=True)
-        
-        # Check if the file exists to determine if we need to write headers
         file_exists = os.path.exists(EMAIL_FILE)
         
-        # Use 'a' (append mode) and 'newline=""' to prevent blank rows
+        if file_exists:
+            with open(EMAIL_FILE, 'r', encoding='utf-8') as f:
+                if email in f.read():
+                    return "Exists" # Return a special flag for duplicates
+
         with open(EMAIL_FILE, 'a', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            
-            # Write header only if the file did not exist before opening
             if not file_exists:
                 writer.writerow(['email', 'timestamp'])
             
-            # Write the new email entry
             timestamp = datetime.today().strftime('%Y-%m-%d %H:%M:%S')
             writer.writerow([email, timestamp])
         return True
     except Exception as e:
         st.error(f"An error occurred while saving: {e}")
         return False
+
+def is_valid_email(email):
+    """
+    Checks if the email string matches a standard email pattern.
+    """
+    # This regex checks for: character sequence + @ + domain name + . + extension
+    pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+    return re.match(pattern, email) is not None
 
 @st.cache_data
 def get_base64_of_bin_file(bin_file):
@@ -300,9 +305,9 @@ def sum_scores_for_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
                 #st.info(f"  > No hit found for {uniprot_id} in {csv_file}")
 
     except pd.errors.EmptyDataError:
-        st.warning(f"CSV file {csv_file} is empty. Skipping.")
+        print(f"CSV file {csv_file} is empty. Skipping.")
     except Exception as e:
-        st.error(f"Error processing CSV {csv_file}: {e}")
+        print(f"Error processing CSV {csv_file}: {e}")
         
     return total_score
 
@@ -357,11 +362,11 @@ def get_self_scores(target_dir, target_dir_id, uniprot_ids):
                 continue
             except Exception as e:
                 # Log other errors (e.g., file corrupted) but continue
-                st.warning(f"Could not fully read {csv_file} for self-score: {e}")
+                print(f"Could not fully read {csv_file} for self-score: {e}")
                 continue
         
         if max_score_for_this_protein == 0.0:
-            st.warning(f"  > No score found for {uniprot_id} in any comparison file.")
+            print(f"No score found for {uniprot_id} in any comparison file.")
         
         #st.info(f"  > Max score (baseline) for {uniprot_id} is: {max_score_for_this_protein}")
         total_self_score += max_score_for_this_protein
@@ -1448,24 +1453,18 @@ with st.sidebar.expander("Help: How to use the Model Organism Ranking tool"):
     st.write("This will result in a ranking of the model organisms  based on the structural similarity (bitscore, the higher the better) of the input proteins compared to the target species")
     st.write("If you wish to visualise the structural alignments of your input proteins, turn on 'Show protein structure alignments'.")
 
-st.sidebar.subheader('Results', divider="rainbow")
-st.sidebar.write('Sign up to receive your results')
-st.sidebar.text_input('Your email here:', key="email") #strip against whitespace
-
-
-# Submission Button in the main content area
-if st.sidebar.button('Receive Results'):
-    # Retrieve the value from session state using the key "email" (updated from "user")
-    user_email = st.session_state.email.strip()
+st.sidebar.subheader('Receive Results', divider="rainbow")
+email = st.sidebar.text_input('Your email', key="email_input") 
+if st.sidebar.button('Subscribe'):
+    user_email = st.session_state.email_input.strip()
     if not user_email:
-        # Only check remaining: must not be empty
         st.error("Please enter an email address.")
+    elif not is_valid_email(user_email):
+        st.sidebar.error("Please enter a valid email address (e.g., user@example.com)")
     else:
-        # If we reach here, the email is non-empty and we save it.
         if save_email(user_email):
-            # Updated success message
-            st.sidebar.success(f"Thank you! Your email: **{user_email}** .")
-
+            st.balloons()
+            st.sidebar.success(f"Thank you! **{user_email}** is where you will receive updates regarding SHE!")
 
 
 ################analysis -------------------------------------------
@@ -1580,9 +1579,9 @@ if st.session_state['ranking_active']:
 
     #start ranking-------------------------------------------------------------------------
     if (protein_list == '') or not model_organisms:
-        st.warning('Please input the UniProt ID of the protein(s) to study, the organism to study, and the model organisms to choose from.')
+        st.warning('Please input the UniProt ID of the protein(s) in your pathway of interest, the target organism to study, and the model organisms you can choose from.')
     else:
-        st.write('Selected Protein(s) to study: ', protein_list)
+        st.write('Selected Protein(s) in your study: ', protein_list)
         st.write('Selected Model Organism(s): ', ', '.join(model_organisms))
         
         # Handle Target Name
@@ -1751,7 +1750,7 @@ if st.session_state['ranking_active']:
             selected_protein_df = comparison_df[comparison_df['proteinA'] == selected_protein_A]
             
             if selected_protein_df.empty:
-                st.warning(f"No comparison hits found for {selected_protein_A}.")
+                st.warning(f"No structural comparison hit found for {selected_protein_A}.")
             else:
                 selected_group = selected_protein_df['Color_Group'].iloc[0]
                 selected_protein_df=selected_protein_df.sort_values(by='bit_score', ascending=False)
@@ -1806,7 +1805,7 @@ if st.session_state['ranking_active']:
                         pdb_model = get_pdb2(model_uniprot_id, proteome_model_id)
 
                         if not pdb_model:
-                            st.warning(f"Skipping: PDB file missing for {hit_species}.")
+                            st.warning(f"PDB file not found for {hit_species}.")
                             continue
 
                         # --- ALIGNMENT & SVD ---
@@ -1900,11 +1899,16 @@ if st.session_state['ranking_active']:
         
     st.write("---")
     if st.button("Close Analysis"):
+        st.session_state['ranking_active'] = False
         if is_random_user:
             os.remove(zip_file_path)
             shutil.rmtree(user_dir)
-        st.session_state['ranking_active'] = False
         st.rerun()
+    if st.session_state['ranking_active'] == False:
+        if is_random_user:
+            os.remove(zip_file_path)
+            shutil.rmtree(user_dir)
+    
 
 # --- CITATION
 st.subheader('Cite', divider="rainbow")

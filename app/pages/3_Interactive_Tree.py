@@ -345,7 +345,7 @@ def protein_in_family(protein, families_csv_path):
         print(f"Mapped Protein UniProt ID '{protein}' to family: {family}")
         return family, families_df
     else:
-        st.warning(f"This protein does not seem to have a structural homolog...")
+        st.warning(f"No structural ortholog match found for protein '{protein}'...")
         st.stop()
         sys.exit(1)
 
@@ -601,6 +601,9 @@ def display_interactive_tree_c_zoom(tree_path, name):
         print(f"Error processing tree file: {e}")
         return
 
+    if num_species < 2:
+        st.warning("Taxon not found or contains less than 2 species.")
+        st.stop()
     taxon=name
     # --- 1. Layout Selection ---
     available_layouts = ['Linear']
@@ -673,7 +676,16 @@ def display_interactive_tree_c_zoom(tree_path, name):
         name='Branches'
     )
     
-    node_text = node_coords['name'] if show_labels else [''] * len(node_coords['x'])
+    #node_text = node_coords['name'] if show_labels else [''] * len(node_coords['x'])
+    if show_labels:
+        # Create a list where we ONLY keep the name if it has letters.
+        # Otherwise (if it's a number/bootstrap), we use an empty string.
+        node_text = [
+            name if (name and any(c.isalpha() for c in str(name))) else "" 
+            for name in node_coords['name']
+        ]
+    else:
+        node_text = [''] * len(node_coords['x'])
 
     trace_nodes = go.Scatter(
         x=node_coords['x'], y=node_coords['y'],
@@ -702,7 +714,7 @@ def display_interactive_tree_c_zoom(tree_path, name):
                 x=[target_x], y=[target_y],
                 mode='markers+text',
                 marker=dict(
-                    size=20, 
+                    size=16, 
                     color='#FF0000', # Red
                     symbol='star',   # Star shape
                     line=dict(width=2, color='white')
@@ -717,7 +729,7 @@ def display_interactive_tree_c_zoom(tree_path, name):
             st.success(f"📍 Found: {search_node}")
             
         except ValueError:
-            st.warning("Node not found in coordinates.")
+            print("Node not found in coordinates.")
 
     # --- 7. Legend Traces ---
     for kingdom in unique_kingdoms:
@@ -780,7 +792,7 @@ def display_protein_presence_tree_plotly(protein, families_csv_path, new_proteom
         family, family_df = protein_in_family(protein, families_csv_path)
         
         if family is None:
-            st.warning(f"Protein {protein} not found in families file.")
+            st.warning(f"Protein {protein} not found")
             return
 
         # Define helper if missing
@@ -943,7 +955,7 @@ def render_3dmol(afdb_download_url: str):
              st.error("Cannot render structure, entry not found in AFDB.")
              
     except requests.exceptions.RequestException as e:
-        st.warning("Cannot render structure, entry not found in AFDB.")
+        st.warning("protein entry not found in AFDB.")
         print(f"Network error during CIF download: {e}")
 
     # 2. Initialize the py3Dmol viewer object
@@ -958,7 +970,7 @@ def render_3dmol(afdb_download_url: str):
     try:
         showmol(view, height=600, width=600)
     except Exception as e:
-         st.warning(f"Cannot render with 3Dmol viewer")
+         st.warning(f"Rendering failed")
          print(f"Error rendering 3Dmol viewer with stmol: {e}")
 
 ##### protein evolution set
@@ -1154,7 +1166,7 @@ def get_self_scores(target_dir, target_dir_id, uniprot_ids):
                 continue
         
         if max_score_for_this_protein == 0.0:
-            st.warning(f"  > No score found for {uniprot_id} in any comparison file.")
+            st.warning(f"No score found for {uniprot_id}")
         
         #st.info(f"  > Max score (baseline) for {uniprot_id} is: {max_score_for_this_protein}")
         total_self_score += max_score_for_this_protein
@@ -1529,8 +1541,7 @@ if st.session_state.get("find_species_box"):
     )
     #species = st.selectbox('Which species (name - Homo_sapiens)?', proteomes_df['Organism_formatted'], key = 'species_selector')
     if species == '':
-        st.warning('Please enter species (i.e. Proteome ID - i.e. UP000005640 or Taxon ID - i.e. 9606 or name - Homo_sapiens) to extract a subtree.' \
-            'Find all species names in "Show species branch rate in Kindom Eukarya"')
+        st.warning('Please input the species to extract a subtree from.')
     else:
         what = species
         what = what.split('_')
@@ -1563,12 +1574,37 @@ if st.session_state.get("find_taxon_box"):
     st.write('Close species in the tree share similar protein structures at the proteome level.')
     taxon_path = pathlib.Path('results/extracted_trees/' + taxon +'_subtree.svg')
     if taxon == '':
-        st.warning('Please enter a taxon (i.e. Primates) to extract a subtree')
+        st.warning('Please enter a taxon (i.e. Primates) to extract the subtree')
     else:
+        taxon=taxon.strip().capitalize()
         what = taxon
-        st.page_link("https://en.wikipedia.org/wiki/" + what, label="Wiki", icon="🌎")
-        taxon_tree = extract_subtree(new_proteomes_path, main_tree_path, taxon)
-        display_interactive_tree_c_zoom(taxon_tree, taxon)
+        wiki_suffix = f"{taxon}_supergroup" if taxon == "Sar" else ("Eukaryote" if taxon == "Eukarya" else taxon)
+        st.page_link(f"https://en.wikipedia.org/wiki/{taxon}", label="Wiki", icon="🌎")
+        #st.page_link("https://en.wikipedia.org/wiki/" + what, label="Wiki", icon="🌎")
+        if taxon=="Sar":
+            taxon_tree="data/tree/Sar/kingdoms_Sar_tree.newick"
+            display_interactive_tree_c_zoom(taxon_tree, taxon)
+        elif taxon=="Eukarya":
+            taxon_tree="data/tree/Eukarya/kingdoms_Eukarya_tree.newick"
+            display_interactive_tree_c_zoom(taxon_tree, taxon)
+        elif taxon=="Amoebozoa":
+            taxon_tree="data/tree/Amoebozoa/kingdoms_Amoebozoa_tree.newick"
+            display_interactive_tree_c_zoom(taxon_tree, taxon)
+        elif taxon=="Discoba":
+            taxon_tree="data/tree/Discoba/kingdoms_Discoba_tree.newick"
+            display_interactive_tree_c_zoom(taxon_tree, taxon)
+        elif taxon=="Opisthokonta":
+            taxon_tree="data/tree/Opisthokonta/kingdoms_Opisthokonta_tree.newick"
+            display_interactive_tree_c_zoom(taxon_tree, taxon)
+        elif taxon=="Rhodophyta":
+            taxon_tree="data/tree/Rhodophyta/kingdoms_Rhodophyta_tree.newick"
+            display_interactive_tree_c_zoom(taxon_tree, taxon)
+        elif taxon=="Viridiplantae":
+            taxon_tree="data/tree/Viridiplantae/kingdoms_Viridiplantae_tree.newick"
+            display_interactive_tree_c_zoom(taxon_tree, taxon)
+        else:
+            taxon_tree = extract_subtree(new_proteomes_path, main_tree_path, taxon)
+            display_interactive_tree_c_zoom(taxon_tree, taxon)
             
 
 
@@ -1591,12 +1627,12 @@ if st.session_state.get("homologs"):
         # uniprot link
         st.page_link("https://www.uniprot.org/uniprotkb/" + protein + "/entry", label="UniProt", icon="🌎")
         # --- Configuration AFDB  ---
-        try: 
-            UNIPROT_ID = protein 
+        UNIPROT_ID = protein
+        try:  
             AFDB_API_URL = (
                 "https://alphafold.ebi.ac.uk/api/prediction/" + UNIPROT_ID + "?")
                 #f"{protein}?") #https://alphafold.ebi.ac.uk/api/prediction/Q5VSL9
-            st.info(f"Loading predicted structure **{UNIPROT_ID}** from AlphaFold DB...")
+            #st.info(f"Loading predicted structure **{UNIPROT_ID}** from AlphaFold DB...")
         except:
             st.warning(f"**{UNIPROT_ID}** not found in AlphaFold DB...")
         # Use requests.get() to query the API and retrieve the JSON metadata
@@ -1616,7 +1652,7 @@ if st.session_state.get("homologs"):
         else:
             # Handle cases where the API returns a valid response but no structure data
             st.warning(f"Structure data for {UNIPROT_ID} was **not found** in the AFDB.")
-        
+        st.info("Generating the structural phylogenetic tree...")
         # get tree
         layout = st.radio(
             "Select Tree Layout:",
@@ -1667,7 +1703,7 @@ with st.sidebar.expander("Help: how to build the Structural Tree from a Set of P
 if st.session_state.get("set"):
     proteins = ''
     st.title('Tree built from your protein structures:')
-    st.warning('Please not that this function is still under development and might take some time. Contact us for feedback :)')
+    st.warning('Please note that this function is still under development and might take some time. Contact us for feedback :)')
     proteins = st.text_input(
     'Which proteins (each UniProt ID separated by a space, i.e: Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616)?', key="proteins")
     st.write('Selected Proteins: ', proteins)

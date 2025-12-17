@@ -202,7 +202,7 @@ if st.session_state.show_tree:
     if os.path.exists(kingdom_tree_path):
         st.image(kingdom_tree_path, caption=f"{kingdom} Phylogenetic Tree", width='stretch')
     else:
-        st.warning(f"Tree visualization not found: {filename}")
+        st.warning(f"Tree not found")
 
 # Branch Rates Data (Optimized with Cache)
 if st.sidebar.toggle('Show species branch rate in kingdom'):

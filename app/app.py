@@ -10,6 +10,7 @@ import base64
 import textwrap
 import os
 from datetime import datetime
+import re
 
 # --- CONFIGURATION & CONSTANTS ---
 EMAIL_FILE = 'data/email_updates.csv'
@@ -18,7 +19,7 @@ VIDEO_PATH_BG = "data/tree/bg.mp4"
 # Define navigation items for the custom header
 NAV_ITEMS = [
     {"label": "SHE", "icon": "🏠", "path": "app.py"},
-    {"label": "Model Organisms Ranking", "icon": "🐁", "path": "pages/1_Model_Organism_Ranking.py"},
+    {"label": "Model Organism Ranking", "icon": "🐁", "path": "pages/1_Model_Organism_Ranking.py"},
     {"label": "Explore SHE tree", "icon": "🌳", "path": "pages/2_Explore_Tree.py"},
     {"label": "Interactive SHE Tree", "icon": "🔎", "path": "pages/3_Interactive_Tree.py"},
     {"label": "Downloads", "icon": ":material/download:", "path": "pages/4_Downloads.py"},
@@ -26,12 +27,12 @@ NAV_ITEMS = [
 
 # Define features for the main grid section
 FEATURES = [
-    {"icon": "🌳", "title": "Structural Phylogeny", "description": "Explore the structural phylogenetic tree for the main eukaryotic clades.", "link_path": "pages/2_Explore_Tree.py", "demo": "data/subset/figure_model/plant_Q9NXK8.mp4"}, #"demo": "data/demos/demo1.mp4"
-    {"icon": "📈", "title": "Evolutionary Rate", "description": "Visualize colored branches by evolutionary rate to identify fast and slow-evolving proteomes.", "link_path": "pages/2_Explore_Tree.py", "demo": "data/subset/figure_model/mouse_Q9NXK8.mp4"},
-    {"icon": "🍄", "title": "Taxon Interactive Search", "description": "Zoom on specific taxa or species to discover new evolutionary relationships.", "link_path": "pages/3_Interactive_Tree.py", "demo": "data/subset/figure_model/fish_Q9NXK8.mp4"},
-    {"icon": "🔎", "title": "Structural Homologs Search", "description": "Analyze the presence/absence of protein structural orthologs across all eukaryotic organisms.", "link_path": "pages/3_Interactive_Tree.py", "demo": "data/subset/figure_model/plant_Q9NVI1.mp4"}, # Reusing Model Organisms page for search
-    {"icon": "🐁", "title": "Model Organism Ranking", "description": "Find the best model organism match to study your biological pathway with.", "link_path": "pages/1_Model_Organism_Ranking.py", "demo": "data/subset/figure_model/mouse_Q9NVI1.mp4"},
-    {"icon": "📥", "title": "Data Downloads", "description": "Download the trees, the structural alignment scores and the predicted protein structures.", "link_path": "pages/4_Downloads.py", "demo": "data/subset/figure_model/fish_Q9NVI1.mp4"},
+    {"icon": "🌳", "title": "Structural Phylogeny", "description": "Explore the structural phylogenetic tree for the main eukaryotic clades.", "link_path": "pages/2_Explore_Tree.py", "demo": "data/demos/she.mp4"}, #"demo": "data/demos/demo1.mp4"
+    {"icon": "📈", "title": "Evolutionary Rate", "description": "Visualize colored branches by evolutionary rate to identify fast and slow-evolving proteomes.", "link_path": "pages/2_Explore_Tree.py", "demo": "data/demos/evorate.mp4"},
+    {"icon": "🍄", "title": "Taxon Interactive Search", "description": "Zoom on specific taxa or species to discover new evolutionary relationships.", "link_path": "pages/3_Interactive_Tree.py", "demo": "data/demos/taxon.mp4"},
+    {"icon": "🔎", "title": "Structural Homologs Search", "description": "Analyze the presence/absence of protein structural orthologs across all eukaryotic organisms.", "link_path": "pages/3_Interactive_Tree.py", "demo": "data/demos/homolog.mp4"}, # Reusing Model Organisms page for search
+    {"icon": "🐁", "title": "Model Organism Ranking", "description": "Find the best model organism match to study your biological pathway with.", "link_path": "pages/1_Model_Organism_Ranking.py", "demo": "data/demos/model.mp4"},
+    {"icon": "📥", "title": "Data Downloads", "description": "Download the trees, the structural alignment scores and the predicted protein structures.", "link_path": "pages/4_Downloads.py", "demo": "data/demos/demo6.mp4"},
 ]
 
 # Define methodology steps
@@ -50,6 +51,11 @@ def save_email(email):
         os.makedirs(os.path.dirname(EMAIL_FILE), exist_ok=True)
         file_exists = os.path.exists(EMAIL_FILE)
         
+        if file_exists:
+            with open(EMAIL_FILE, 'r', encoding='utf-8') as f:
+                if email in f.read():
+                    return "Exists" # Return a special flag for duplicates
+
         with open(EMAIL_FILE, 'a', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             if not file_exists:
@@ -61,6 +67,14 @@ def save_email(email):
     except Exception as e:
         st.error(f"An error occurred while saving: {e}")
         return False
+
+def is_valid_email(email):
+    """
+    Checks if the email string matches a standard email pattern.
+    """
+    # This regex checks for: character sequence + @ + domain name + . + extension
+    pattern = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
+    return re.match(pattern, email) is not None
 
 #@st.cache_data
 @st.cache_data(show_spinner=False)
@@ -598,10 +612,27 @@ with st.container():
                     if video_bytes:
                         st.video(video_bytes, autoplay=True, loop=True, muted=True)
                 else:
-                    st.warning("No video demo available for this feature yet.")
+                    st.warning("No video demo available for this option yet.")
                 st.markdown("<br>", unsafe_allow_html=True)
 
     st.markdown("<hr style='margin: 4rem 0;'>", unsafe_allow_html=True)
+
+
+#updates
+st.sidebar.subheader('Updates', divider="rainbow")
+st.sidebar.write('Sign up for updates!')
+email = st.sidebar.text_input('Your email', key="email_input") 
+if st.sidebar.button('Subscribe'):
+    user_email = st.session_state.email_input.strip()
+    if not user_email:
+        st.error("Please enter an email address.")
+    elif not is_valid_email(user_email):
+        st.sidebar.error("Please enter a valid email address (e.g., user@example.com).")
+    else:
+        if save_email(user_email):
+            st.balloons()
+            st.sidebar.success(f"Thank you! **{user_email}** is where you will receive updates regarding SHE!")
+
 
 # --- C. METHODOLOGY SECTION ---
 # Add text-shadow: 0 2px 4px rgba(0,0,0,0.6);
@@ -698,17 +729,3 @@ with colm2:
     st.image("data/logos/scilifelab.png", use_container_width=False)
 with colm3:
     st.image("data/logos/su.png", use_container_width=False)
-
-
-
-st.sidebar.subheader('Updates', divider="rainbow")
-st.sidebar.write('Sign up for updates!')
-email = st.sidebar.text_input('Your email', key="email_input") 
-if st.sidebar.button('Subscribe'):
-    user_email = st.session_state.email_input.strip()
-    if not user_email:
-        st.error("Please enter an email address.")
-    else:
-        if save_email(user_email):
-            st.balloons()
-            st.sidebar.success(f"Thank you! **{user_email}** is where you will receive updates regarding SHE!")
