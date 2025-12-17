@@ -593,10 +593,7 @@ with st.container():
             # 3. The Demo Button (Optimized)
             with st.popover(f"▶️ Watch Demo", use_container_width=True):
                 st.markdown(f"**Demo for {feature['title']}**")
-                # OPTIMIZATION: Check if key exists first
                 if "demo" in feature and feature["demo"]:
-                    # USE THE CACHED FUNCTION
-                    # This fetches the bytes from RAM, not Disk
                     video_bytes = get_video_bytes(feature["demo"])
                     if video_bytes:
                         st.video(video_bytes, autoplay=True, loop=True, muted=True)
@@ -607,7 +604,7 @@ with st.container():
     st.markdown("<hr style='margin: 4rem 0;'>", unsafe_allow_html=True)
 
 # --- C. METHODOLOGY SECTION ---
-    # Add text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+# Add text-shadow: 0 2px 4px rgba(0,0,0,0.6);
 # 1. Define a reusable style for maximum readability
 st.markdown("""
 <style>

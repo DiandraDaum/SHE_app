@@ -1432,8 +1432,8 @@ with st.expander(":violet[See Example Usage]"):
                     st.video(bytes3, autoplay=True, loop=True, muted=True)
 
 #st.subheader("Start your analysis by clicking on 'Rank Model Organisms' !")
-st.warning("Please note that this analysis might take longer the more structural matching have to performed for all pathway proteins. It is possible to register your email in the sidebar, so that your results will be sent to you as soon as they are ready!")
-
+#st.warning("Please note that this analysis might take longer the more structural matching have to performed for all pathway proteins. It is possible to register your email in the sidebar, so that your results will be sent to you as soon as they are ready!")
+st.warning("Please note: Analysis time scales with the number of structural matches required. To receive your results automatically upon completion, you may register your email address in the sidebar.")
 
 ###------sidebar sign up--------------------
 #user sign up for updates and analysis results

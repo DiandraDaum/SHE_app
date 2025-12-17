@@ -510,7 +510,6 @@ def display_interactive_tree(tree_path):
 
 
 # new plotly circular
-@st.cache_data
 def polar_coordinates_transform_c(tree):
     """
     Transforms the Linear (X, Y) coordinates of the tree nodes 
@@ -534,7 +533,6 @@ def polar_coordinates_transform_c(tree):
         # Store Cartesian conversion for plotting (optional, but often helpful)
         node.x_polar = r * math.cos(theta_rad)
         node.y_polar = r * math.sin(theta_rad)
-    
     return tree
 
 
@@ -592,296 +590,7 @@ def create_plotly_data_c(tree, layout):
     return branch_lines_x, branch_lines_y, node_coords
 
 
-def display_interactive_tree_c(tree_path):
-    
-    try:
-        # Load the tree and calculate base coordinates (needed for both layout checks and drawing)
-        tree = Tree(tree_path, format=1)
-        tree = get_tree_coordinates(tree) 
-        
-        num_species = len(tree.get_leaves())
-        
-    except Exception as e:
-        print(f"Error processing tree file: {e}")
-        return
-
-    # --- 1. Layout Selection (Conditional) ---
-    available_layouts = ['Linear']
-    MIN_SPECIES_FOR_CIRCULAR = 400
-    # Only offer Circular if the species count is above the threshold
-    if num_species >= MIN_SPECIES_FOR_CIRCULAR:
-        available_layouts.append('Circular')
-    #st.info(f"The tree has **{num_species}** species. Circular layout is available for $\ge {MIN_SPECIES_FOR_CIRCULAR}$ species.")
-    tree_layout = st.radio(
-        "Select Tree Layout:",
-        available_layouts,
-        horizontal=True
-    )
-    layout_key = tree_layout
-
-    # --- 2. Labels Visibility Toggle ---
-    show_labels_option = st.radio(
-        "Show Species Names (Labels):",
-        ('Yes', 'No'),
-        index=0, # 'Yes' is the default
-        horizontal=True,
-        key='show_labels_toggle'
-    )
-    show_labels = (show_labels_option == 'Yes')
-    
-    # --- 3. Coordinate Calculation and Data Generation ---
-    try:
-        if layout_key == 'Circular':
-            tree = polar_coordinates_transform_c(tree) 
-            
-        branch_lines_x, branch_lines_y, node_coords = create_plotly_data_c(tree, layout=layout_key)
-        
-    except Exception as e:
-        # This catch is mainly for polar/data generation errors, though less likely now
-        print(f"Error generating tree coordinates: {e}")
-        return
-        
-    # --- 4. Proteomes loading and Color Generation ---
-    try:
-        #proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
-        proteomes_path = 'data/core/merged_evo_rate.csv'
-        proteomes_df = pd.read_csv(proteomes_path)
-        proteomes_df.columns = proteomes_df.columns.str.strip().str.replace(' ', '_')
-        proteomes_df['Kingdom'] = proteomes_df['Taxonomic_lineage'].str.split(', ').str[1]
-        organism_to_kingdom = proteomes_df.set_index('Organism_formatted')['Kingdom'].to_dict()
-        unique_kingdoms = sorted(proteomes_df['Kingdom'].unique())
-        
-        node_colors = []
-        for node_name in node_coords['name']:
-            kingdom = organism_to_kingdom.get(node_name, 'Unknown') 
-            color = kingdom_color(kingdom)
-            node_colors.append(color)
-
-    except Exception as e:
-        print(f"Could not load proteome data for coloring ({e}). Nodes will be plotted in a default color.")
-        node_colors = ['#1f77b4'] * len(node_coords['x'])
-        unique_kingdoms = ['Default']
-    
-    # --- 5. Define Plotly Traces ---
-    
-    # 1. Branch Traces (Lines)
-    trace_branches = go.Scatter(
-        x=branch_lines_x, y=branch_lines_y,
-        mode='lines',
-        line=dict(color='black', width=1),
-        hoverinfo='none', 
-        name='Branches'
-    )
-    
-    # Determine the text to display: names or empty for no labels
-    node_text = node_coords['name'] if show_labels else [''] * len(node_coords['x'])
-
-    # 2. Node Traces (Scatter Points)
-    trace_nodes = go.Scatter(
-        x=node_coords['x'], y=node_coords['y'],
-        mode='markers+text',
-        marker=dict(
-            size=10, 
-            color=node_colors, 
-            line=dict(width=1, color='Black') 
-        ),
-        text=node_text, # <--- Use the determined text list here
-        textposition="middle right",
-        textfont=dict(size=10),
-        hovertext=node_coords['text'],
-        hoverinfo='text',
-        name='Nodes'
-    )
-
-    # 3. Legend Traces 
-    legend_traces = []
-    for kingdom in unique_kingdoms:
-        color = kingdom_color(kingdom)
-        legend_traces.append(
-            go.Scatter(
-                x=[None], y=[None],
-                mode='markers',
-                marker=dict(size=10, color=color, line=dict(width=1, color='Black')),
-                name=kingdom,
-                legendgroup='kingdoms'
-            )
-        )
-
-    # --- 6. Create the Figure and Update Layout ---
-    fig = go.Figure(data=[trace_branches, trace_nodes] + legend_traces)
-
-    layout_params = dict(
-        title=f'{layout_key} Tree for evolution visualisation ({num_species} Species)',
-        height=800, 
-        showlegend=True,
-        hovermode="closest",
-        plot_bgcolor='white',
-        margin=dict(l=20, r=20, t=40, b=20),
-        autosize=True
-    )
-
-    if layout_key == 'Linear':
-        layout_params.update(
-            xaxis=dict(showgrid=False, title='Branch length'),
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
-        )
-    else: # Circular
-        layout_params.update(
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="y", scaleratio=1),
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-            template='plotly_white'
-        )
-    
-    fig.update_layout(**layout_params)
-    st.plotly_chart(fig, use_container_width=True)
-
-#dark mode plotly
-def display_interactive_tree_c_dark(tree_path):
-    
-    try:
-        # Load the tree and calculate base coordinates
-        tree = Tree(tree_path, format=1)
-        tree = get_tree_coordinates(tree) 
-        
-        num_species = len(tree.get_leaves())
-        
-    except Exception as e:
-        print(f"Error processing tree file: {e}")
-        return
-
-    # --- 1. Layout Selection ---
-    available_layouts = ['Linear']
-    MIN_SPECIES_FOR_CIRCULAR = 400
-    if num_species >= MIN_SPECIES_FOR_CIRCULAR:
-        available_layouts.append('Circular')
-        
-    tree_layout = st.radio(
-        "Select Tree Layout:",
-        available_layouts,
-        horizontal=True
-    )
-    layout_key = tree_layout
-
-    # --- 2. Labels Visibility Toggle ---
-    show_labels_option = st.radio(
-        "Show Species Names (Labels):",
-        ('Yes', 'No'),
-        index=0, 
-        horizontal=True,
-        key='show_labels_toggle'
-    )
-    show_labels = (show_labels_option == 'Yes')
-    
-    # --- 3. Coordinate Calculation ---
-    try:
-        if layout_key == 'Circular':
-            tree = polar_coordinates_transform_c(tree) 
-            
-        branch_lines_x, branch_lines_y, node_coords = create_plotly_data_c(tree, layout=layout_key)
-        
-    except Exception as e:
-        print(f"Error generating tree coordinates: {e}")
-        return
-        
-    # --- 4. Proteomes loading and Color Generation ---
-    try:
-        #proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
-        proteomes_path = 'data/core/merged_evo_rate.csv'
-        proteomes_df = pd.read_csv(proteomes_path)
-        proteomes_df.columns = proteomes_df.columns.str.strip().str.replace(' ', '_')
-        proteomes_df['Kingdom'] = proteomes_df['Taxonomic_lineage'].str.split(', ').str[1]
-        organism_to_kingdom = proteomes_df.set_index('Organism_formatted')['Kingdom'].to_dict()
-        unique_kingdoms = sorted(proteomes_df['Kingdom'].unique())
-        
-        node_colors = []
-        for node_name in node_coords['name']:
-            kingdom = organism_to_kingdom.get(node_name, 'Unknown') 
-            color = kingdom_color(kingdom)
-            node_colors.append(color)
-
-    except Exception as e:
-        print(f"Could not load proteome data for coloring ({e}).")
-        node_colors = ['#1f77b4'] * len(node_coords['x'])
-        unique_kingdoms = ['Default']
-    
-    # --- 5. Define Plotly Traces (DARK MODE STYLING) ---
-    
-    # 1. Branch Traces (Lines) -> CHANGED TO LIGHTGREY
-    trace_branches = go.Scatter(
-        x=branch_lines_x, y=branch_lines_y,
-        mode='lines',
-        line=dict(color='lightgrey', width=1), # <--- Changed from black
-        hoverinfo='none', 
-        name='Branches'
-    )
-    
-    node_text = node_coords['name'] if show_labels else [''] * len(node_coords['x'])
-
-    # 2. Node Traces (Scatter Points) -> ADDED WHITE TEXT
-    trace_nodes = go.Scatter(
-        x=node_coords['x'], y=node_coords['y'],
-        mode='markers+text',
-        marker=dict(
-            size=10, 
-            color=node_colors, 
-            line=dict(width=1, color='white') # <--- White border looks better on black bg
-        ),
-        text=node_text, 
-        textposition="middle right",
-        textfont=dict(size=10, color='white'), # <--- Force text to be white
-        hovertext=node_coords['text'],
-        hoverinfo='text',
-        name='Nodes'
-    )
-
-    # 3. Legend Traces 
-    legend_traces = []
-    for kingdom in unique_kingdoms:
-        color = kingdom_color(kingdom)
-        legend_traces.append(
-            go.Scatter(
-                x=[None], y=[None],
-                mode='markers',
-                marker=dict(size=10, color=color, line=dict(width=1, color='white')),
-                name=kingdom,
-                legendgroup='kingdoms'
-            )
-        )
-
-    # --- 6. Create the Figure and Update Layout (DARK BACKGROUND) ---
-    fig = go.Figure(data=[trace_branches, trace_nodes] + legend_traces)
-
-    layout_params = dict(
-        title=f'{layout_key} Tree for evolution visualisation ({num_species} Species)',
-        height=800, 
-        showlegend=True,
-        hovermode="closest",
-        
-        # --- DARK MODE SETTINGS ---
-        template="plotly_dark",     # Sets default axis/grid colors to suit dark mode
-        plot_bgcolor='black',       # Plot area background
-        paper_bgcolor='black',      # Outside area background
-        font=dict(color='white'),   # Global font color
-        # --------------------------
-        
-        margin=dict(l=20, r=20, t=40, b=20),
-        autosize=True
-    )
-
-    if layout_key == 'Linear':
-        layout_params.update(
-            xaxis=dict(showgrid=False, title='Branch length', showticklabels=True), # ticklabels True helps read distance
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False)
-        )
-    else: # Circular
-        layout_params.update(
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False, scaleanchor="y", scaleratio=1),
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-        )
-    
-    fig.update_layout(**layout_params)
-    st.plotly_chart(fig, use_container_width=True)
-
+# dark mode for species and taxa trees
 def display_interactive_tree_c_zoom(tree_path, name):
     
     try:
@@ -1050,7 +759,6 @@ def display_interactive_tree_c_zoom(tree_path, name):
 
 
 ##for homologs
-
 def display_protein_presence_tree_plotly(protein, families_csv_path, new_proteomes_path, main_tree_path, layout='Linear'):
     """
     Generates an interactive Plotly tree (Dark Mode) colored by protein presence.
@@ -1106,6 +814,7 @@ def display_protein_presence_tree_plotly(protein, families_csv_path, new_proteom
         branch_x, branch_y, node_coords = create_plotly_data_c(tree, layout=layout) 
     except Exception as e:
         print(f"Error generating coordinates: {e}")
+        st.stop()
 
     # --- 4. Assign Colors to Nodes ---
     node_colors = []
@@ -1128,7 +837,7 @@ def display_protein_presence_tree_plotly(protein, families_csv_path, new_proteom
                     # Case A: Present
                     node_colors.append(COLOR_PRESENT)
                     hit_ids = proteome_to_uniprot[proteome_id]
-                    hover_texts.append(f"<b>{node_name}</b><br>Status: Present<br>Ortholog: {hit_ids}")
+                    hover_texts.append(f"<b>{node_name}</b><br>Status: Present<br>Ortholog(s): {hit_ids}")
                     present_species_info.append(f"{node_name}\t{hit_ids}")
                 else:
                     # Case B: Absent (But it is a known species)
