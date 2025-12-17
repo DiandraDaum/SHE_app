@@ -1252,20 +1252,20 @@ with st.expander(":violet[See Example Usage]"):
                     st.write(f"**Total Bitscore** human vs {title}: **{bitscore}**")
                     st.write("---")
                     st.write(f"**Bitscore** human Q9NXK8 (cyan) vs {title} {protein1} (yellow): **{score1}**")
-                    st.markdown("<br>", unsafe_allow_html=True)
+                    #st.markdown("<br>", unsafe_allow_html=True)
                     alignment = open("data/subset/figure_model/fish_Q9NXK8.mp4", "rb")
                     bytes = alignment.read()
                     st.video(bytes, autoplay=True, loop=True, muted=True)
                     #st.markdown("<br>", unsafe_allow_html=True)
                     st.write("---")
                     st.write(f"**Bitscore** human Q9Y2M0 (cyan) vs {title} {protein2} (yellow): **{score2}**")
-                    st.markdown("<br>", unsafe_allow_html=True)
+                    #st.markdown("<br>", unsafe_allow_html=True)
                     alignment2 = open("data/subset/figure_model/fish_Q9Y2M0.mp4", "rb")
                     bytes2 = alignment2.read()
                     st.video(bytes2, autoplay=True, loop=True, muted=True)
                     st.write("---")
                     st.write(f"**Bitscore** human Q9NVI1 (cyan) vs {title} {protein3} (yellow): **{score3}**")
-                    st.markdown("<br>", unsafe_allow_html=True)
+                    #st.markdown("<br>", unsafe_allow_html=True)
                     alignment3 = open("data/subset/figure_model/fish_Q9NVI1.mp4", "rb")
                     bytes3 = alignment3.read()
                     st.video(bytes3, autoplay=True, loop=True, muted=True)
@@ -1397,32 +1397,55 @@ if st.session_state['ranking_active']:
         format_func=lambda x: x.replace('_', ' ').capitalize()
     )
 
-    # choose models --------------------------------------------------------------------
+    # --- MODEL ORGANISM SELECTION ---
+    # 1. Define Callback Functions
     def add_model_organism():
         st.session_state.model_count += 1 
 
+    def remove_model_organism():
+        # Prevent removing the last remaining box
+        if st.session_state.model_count > 1:
+            st.session_state.model_count -= 1
+
+    # 2. Initialize Session State
     if 'model_count' not in st.session_state:
-        st.session_state.model_count = 1 # Start with 1 mandatory model
+        st.session_state.model_count = 1 
         
     model_organisms = []
 
-    # Loop renders the correct number of selectboxes based on model_count
+    # 3. Render Selectboxes Loop
     for i in range(1, st.session_state.model_count + 1):
         selection = st.selectbox(
-            f'Which model organism ({i}) do you have available (i.e: Mus musculus, Saccharomyces cerevisiae, Danio rerio)?',
+            f'Which model organism #{i} would you like to add to the comparison?',
             proteomes_df['Organism_formatted'],
-            # Apply the same formatting logic: Replace underscore + Capitalize first letter only
+            index=None,  # box starts empty
+            placeholder="Select an organism...", # Text shown when empty
             format_func=lambda x: x.replace('_', ' ').capitalize(),
             key=f"model_{i}"
         )
-        model_organisms.append(selection)
+        
+        # Only add to the list if the user actually selected something
+        if selection:
+            model_organisms.append(selection)
 
-    # Use the defined function in on_click
-    st.button(
-        " Add Another Model Organism", 
-        key="add_model_btn", 
-        on_click=add_model_organism
-    )
+    # 4. Add/Remove Buttons (Side by Side)
+    col_add, col_remove = st.columns([0.6, 0.6])
+    
+    with col_add:
+        st.button(
+            "➕ Add Another Model", 
+            on_click=add_model_organism,
+            use_container_width=True
+        )
+        
+    with col_remove:
+        # Only show remove button if there is more than 1 box
+        if st.session_state.model_count > 1:
+            st.button(
+                "➖ Remove Last Model", 
+                on_click=remove_model_organism,
+                use_container_width=True
+            )
 
     #choose proteins -----------------------------------------------------------------------
     protein_list = st.text_input(
@@ -1462,8 +1485,10 @@ if st.session_state['ranking_active']:
         txt_path = csv_out + "model_ranking.txt"
         df_final.to_csv(txt_path, index=False, sep='\t')
         
+        ranking_df = comparison_df.copy()
+        ranking_df.columns = [f'{target}_Protein', 'Structural_ortholog', 'Bit_score', 'Model_Species']
         txt_path2 = csv_out + "protein_hits_ranking.txt"
-        comparison_df.to_csv(txt_path2, index=False, sep='\t')
+        ranking_df.to_csv(txt_path2, index=False, sep='\t')
 
         # --- DISPLAY LOGIC ---
         st.write("--- Organism Ranking ---")
