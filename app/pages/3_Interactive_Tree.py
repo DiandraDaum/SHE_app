@@ -323,14 +323,12 @@ def load_extracted_tree(taxon, layout, taxon_out):
     return taxon_tree_out
 
 # for find protein: color tree if a protein is present in species
-@st.cache_data
 def get_species_id(protein_name):
     """Robustly parses a protein name to find a UniProt proteome ID."""
     if isinstance(protein_name, str) and protein_name.startswith("UP"):
         return protein_name.split('-')[0].split('_')[0]
     return None
 
-@st.cache_data
 def protein_in_family(protein, families_csv_path):
     """
     Find the homologs family of a protein UniProt ID.
@@ -351,137 +349,6 @@ def protein_in_family(protein, families_csv_path):
         st.stop()
         sys.exit(1)
 
-@st.cache_data
-def protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree):
-    """
-    Given a protein PniProt ID, find its family and color the tree of all organisms sharing that protein.
-    Input: 
-    protein: PniProt ID (i.e. P12345)
-    families_csv_path: path to the protein families csv file (i.e. ./data/core/protein_families_238.csv)
-    new_proteomes_path: path to the updated proteomes csv file (i.e. ./ data/core/merged_evo_rate.csv)
-    main_tree: path to the main tree newick file (i.e. ./data/tree/Eukarya/kingdoms_Eukarya_tree.newick)
-
-    Output:
-    presence_tree_svg: path to the svg file of the tree with colored leaves
-    """
-
-    # 1 Load the names file and create the name map
-    st.info("Generating tree: this might require some seconds, please wait")
-    print(f"--- Step 1: Loading Name Map from '{new_proteomes_path}' ---")
-    try:
-        new_proteomes_csv = pd.read_csv(new_proteomes_path)
-        new_proteomes_csv.columns = new_proteomes_csv.columns.str.strip().str.replace(' ', '_')
-    except FileNotFoundError:
-        print(f"FATAL ERROR: The names file '{new_proteomes_path}' was not found.")
-        sys.exit(1)
-    if 'ID' not in new_proteomes_csv.columns or 'Organism_formatted' not in new_proteomes_csv.columns:
-        print(f"FATAL ERROR: The required columns 'ID' and/or 'Organism_formatted' were not found in '{new_proteomes_csv}'.")
-        sys.exit(1)
-    mapping_df = new_proteomes_csv[['ID', 'Organism_formatted']].drop_duplicates().set_index('ID')
-    id_to_name_map = mapping_df['Organism_formatted'].to_dict()
-    print(f"Successfully created a name map for {len(id_to_name_map)} unique IDs.")
-    
-    # 2 from input protein find family
-    family, family_df = protein_in_family(protein, families_csv_path)
-    if family is None:
-        st.warning(f"Protein uniprot ID '{protein}' not found in mapping data.")
-        return
-    if len(family_df) == 0:
-        print("FATAL ERROR: No proteins with 'UP...' IDs were found in the data file.")
-        sys.exit(1)
-    
-    print(f"--- Step 2: Preparing data for '{family}' from '{families_csv_path}' ---")
-
-    family_df['proteome_id'] = family_df['protein'].apply(get_species_id) #UP000054538_930991-AF-A0A0D0DNZ3-F1-model_v4 -> UP000054538
-    family_df.dropna(subset=['proteome_id'], inplace=True)
-    #print(family_df['proteome_id'].head())
-    #0    UP000244409
-    #1    UP000002149
-    #Name: proteome_id, dtype: object
-    
-
-    presence_absence = pd.crosstab(family_df['family_id'], family_df['proteome_id']) > 0 # if protein present in species proteome True else False
-    if family not in presence_absence.index:
-        print(f"FATAL ERROR: Family '{family}' not found in the filtered dataset.")
-        sys.exit(1)
-    family_pattern = presence_absence.loc[family] #series with species_id as index and True/False as values
-    #print(family_pattern.head())
-    #proteome_id
-    #UP000000226    False    
-    #UP000000304     True
-    #Name: fam_2011, dtype: bool
-
-     # 3. Load the tree to get all leaf names
-    print(f"--- Step 3: Loading Tree from '{main_tree}' ---")
-    try:
-        t = Tree(main_tree)
-    except FileNotFoundError:
-        print(f"FATAL ERROR: The tree file '{main_tree}' was not found.")
-        sys.exit(1)
-    all_leaf_ids = t.get_leaf_names()
-    print(f"Found {len(all_leaf_ids)} leaves in the tree.")
-    #print(all_leaf_ids)
-    #species = [leaf.name for leaf in t]
-
-    # 4. Render tree with colored leaves
-    print(f"--- Step 4: Rendering Tree with Colored Leaves ---")
-    # Set dashed blue lines in all leaves
-    nst1 = NodeStyle()
-    nst1["bgcolor"] = "#a0fc97" #Present
-    nst2 = NodeStyle()
-    nst2["bgcolor"] = "#a4a4aa" #Not present
-
-    #set colors for each leaf
-    for leaf_id in all_leaf_ids:
-        match_row = new_proteomes_csv[new_proteomes_csv['Organism_formatted'] == leaf_id]
-        species_id =  match_row["Proteome_Id"].values[0] if not match_row.empty else None
-        is_present = family_pattern.get(species_id, False) #default False if species_id not found in family_pattern
-        for leaf in t:
-            if leaf.name == leaf_id:
-                #print(f"Leaf_id: {leaf_id}, Species_id: {species_id}, Matching leaf: {leaf.name}, In family: {is_present}")
-                if is_present:
-                    leaf.set_style(nst1)
-                else:
-                    leaf.set_style(nst2)
-        
-    #Define the output paths for both layouts
-    circular_path = 'results/protein_trees/' + protein + '_presence_tree_Circular.svg'
-    linear_path = 'results/protein_trees/' + protein + '_presence_tree_Linear.svg'
-
-    # --- Render Circular Tree ---
-    # Configure the TreeStyle for Circular layout
-    ts_circular = TreeStyle()
-    ts_circular.mode = "c"          # Draw tree in circular mode
-    ts_circular.rotation = 210
-    ts_circular.show_leaf_name = True
-    ts_circular.show_branch_length = False
-    ts_circular.scale = None
-    ts_circular.optimal_scale_level = "full"
-    ts_circular.force_topology = True
-    # Render Circular tree
-    t.render(
-        circular_path,
-        tree_style=ts_circular,
-        w=1000,
-        units="px" 
-    )
-
-    # --- Render Rectangular (Linear) Tree ---
-    # Configure the TreeStyle for Rectangular (Linear) layout
-    ts_linear = TreeStyle()
-    ts_linear.mode = "r"          # Draw tree in rectangular mode
-    ts_linear.show_leaf_name = True
-    ts_linear.show_branch_length = False
-    ts_linear.force_topology = True
-    # Render Rectangular (Linear) tree
-    t.render(
-        linear_path,
-        tree_style=ts_linear,
-        w=500,
-        units="px"  
-    )
-    
-    return circular_path, linear_path
 
 
 def get_tree_coordinates(tree):
@@ -548,7 +415,6 @@ def create_plotly_data(tree):
             
     return branch_lines_x, branch_lines_y, node_coords
 
-@st.cache_data
 def display_interactive_tree(tree_path):
     
     try:
@@ -1250,29 +1116,31 @@ def display_protein_presence_tree_plotly(protein, families_csv_path, new_proteom
     # Colors matching your original style (but adapted for Dark Mode)
     COLOR_PRESENT = "#a0fc97" # Pale Green
     COLOR_ABSENT  = "#a4a4aa" # Grey
+    COLOR_EMPTY   = "rgba(0,0,0,0)"
     
     for node_name in node_coords['name']:
-        if not node_name: 
-            node_colors.append(COLOR_ABSENT)
-            continue
+            # 1. Check if the node is a valid species in our mapping
+            proteome_id = name_to_id_map.get(node_name)
             
-        proteome_id = name_to_id_map.get(node_name)
-        
-        # Check if ID is in our new dictionary
-        if proteome_id and proteome_id in proteome_to_uniprot:
-            node_colors.append(COLOR_PRESENT)
-            
-            # Get the UniProt ID string (e.g. "P12345")
-            hit_ids = proteome_to_uniprot[proteome_id]
-            
-            hover_texts.append(f"{node_name}<br>Hits: {hit_ids}")
-            
-            # --- SAVE: Format as "Species [TAB] UniProtIDs" ---
-            present_species_info.append(f"{node_name}\t{hit_ids}")
-            
-        else:
-            node_colors.append(COLOR_ABSENT)
-            hover_texts.append(f"{node_name}<br>Status: Absent")
+            if proteome_id:
+                # It IS a species -> Check Presence vs Absence
+                if proteome_id in proteome_to_uniprot:
+                    # Case A: Present
+                    node_colors.append(COLOR_PRESENT)
+                    hit_ids = proteome_to_uniprot[proteome_id]
+                    hover_texts.append(f"<b>{node_name}</b><br>Status: Present<br>Ortholog: {hit_ids}")
+                    present_species_info.append(f"{node_name}\t{hit_ids}")
+                else:
+                    # Case B: Absent (But it is a known species)
+                    node_colors.append(COLOR_ABSENT)
+                    hover_texts.append(f"<b>{node_name}</b><br>Status: Absent")
+            else:
+                # Case C: Not a species name (Internal node, bootstrap, or empty)
+                node_colors.append(COLOR_EMPTY)
+                if node_name:
+                    hover_texts.append(f"Node: {node_name}")
+                else:
+                    hover_texts.append("")
 
     # --- 5. Build Plotly Figure (Dark Mode) ---
     
@@ -1291,10 +1159,11 @@ def display_protein_presence_tree_plotly(protein, families_csv_path, new_proteom
         x=node_coords['x'], y=node_coords['y'],
         mode='markers', 
         marker=dict(size=8, color=node_colors, line=dict(width=1, color='white')),
+        #marker=dict(size=8, color=COLOR_EMPTY, line=dict(width=1, color='white')),
         text=node_coords['name'],
-        hovertext=hover_texts, # <--- Updated hover
+        hovertext=hover_texts,
         hoverinfo='text',
-        name='Species'
+        name='Node'
     )
     
     # Trace 3: Legend Entries (Manual)
@@ -1313,7 +1182,6 @@ def display_protein_presence_tree_plotly(protein, families_csv_path, new_proteom
 
     # Layout Configuration
     fig = go.Figure(data=[trace_branches, trace_nodes] + legend_traces)
-    #fig = go.Figure(data=[trace_nodes])
     
     layout_params = dict(
         title=f"Structural orthologs of {protein}",
@@ -2090,7 +1958,7 @@ with st.sidebar.expander("Help: how to build the Structural Tree from a Set of P
 if st.session_state.get("set"):
     proteins = ''
     st.title('Tree built from your protein structures:')
-    st.warning('Please not that this function is still under development. Contact us for feedback :)')
+    st.warning('Please not that this function is still under development and might take some time. Contact us for feedback :)')
     proteins = st.text_input(
     'Which proteins (each UniProt ID separated by a space, i.e: Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616)?', key="proteins")
     st.write('Selected Proteins: ', proteins)
@@ -2249,6 +2117,7 @@ if st.session_state.get("set"):
             #f.write("- Support values <50%: Weak support\n")
         # load tree ----------------------------------------------
         evo_tree= outdir + "bootstrap_tree.newick"
+        st.info("Displaying evolutionary tree of orthologs...")
         display_interactive_tree(evo_tree)
         # download button
         is_random_user = True

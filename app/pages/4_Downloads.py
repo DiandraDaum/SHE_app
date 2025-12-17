@@ -175,6 +175,7 @@ with st.expander('Alignment scores by Organism'):
                 with st.spinner("Zipping files... This may take a moment."):
                     try:
                         zip_path = zip_directory(matching_paths[0], f"{proteome_bit}_bitscores")
+                        st.snow()
                         with open(zip_path, "rb") as f:
                             st.download_button(
                                 label=f"Download bitscores for {proteome_bit} (.zip)",
@@ -194,12 +195,11 @@ with st.expander('Alignment scores by Organism'):
 with st.expander('Complete Foldcomp results by Proteome'):
     st.subheader('Foldcomp results per Proteome')
     st.caption('See https://github.com/steineggerlab/foldcomp for usage instructions.')
-    
-    proteome_fc = st.text_input('Which proteome: UniProt ID?', key="proteome_fc")
-    
+
+    proteome_fc = st.text_input('Which proteome: UniProt ID (ie. UP000005640)?', key="proteome_fc")
+
     if proteome_fc:
         st.page_link(f"https://www.uniprot.org/proteomes/{proteome_fc}", label="UniProt Proteomes", icon="🌎")
-        
         if st.button("Prepare Download", key="btn_fc"):
             subset_dir = 'data/subset/subset'
             proteome_dir_pattern = os.path.join(subset_dir, f"{proteome_fc}_*")
@@ -209,6 +209,7 @@ with st.expander('Complete Foldcomp results by Proteome'):
                 with st.spinner("Compressing folder..."):
                     try:
                         zip_path = zip_directory(matching_paths[0], f"{proteome_fc}_foldseek")
+                        st.snow()
                         with open(zip_path, "rb") as f:
                             st.download_button(
                                 label=f"Download Foldseek results for {proteome_fc} (.zip)",
@@ -232,11 +233,9 @@ with st.expander('Protein Structure Predictions'):
         proteome_struct = st.text_input('Proteome ID (e.g. UP000000226)', key="proteome_struct")
     with col_search[1]:
         protein_struct = st.text_input('Protein ID (e.g. V7ATE2)', key="protein_struct")
-
     if proteome_struct and protein_struct:
         st.page_link(f"https://www.uniprot.org/uniprotkb/{protein_struct}/entry", label="View in UniProtKB", icon="🌎")
-        
-        if st.button("Find Structure", key="btn_struct"):
+        if st.button("Prepare Download", key="btn_struct"):
             index_dir = 'data/subset/index'
             subset_dir = 'data/subset/subset'
             
@@ -273,8 +272,8 @@ with st.expander('Protein Structure Predictions'):
                                 try:
                                     with fc.open(db_path) as db:
                                         target_name, pdb_data = db[retrieved_index]
-                                    
                                     # Provide download directly from memory
+                                    st.snow()
                                     st.download_button(
                                         label=f"Download {target_name}.pdb",
                                         data=pdb_data,
@@ -282,7 +281,6 @@ with st.expander('Protein Structure Predictions'):
                                         mime="application/octet-stream",
                                         icon=":material/download:",
                                     )
-                                    st.snow()
                                 except Exception as e:
                                     st.error(f"Error reading database: {e}")
                             else:
