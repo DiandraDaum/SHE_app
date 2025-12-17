@@ -242,4 +242,4 @@ st.sidebar.page_link("pages/4_Downloads.py", label="Download trees", icon="📥"
 # --- FOOTER ---
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.subheader('Cite', divider="rainbow")
-st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
+st.write('Preprint:  Qiuzhen Li, Diandra Daumiller, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')

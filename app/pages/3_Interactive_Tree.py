@@ -1896,4 +1896,4 @@ if st.session_state.get("set"):
 
 # --- CITATION
 st.subheader('Cite', divider="rainbow")
-st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
+st.write('Preprint:  Qiuzhen Li, Diandra Daumiller, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')

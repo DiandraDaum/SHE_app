@@ -320,7 +320,7 @@ with st.expander('Tree by Clade'):
 # --- FOOTER ---
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.subheader('Cite', divider="rainbow")
-st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
+st.write('Preprint:  Qiuzhen Li, Diandra Daumiller, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
 
 # Logo Footer
 col1, col2, col3, col4 = st.columns(4)

@@ -373,155 +373,6 @@ def get_self_scores(target_dir, target_dir_id, uniprot_ids):
 
     return total_self_score
 
-@st.cache_data
-def generate_distance_matrix(species_scores_dict, uniprot_ids, out_dir):
-    """
-    Generates dmat.npy and ids_in_dmat.csv for the bootstrap script.
-    """
-    #st.info("Generating distance matrix ...")
-    
-    # Convert to DataFrame
-    df = pd.DataFrame.from_dict(species_scores_dict, orient='index', columns=uniprot_ids)
-    
-    # Normalize: log2(x + 1) to handle the wide range of bit scores
-    df_log = np.log2(df + 1)
-    
-    # Calculate Distance (Euclidean distance between score profiles)
-    dists = pdist(df_log.values, metric='euclidean')
-    dmat = squareform(dists)
-    
-    # Save dmat.npy
-    dmat_path = os.path.join(out_dir, 'dmat.npy')
-    np.save(dmat_path, dmat)
-    # FIX 1: Changed 'outdir' to 'out_dir' and ensured correct path construction
-    dmat_out = dmat_path
-    
-    # Save ids_in_dmat.csv
-    ids_df = pd.DataFrame({'id': df.index})
-    ids_path = os.path.join(out_dir, 'ids_in_dmat.csv')
-    ids_df.to_csv(ids_path, index=False)
-    # FIX 2: Changed 'outdir' to 'out_dir' and ensured correct path construction
-    ids_out = ids_path
-
-    return dmat_out, ids_out
-
-
-# make tree from distance matrix -------------------------------------------
-def bootstrap_from_distance_matrix(distance_matrix):
-    """Bootstrap by resampling cells in the distance matrix"""
-    n = len(distance_matrix)
-    bootstrap_matrix = copy.deepcopy(distance_matrix)
-
-    col_pos = np.random.choice(range(n), n, replace=True)
-    sampled_vals = np.random.choice(distance_matrix.flatten(), n, replace=True)
-    bootstrap_matrix[range(n), col_pos] = sampled_vals
-
-    #Make symmetric
-    bootstrap_matrix = np.triu(bootstrap_matrix)
-    bootstrap_matrix += bootstrap_matrix.T
-
-    # Ensure diagonal remains zero
-    np.fill_diagonal(bootstrap_matrix, 0)
-
-    return bootstrap_matrix
-
-def load_ids(ids_file):
-    """Load sequence IDs from file with flexible format handling"""
-    try:
-        # First try reading as numpy file
-        if ids_file.endswith('.npy'):
-            return np.load(ids_file).tolist()
-
-        # Try reading as text file
-        with open(ids_file, 'r') as f:
-            lines = [line.strip() for line in f if line.strip()]
-
-        # Try different formats
-        if len(lines) == 0:
-            print("ValueError: Empty file")
-            st.stop()
-            #raise ValueError("Empty file")
-
-        # Try tab-delimited format
-        if '\t' in lines[0]:
-            ids = [line.split('\t')[-1] for line in lines]
-        else:
-            # Assume one ID per line
-            ids = lines
-
-        return ids
-
-    except Exception as e:
-        print(f"Error reading IDs file: {e}")
-        print("File should contain one ID per line or be tab-delimited")
-        st.stop()
-        sys.exit(1)
-
-def parse_biotite_tree(biotite_tree, ids):
-    """Convert biotite tree to Bio.Phylo tree"""
-    newick = biotite_tree.to_newick(ids)
-    return Phylo.read(StringIO(newick), 'newick')
-
-
-def analyze_bootstrap_support(original_tree, bootstrap_trees):
-    """Calculate bootstrap support values"""
-    support_tree = Consensus.get_support(original_tree, bootstrap_trees)
-
-
-    return support_tree
-
-def get_support_statistics(tree):
-    """Calculate statistics about bootstrap support values"""
-    support_values = [clade.confidence for clade in tree.find_clades()]
-    clade_names = [clade.name for clade in tree.find_clades()]
-
-    support_df = pd.DataFrame()
-    support_df['clade'] = clade_names
-    support_df['confidence'] = support_values
-
-    if not support_values:
-        return None
-
-    support_values =  support_df.confidence.dropna()
-    stats = {
-        'mean_support': np.mean(support_values),
-        'median_support': np.median(support_values),
-        'min_support': np.min(support_values),
-        'max_support': np.max(support_values),
-        'strong_support_nodes': len([v for v in support_values if v >= 70]),
-        'moderate_support_nodes': len([v for v in support_values if 50 <= v < 70]),
-        'weak_support_nodes': len([v for v in support_values if v < 50]),
-        'total_nodes': len(support_values)
-    }
-    return stats, support_df
-
-
-def load_tree(tree_path):
-    # --- 1. Load the Tree ---
-    try:
-        tree = Tree(tree_path, format=1) 
-    except Exception as e:
-        st.error(f"Error loading tree: {e}")
-
-    # --- 2. Define a Tree Style (Optional) ---
-    ts = TreeStyle()
-    ts.show_leaf_name = True
-    ts.mode = "r"  # 'r' for rectangular, 'c' for circular
-    ts.arc_start = -180 # 0 degrees
-    ts.arc_span = 180 # 180 degrees
-
-    # --- 3. Render the Tree to a File-like Object (SVG is best) ---
-    # We use an in-memory string buffer to avoid writing a temp file
-    svg_buffer = StringIO()
-    tree.render(svg_buffer, w=600, h=400, units="px", tree_style=ts)
-    
-    # --- 4. Display the SVG in Streamlit ---
-    # Streamlit can display SVG content directly as HTML
-    st.markdown(svg_buffer.getvalue(), unsafe_allow_html=True)
-    
-    return tree
-
-
 
 # reteive protein pdbs
 @st.cache_data(show_spinner=False)
@@ -1383,37 +1234,37 @@ with st.expander(":violet[See Example Usage]"):
                     st.write(f"**Total Bitscore** human vs {title}: **{bitscore}**")
                     #st.markdown("<br>", unsafe_allow_html=True)
                     st.write("---")
-                    st.write(f"**Bitscore** human Q9NXK8 vs {title} {protein1}: **{score1}**")
+                    st.write(f"**Bitscore** human Q9NXK8 (cyan) vs {title} {protein1} (yellow): **{score1}**")
                     alignment = open("data/subset/figure_model/mouse_Q9NXK8.mp4", "rb")
                     bytes = alignment.read()
                     st.video(bytes, autoplay=True, loop=True, muted=True)
                     st.write("---")
-                    st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein2}: **{score2}**")
+                    st.write(f"**Bitscore** human Q9Y2M0 (cyan) vs {title} {protein2} (yellow): **{score2}**")
                     alignment2 = open("data/subset/figure_model/mouse_Q9Y2M0.mp4", "rb")
                     bytes2 = alignment2.read()
                     st.video(bytes2, autoplay=True, loop=True, muted=True)
                     st.write("---")
-                    st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein3}: **{score3}**")
+                    st.write(f"**Bitscore** human Q9NVI1 (cyan) vs {title} {protein3} (yellow): **{score3}**")
                     alignment3 = open("data/subset/figure_model/mouse_Q9NVI1.mp4", "rb")
                     bytes3 = alignment3.read()
                     st.video(bytes3, autoplay=True, loop=True, muted=True)
                 elif title == "Zebrafish":
                     st.write(f"**Total Bitscore** human vs {title}: **{bitscore}**")
                     st.write("---")
-                    st.write(f"**Bitscore** human Q9NXK8 vs {title} {protein1}: **{score1}**")
+                    st.write(f"**Bitscore** human Q9NXK8 (cyan) vs {title} {protein1} (yellow): **{score1}**")
                     st.markdown("<br>", unsafe_allow_html=True)
                     alignment = open("data/subset/figure_model/fish_Q9NXK8.mp4", "rb")
                     bytes = alignment.read()
                     st.video(bytes, autoplay=True, loop=True, muted=True)
                     #st.markdown("<br>", unsafe_allow_html=True)
                     st.write("---")
-                    st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein2}: **{score2}**")
+                    st.write(f"**Bitscore** human Q9Y2M0 (cyan) vs {title} {protein2} (yellow): **{score2}**")
                     st.markdown("<br>", unsafe_allow_html=True)
                     alignment2 = open("data/subset/figure_model/fish_Q9Y2M0.mp4", "rb")
                     bytes2 = alignment2.read()
                     st.video(bytes2, autoplay=True, loop=True, muted=True)
                     st.write("---")
-                    st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein3}: **{score3}**")
+                    st.write(f"**Bitscore** human Q9NVI1 (cyan) vs {title} {protein3} (yellow): **{score3}**")
                     st.markdown("<br>", unsafe_allow_html=True)
                     alignment3 = open("data/subset/figure_model/fish_Q9NVI1.mp4", "rb")
                     bytes3 = alignment3.read()
@@ -1421,17 +1272,17 @@ with st.expander(":violet[See Example Usage]"):
                 elif title == "Arabidopsis thaliana":
                     st.write(f"**Total Bitscore** human vs {title}: **{bitscore}**")
                     st.write("---")
-                    st.write(f"**Bitscore** human Q9NXK8 vs {title} {protein1}: **{score1}**")
+                    st.write(f"**Bitscore** human Q9NXK8 (cyan) vs {title} {protein1} (yellow): **{score1}**")
                     alignment = open("data/subset/figure_model/plant_Q9NXK8.mp4", "rb")
                     bytes = alignment.read()
                     st.video(bytes, autoplay=True, loop=True, muted=True)
                     st.write("---")
-                    st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein2}: **{score2}**")
+                    st.write(f"**Bitscore** human Q9Y2M0 (cyan) vs {title} {protein2} (yellow): **{score2}**")
                     alignment2 = open("data/subset/figure_model/plant_Q9Y2M0.mp4", "rb")
                     bytes2 = alignment2.read()
                     st.video(bytes2, autoplay=True, loop=True, muted=True)
                     st.write("---")
-                    st.write(f"**Bitscore** human Q9NVI1 vs {title} {protein3}: **{score3}**")
+                    st.write(f"**Bitscore** human Q9NVI1 (cyan) vs {title} {protein3} (yellow): **{score3}**")
                     alignment3 = open("data/subset/figure_model/plant_Q9NVI1.mp4", "rb")
                     bytes3 = alignment3.read()
                     st.video(bytes3, autoplay=True, loop=True, muted=True)
@@ -1454,8 +1305,8 @@ with st.sidebar.expander("Help: How to use the Model Organism Ranking tool"):
     st.write("If you wish to visualise the structural alignments of your input proteins, turn on 'Show protein structure alignments'.")
 
 st.sidebar.subheader('Receive Results', divider="rainbow")
-email = st.sidebar.text_input('Your email', key="email_input") 
-if st.sidebar.button('Subscribe'):
+email_input = st.sidebar.text_input('Your email', key="email_input") 
+if st.sidebar.button('Receive results'):
     user_email = st.session_state.email_input.strip()
     if not user_email:
         st.error("Please enter an email address.")
@@ -1519,7 +1370,7 @@ with middle:
 # 3. Check the STATE variable, not the button itself
 if st.session_state['ranking_active']:
 #if middle.button('Rank Model Organisms'):
-    user_email = st.session_state.email.strip()
+    user_email = st.session_state.email_input.strip()
     if not user_email:
         random_num = random.randint(100000, 999999)
         user = f"user_{random_num}"
@@ -1912,4 +1763,4 @@ if st.session_state['ranking_active']:
 
 # --- CITATION
 st.subheader('Cite', divider="rainbow")
-st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
+st.write('Preprint:  Qiuzhen Li, Diandra Daumiller, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
