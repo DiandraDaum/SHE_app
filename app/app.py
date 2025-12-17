@@ -73,6 +73,17 @@ def get_base64_of_bin_file(bin_file):
     except FileNotFoundError:
         return None
 
+@st.cache_data(show_spinner=False)
+def get_video_bytes(video_path):
+    """
+    Reads a video file into memory. 
+    Cached: Prevents re-reading 6 video files on every page refresh.
+    """
+    if not os.path.exists(video_path):
+        return None
+    with open(video_path, "rb") as f:
+        return f.read()
+
 #@st.cache_data
 @st.cache_data(show_spinner=False)
 def embed_video_background(video_path):
@@ -294,17 +305,12 @@ st.markdown("""
 
 
 # 3. Main Title & Tree Video
-#st.markdown("""<h1 style='text-align: center; color: green; font-size: 4rem; font-weight: bold;'>Structural History of Eukarya</h1>""", unsafe_allow_html=True)
-#st.markdown("<h2 style='text-align: center; color: white;'>Beyond traditional phylogenetics", unsafe_allow_html=True)
-#st.markdown("<h2 style='text-align: center; color: white;'>Leverage proteome-wide structural comparisons for groundbreaking insights", unsafe_allow_html=True)
 st.sidebar.success("Find more analysis options in the panels above.")
 #video_tree = open("data/tree/final_tree.mp4", "rb")
 #tree_bytes = video_tree.read()
 #st.video(tree_bytes, autoplay=True, loop=True, muted=True)
 
-#st.image('data/logos/SHE.png')
 # 1. Define image path
-#image_path = 'data/logos/SHE.png'
 image_path = 'data/logos/interactive.png'
 set_background(image_path)
 if os.path.exists(image_path):
@@ -371,6 +377,7 @@ st.markdown(
                 '>
                 Structural History of Eukarya
             </h1>
+            <h3>(Beta)</h3>
             <h2>Beyond traditional phylogenetics</h2>
             <h3>Leverage proteome-wide structural comparisons for groundbreaking insights</h3>
         </div>
@@ -562,21 +569,15 @@ with st.container():
         col_index = i % 3
         with cols[col_index]:
             
-            # --- 1. Calculate the URL Slug ---
-            # Get filename (e.g., "2_Explore_Tree.py")
+            # 1. URL Slug Logic
             file_name = os.path.basename(feature["link_path"]) 
-            # Remove extension (e.g., "2_Explore_Tree")
             slug_raw = os.path.splitext(file_name)[0] 
-            # Remove leading numbers/underscores if present (e.g., "Explore_Tree")
-            # This assumes your files are named like "1_Name.py". 
-            # If they are just "Name.py", this logic still works safely.
             if slug_raw[0].isdigit() and "_" in slug_raw:
                 slug = slug_raw.split("_", 1)[1]
             else:
                 slug = slug_raw
 
-            # --- 2. Render the Clickable Card ---
-            # We wrap the card div in an <a> tag pointing to the calculated slug
+            # 2. Render Card
             st.markdown(f"""
                 <a href="{slug}" target="_self" class="card-link">
                     <div class="dashboard-card" style="min-height: 200px; margin-bottom: 20px;">
@@ -589,17 +590,16 @@ with st.container():
                 </a>
             """, unsafe_allow_html=True)
             
-            # --- 3. The Demo Button (Must stay outside the link) ---
-            # Note: We cannot put a button INSIDE an <a> tag, so it stays below.
+            # 3. The Demo Button (Optimized)
             with st.popover(f"▶️ Watch Demo", use_container_width=True):
                 st.markdown(f"**Demo for {feature['title']}**")
-                if "demo" in feature:
-                    try:
-                        with open(feature["demo"], "rb") as video_file:
-                            video_bytes = video_file.read()
+                # OPTIMIZATION: Check if key exists first
+                if "demo" in feature and feature["demo"]:
+                    # USE THE CACHED FUNCTION
+                    # This fetches the bytes from RAM, not Disk
+                    video_bytes = get_video_bytes(feature["demo"])
+                    if video_bytes:
                         st.video(video_bytes, autoplay=True, loop=True, muted=True)
-                    except FileNotFoundError:
-                        st.warning(f"Video file not found: {feature.get('demo')}")
                 else:
                     st.warning("No video demo available for this feature yet.")
                 st.markdown("<br>", unsafe_allow_html=True)

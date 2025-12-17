@@ -1,22 +1,13 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-import time
-import csv
-from ete3 import Tree, TreeStyle, NodeStyle
-#from phytreeviz import TreeViz
-import sys
-import pathlib
 import base64
-import textwrap
-import time
 import os
 import glob
 import shutil
-from pathlib import Path
 import foldcomp as fc
+from pathlib import Path
 
-# Define navigation items for the custom header
+# --- CONFIGURATION ---
 NAV_ITEMS = [
     {"label": "SHE", "icon": "🏠", "path": "app.py"},
     {"label": "Model Organisms Ranking", "icon": "🐁", "path": "pages/1_Model_Organism_Ranking.py"},
@@ -24,168 +15,135 @@ NAV_ITEMS = [
     {"label": "Interactive SHE Tree", "icon": "🔎", "path": "pages/3_Interactive_Tree.py"},
     {"label": "Downloads", "icon": ":material/download:", "path": "pages/4_Downloads.py"},
 ]
-# Traffic analysis code
-#FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
-#@st.cache_data
 
-def zip_download(matching_paths, zip_file_name, label):
-    target_folder_path = matching_paths[0] 
-    #zip_file_name = f"{proteome}_foldseek"
-    output_base_dir = "temp_archives" 
-    os.makedirs(output_base_dir, exist_ok=True) 
-    shutil.make_archive(
-        base_name=os.path.join(output_base_dir, zip_file_name),
-        format='zip',
-        root_dir=os.path.dirname(target_folder_path), # Start zipping from the parent directory
-        base_dir=os.path.basename(target_folder_path)  # Only include the target folder itself
-    )
-    # Get the full path to the newly created ZIP file and make download availabel
-    zip_file_path = os.path.join(output_base_dir, f"{zip_file_name}.zip")
-    with open(zip_file_path, "rb") as file:
-        st.download_button(
-            label=label,
-            data=file, # The actual byte content of the zip file
-            file_name=f"{zip_file_name}.zip", # The name the user will see
-            mime="application/zip", 
-            icon=":material/download:",
-        )
-    # Clean up the generated zip file after use
-    os.remove(zip_file_path)
-
-
-
-@st.cache_data
-def set_background(image_path):
-    """
-    Adds a background image to the main Streamlit app container.
-    """
-    if not os.path.exists(image_path):
-        st.error(f"Background image not found at: {image_path}")
-        return
-
-    with open(image_path, "rb") as f:
-        data = f.read()
-    
-    # Convert image to Base64
-    encoded_image = base64.b64encode(data).decode()
-
-    # Inject CSS with the Base64 image
-    st.markdown(
-        f"""
-        <style>
-        .stApp {{
-            background-image: url("data:image/png;base64,{encoded_image}");
-            background-size: cover;        /* Scale image to cover entire screen */
-            background-position: center;   /* Center the image */
-            background-repeat: no-repeat;  /* Do not repeat */
-            background-attachment: fixed;  /* Keep background fixed when scrolling */
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
+# --- CACHED FUNCTIONS ---
 
 @st.cache_data
 def get_base64_image(image_path):
-    """Converts a local file to a base64 string for HTML embedding."""
+    """Reads an image from disk and converts to Base64 (Cached)."""
     if not os.path.exists(image_path):
-        return "" # Return empty if file not found to prevent errors
+        return ""
     with open(image_path, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode()
-##########page-----------------------------------------------
+
+@st.cache_data
+def load_index_file(file_path):
+    """Loads the large index CSV for structure mapping. Vital for performance."""
+    if os.path.exists(file_path):
+        return pd.read_csv(file_path)
+    return None
+
+@st.cache_data
+def get_file_content(file_path):
+    """Reads a text file (like .newick) into memory."""
+    if os.path.exists(file_path):
+        with open(file_path, "rb") as f:
+            return f.read()
+    return None
+
+# --- HELPER FUNCTIONS ---
+
+def zip_directory(source_path, output_name):
+    """Zips a directory and returns the path to the zip file."""
+    output_base_dir = "temp_archives"
+    os.makedirs(output_base_dir, exist_ok=True)
+    
+    # Create the zip archive
+    # root_dir is the parent of the folder we want to zip
+    # base_dir is the folder itself relative to root
+    archive_path = shutil.make_archive(
+        base_name=os.path.join(output_base_dir, output_name),
+        format='zip',
+        root_dir=os.path.dirname(source_path),
+        base_dir=os.path.basename(source_path)
+    )
+    return archive_path
+
+# --- PAGE CONFIG ---
 st.set_page_config(
     page_title="SHE: Downloads",
-    page_icon= "data/tree/logo_tree.png", 
-    layout="wide"
+    page_icon="data/tree/logo_tree.png",
+    layout="centered"
 )
-#sidebar navigation
+
+# --- GLOBAL STYLES ---
+st.markdown("""
+    <style>
+    /* 1. Header Cleanup */
+    [data-testid="stHeaderActionElements"] { display: none !important; }
+    h1, h2, h3, h4, h5, h6 { padding-top: 0rem !important; }
+
+    /* 2. Banner Styles */
+    .banner-container {
+        background-size: cover; background-position: center;
+        border-radius: 15px; padding: 100px 20px;
+        text-align: center; position: relative; margin-bottom: 20px;
+    }
+    .banner-overlay {
+        background-color: rgba(0, 0, 0, 0.4);
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        border-radius: 15px; z-index: 1;
+    }
+    .banner-text {
+        position: relative; z-index: 2; color: white;
+        transition: all 0.3s ease-in-out; text-shadow: 2px 2px 5px rgba(0,0,0,0.8);
+    }
+    .banner-text:hover {
+        text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #00e6b8ff;
+        transform: scale(1.02);
+    }
+
+    /* 3. Expander Styling */
+    [data-testid="stExpander"] {
+        border: 1px solid rgba(250, 250, 250, 0.2);
+        border-radius: 12px;
+        transition: all 0.3s ease-in-out;
+    }
+    [data-testid="stExpander"]:hover {
+        border-color: #22c55e;
+        box-shadow: 0 0 20px rgba(74, 222, 128, 0.4);
+    }
+    [data-testid="stExpander"]:hover summary { color: #4ade80 !important; }
+    [data-testid="stExpander"] summary svg { fill: #9ca3af !important; transition: fill 0.3s; }
+    [data-testid="stExpander"]:hover summary svg { fill: #4ade80 !important; }
+    
+    /* 4. Align Images in Columns */
+    [data-testid="stImage"] {
+        display: flex; align-items: flex-start !important; justify-content: center; height: 100%;
+    }
+    img { margin-top: 0 !important; }
+    </style>
+""", unsafe_allow_html=True)
+
+# --- SIDEBAR ---
 with st.sidebar:
     st.title("Browse")
     for item in NAV_ITEMS:
         st.page_link(item["path"], label=item["label"], icon=item["icon"])
-st.sidebar.divider()
-
-st.markdown("""
-    <style>
-    /* Hide the link button (anchor) next to headers */
-    [data-testid="stHeaderActionElements"] {
-        display: none !important;
-    }
+    st.divider()
     
-    /* Optional: If the title still looks shifted, remove the padding usually reserved for the icon */
-    h1, h2, h3, h4, h5, h6 {
-        padding-top: 0rem !important;
-    }
-    </style>
-""", unsafe_allow_html=True)
-#set_background('data/logos/SHE.png')
-#st.title(':green[SHE: Structural History of Eukarya]')
-#st.title('Downloads')
+    st.subheader('Feedback', divider="yellow")
+    st.write("Do you like it?")
+    sentiment_mapping = [":material/thumb_down:", ":material/thumb_up:"]
+    selected = st.feedback("thumbs")
+    if selected is not None:
+        st.markdown(f"You selected: {sentiment_mapping[selected]}")
+
+# --- MAIN HEADER ---
 st.markdown("""
     <h2 style='
-        text-align: center; 
-        font-size: 3rem; 
-        font-weight: bold; 
-        /* Gradient Background */
+        text-align: center; font-size: 3rem; font-weight: 800; 
         background: linear-gradient(to right, #00FF7F, #40E0D0); 
-        /* Clip background to text */
-        -webkit-background-clip: text; 
-        -webkit-text-fill-color: transparent; 
-        background-clip: text; 
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; 
         color: transparent;'>
         Downloads
     </h2>
 """, unsafe_allow_html=True)
-image_path = 'data/logos/SHE.png'
-# 2. Check if file exists and encode
-if os.path.exists(image_path):
-    img_b64 = get_base64_image(image_path)
 
+img_b64 = get_base64_image('data/logos/SHE.png')
 st.markdown(
     f"""
-    <style>
-    .banner-container {{
-        /* Use the Base64 image as a background */
-        background-image: url("data:image/png;base64,{img_b64}");
-        background-size: cover; /* Ensures image fills the box */
-        background-position: center;
-        border-radius: 15px;
-        padding: 100px 20px; /* Top/Bottom padding creates the height */
-        text-align: center;
-        position: relative;
-        margin-bottom: 20px;
-    }}
-    
-    /* Adds a dark overlay so text pops */
-    .banner-overlay {{
-        background-color: rgba(0, 0, 0, 0.4); /* 40% opaque black */
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        border-radius: 15px;
-        z-index: 1;
-    }}
-
-    /* The text styling */
-    .banner-text {{
-        position: relative;
-        z-index: 2; /* Ensures text is above the dark overlay */
-        color: white;
-        transition: all 0.3s ease-in-out;
-        text-shadow: 2px 2px 5px rgba(0,0,0,0.8);
-    }}
-
-    /* The Glow Effect on Hover */
-    .banner-text:hover {{
-        text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #00e6b8ff;
-        transform: scale(1.02); /* Slight zoom for effect */
-    }}
-    </style>
-
-    <div class="banner-container">
+    <div class="banner-container" style='background-image: url("data:image/png;base64,{img_b64}");'>
         <div class="banner-overlay"></div>
         <div class="banner-text">
             <h2>Download data and results from our analysis</h2>
@@ -195,258 +153,180 @@ st.markdown(
     unsafe_allow_html=True
 )
 
+st.write('Please select the type of file you want to download below.')
 
-#st.write('Download the data and results from our analysis.')
-st.write('Please, below select the type of file you want to download.')
-#----sidebar-------
-st.sidebar.subheader('Downloads', divider="yellow")
-st.sidebar.write("Do you like it?")
-sentiment_mapping = [":material/thumb_down:", ":material/thumb_up:"]
-selected = st.sidebar.feedback("thumbs")
-if selected is not None:
-    st.sidebar.markdown(f"You selected: {sentiment_mapping[selected]}")
-
-
-#expanders
-st.markdown("""
-<style>
-/* 1. Target the Expander Container (The 'details' HTML tag) */
-[data-testid="stExpander"] {
-    border: 1px solid rgba(250, 250, 250, 0.2); /* Subtle default border */
-    border-radius: 12px;                        /* Rounded corners */
-    transition: all 0.3s ease-in-out;           /* Smooth animation */
-}
-
-/* 2. HOVER STATE: The "Green Aura" */
-[data-testid="stExpander"]:hover {
-    border-color: #22c55e;   /* Brighter green border */
-    
-    /* The Aura Effect: Green Glow */
-    box-shadow: 0 0 20px rgba(74, 222, 128, 0.4), 
-                0 0 10px rgba(74, 222, 128, 0.2);
-}
-
-/* 3. OPTIONAL: Make the Title Green on Hover too */
-[data-testid="stExpander"]:hover summary {
-    color: #4ade80 !important;
-}
-
-/* 4. OPTIONAL: Customize the internal icon color */
-[data-testid="stExpander"] summary svg {
-    fill: #9ca3af !important; /* Default gray */
-    transition: fill 0.3s ease-in-out;
-}
-[data-testid="stExpander"]:hover summary svg {
-    fill: #4ade80 !important; /* Green on hover */
-}
-</style>
-""", unsafe_allow_html=True)
-
+# --- SECTION 1: BIT SCORES ---
 with st.expander('Alignment scores by Organism'):
     st.subheader('Protein-protein alignment bitscores by Organism')
-    st.write('Here it is possible to download the Foldseek proteome-proteome comparison bitscores (.csv) only by organism')
-    proteome = st.text_input(
-    'Which proteome: UniProt ID?', key="proteome2")
-    st.write('Proteome selected for download: ', proteome)
-    st.page_link("https://www.uniprot.org/proteomes/" + proteome, label="UniProt Proteomes", icon="🌎")
-    if proteome == '':
-        st.warning('Please input the UniProt proteome ID (i.e. UP000005640)')
-    else: 
-        root_dir_bitscores='data/decompressed' #350 gb
-        file_pattern= f"{root_dir_bitscores}/{proteome}_*"
-        matching_paths = glob.glob(file_pattern)
-        if matching_paths:
-            st.info("Zipping all the comparison bitscore csvs for your proteome ... Please wait some seconds for the download button to appear :)")
-            st.snow()
-            label2="Download all bitscores for " + proteome + " (.zip)"
-            zip_file_name = f"{proteome}_bitscores"
-            zip_download(matching_paths, zip_file_name, label2)
-        else:
-            st.error(f"Proteome {proteome} not found. The **UniProt Proteomes** link above might help you find the ID you are looking for. Try again :)")
+    st.caption('Download Foldseek proteome-proteome comparison bitscores (.csv)')
+    
+    proteome_bit = st.text_input('Which proteome: UniProt ID? (e.g. UP000005640)', key="proteome_bit")
+    
+    if proteome_bit:
+        st.page_link(f"https://www.uniprot.org/proteomes/{proteome_bit}", label="UniProt Proteomes", icon="🌎")
+        
+        # ACTION BUTTON: Prevents heavy operation from running on every keystroke
+        if st.button("Prepare Download", key="btn_bit"):
+            root_dir_bitscores = 'data/decompressed'
+            file_pattern = os.path.join(root_dir_bitscores, f"{proteome_bit}_*")
+            matching_paths = glob.glob(file_pattern)
 
+            if matching_paths:
+                with st.spinner("Zipping files... This may take a moment."):
+                    try:
+                        zip_path = zip_directory(matching_paths[0], f"{proteome_bit}_bitscores")
+                        with open(zip_path, "rb") as f:
+                            st.download_button(
+                                label=f"Download bitscores for {proteome_bit} (.zip)",
+                                data=f,
+                                file_name=f"{proteome_bit}_bitscores.zip",
+                                mime="application/zip",
+                                icon=":material/download:",
+                            )
+                        # Cleanup done automatically on next run or via OS, 
+                        # strictly deleting here might break the download stream if not careful.
+                    except Exception as e:
+                        st.error(f"Error creating zip file: {e}")
+            else:
+                st.error(f"Proteome {proteome_bit} not found.")
 
+# --- SECTION 2: FOLDCOMP RESULTS ---
 with st.expander('Complete Foldcomp results by Proteome'):
-    st.subheader('Foldcomp results for all Proteome')
-    st.write('Here it is possible to download the Foldcomp results per Proteome. To read the files, see https://github.com/steineggerlab/foldcomp and our code on https://github.com/DiandraDaum/SHE_app/')
-    proteome = st.text_input(
-    'Which proteome: UniProt ID?', key="proteome1")
-    st.write('Proteome selected for download: ', proteome)
-    st.page_link("https://www.uniprot.org/proteomes/" + proteome, label="UniProt Proteomes", icon="🌎")
-    if proteome == '':
-        st.warning('Please input the UniProt proteome ID (i.e. UP000005640)')
-    else:
-        #st.warning('This function is going to be released soon')
-        subset_dir='data/subset/subset'
-        proteome_dir = f"{subset_dir}/{proteome}_*"  # temporarely unziped proteome
-        # temp zip proteome folder for 
-        matching_paths = glob.glob(proteome_dir)
-        if matching_paths:
-            st.info("Zipping ... Please wait some seconds for the download button to appear :)")
-            st.snow()
-            zip_file_name = f"{proteome}_foldseek"
-            label1="Download Foldseek results for " + proteome + " (.zip)"
-            zip_download(matching_paths, zip_file_name, label1)
-        else:
-            st.error(f"Proteome {proteome} not found. The **UniProt Proteomes** link above might help you find the ID you are looking for. Try again :)")
+    st.subheader('Foldcomp results per Proteome')
+    st.caption('See https://github.com/steineggerlab/foldcomp for usage instructions.')
+    
+    proteome_fc = st.text_input('Which proteome: UniProt ID?', key="proteome_fc")
+    
+    if proteome_fc:
+        st.page_link(f"https://www.uniprot.org/proteomes/{proteome_fc}", label="UniProt Proteomes", icon="🌎")
+        
+        if st.button("Prepare Download", key="btn_fc"):
+            subset_dir = 'data/subset/subset'
+            proteome_dir_pattern = os.path.join(subset_dir, f"{proteome_fc}_*")
+            matching_paths = glob.glob(proteome_dir_pattern)
 
+            if matching_paths:
+                with st.spinner("Compressing folder..."):
+                    try:
+                        zip_path = zip_directory(matching_paths[0], f"{proteome_fc}_foldseek")
+                        with open(zip_path, "rb") as f:
+                            st.download_button(
+                                label=f"Download Foldseek results for {proteome_fc} (.zip)",
+                                data=f,
+                                file_name=f"{proteome_fc}_foldseek.zip",
+                                mime="application/zip",
+                                icon=":material/download:",
+                            )
+                    except Exception as e:
+                        st.error(f"Error: {e}")
+            else:
+                st.error(f"Proteome {proteome_fc} not found.")
 
-
+# --- SECTION 3: STRUCTURE PREDICTIONS ---
 with st.expander('Protein Structure Predictions'):
     st.subheader('Protein structure predictions by protein')
-    st.write('Here it is possible to download the predicted protein structures (.pdb) by protein ID, originally retrieved from AFDB v4')
-    proteome = st.text_input(
-    'Which proteome: UniProt ID?', key="proteome3")
-    st.write('Proteome selected for download: ', proteome)
-    st.page_link("https://www.uniprot.org/proteomes/" + proteome, label="UniProt Proteomes", icon="🌎")
-    protein = st.text_input(
-    'Which protein: UniProt ID?', key="protein")
-    st.write('Protein structure selected for download: ', protein)
-    st.page_link("https://www.uniprot.org/uniprotkb/" + protein + "/entry", label="UniProtKB", icon="🌎")
-    if protein == '':
-        st.warning('Please input the UniProt proteome ID (i.e. UP000000226) and the UniProt protein ID (i.e. V7ATE2) in the respective spaces')
-    else:
-        #find protein index in proteome ---------------------------------------------------------------
-        index_dir='data/subset/index' 
-        subset_dir='data/subset/subset'
-        # --- 1. Find the Index File and Retrieved Index ---
-        proteome_indexes = f"{index_dir}/{proteome}_*_fc_id_mapping.csv"
-        matching_proteome = glob.glob(proteome_indexes)
-        if not matching_proteome:
-            st.error(f"No match found for proteome {proteome}. The **UniProt Proteomes** link above might help you find the ID you are looking for. Try again :)")
-            st.stop()
-        index_file_path = matching_proteome[0]
+    st.caption('Download predicted protein structures (.pdb) from AFDB v4')
+    
+    col_search = st.columns(2)
+    with col_search[0]:
+        proteome_struct = st.text_input('Proteome ID (e.g. UP000000226)', key="proteome_struct")
+    with col_search[1]:
+        protein_struct = st.text_input('Protein ID (e.g. V7ATE2)', key="protein_struct")
+
+    if proteome_struct and protein_struct:
+        st.page_link(f"https://www.uniprot.org/uniprotkb/{protein_struct}/entry", label="View in UniProtKB", icon="🌎")
         
-        try:
-            proteome_df = pd.read_csv(index_file_path) # columns: 'fc_db_index' and 'afdb_id'
-        except Exception as e:
-            print(f"Error reading index file {index_file_path}: {e}")
+        if st.button("Find Structure", key="btn_struct"):
+            index_dir = 'data/subset/index'
+            subset_dir = 'data/subset/subset'
             
-        af_protein = f"AF-{protein}-F1-model_v4"
-        matching_rows = proteome_df[proteome_df['afdb_id'] == af_protein]
-        
-        if matching_rows.empty:
-            st.error(f"Structure prediction for protein {af_protein} not found in {proteome}. The **UniProtKB** link above might help you find the ID you are looking for. Try again :)")
-            st.stop()
-        
-        # This is the correct database index
-        retrieved_index = matching_rows['fc_db_index'].iloc[0] 
-        
-        # --- 2. Locate the Database Path ---
-        wild_proteome_dir = f"{subset_dir}/{proteome}_*" #no .file
-        proteome_dirs = glob.glob(wild_proteome_dir)
-        if not proteome_dirs:
-            print(f"Error: Could not find any directory matching the pattern: {wild_proteome_dir}")
+            # 1. Find Index
+            proteome_index_pattern = os.path.join(index_dir, f"{proteome_struct}_*_fc_id_mapping.csv")
+            matching_proteome = glob.glob(proteome_index_pattern)
             
-        proteome_dir = proteome_dirs[0]
-        db_dir = f"{proteome_dir}/extracted_pdbs" 
-        os.makedirs(db_dir, exist_ok=True)
-        full_proteome_id = Path(proteome_dir).name
-
-        # Locate the full database file (e.g., UP000005640_9606_fc_db)
-        db_name_wild = f"{proteome_dir}/{full_proteome_id}"
-        db_name_list = glob.glob(db_name_wild)
-        if not db_name_list:
-            print(f"Error: Could not find any database file matching: {db_name_wild}")
-        db_name = db_name_list[0]
-
-        # --- 3. Directly Retrieve PDB using the Index ---
-        st.info(f"c. Loading protein {af_protein} (database index {retrieved_index}). Please wait...")
-        protein_found = False
-        with fc.open(db_name) as db: 
-            # Direct access using the index!
-            target_name, pdb_dc = db[retrieved_index] 
-        
-        target_name = target_name.split('.')[0] 
-        target_pdb_filepath = os.path.join(db_dir, target_name + ".pdb")
-
-        #st.info("Extracting and writing file to disk...")
-        with open(target_pdb_filepath, "w") as pdb_file:
-            pdb_file.write(pdb_dc)
+            if not matching_proteome:
+                st.error(f"Proteome {proteome_struct} not found.")
+            else:
+                # 2. Load Index (Cached)
+                with st.spinner("Searching index..."):
+                    df_index = load_index_file(matching_proteome[0])
+                    af_protein_id = f"AF-{protein_struct}-F1-model_v4"
                     
-        protein_found = True  # Stop iterating immediately after the target is found
-        
-        if protein_found:
-            st.snow()
-            target_pdb_filepath = os.path.join(db_dir, af_protein + ".pdb")
-            label4="Download protein structure prediction for " + protein
-            # Download the file using the dynamically determined path and name
-            with open(target_pdb_filepath, "rb") as file:
-                st.download_button(
-                    label=label4,
-                    data=file,
-                    file_name=target_name + ".pdb", # Use the dynamically found name
-                    mime="application/octet-stream",
-                    icon=":material/download:",
-                )
-            shutil.rmtree(db_dir)
+                    if df_index is not None:
+                        match = df_index[df_index['afdb_id'] == af_protein_id]
+                        
+                        if match.empty:
+                            st.error(f"Structure {af_protein_id} not found in this proteome.")
+                        else:
+                            # 3. Extract from Foldcomp
+                            retrieved_index = match['fc_db_index'].iloc[0]
+                            
+                            # Find DB
+                            wild_proteome_dir = os.path.join(subset_dir, f"{proteome_struct}_*")
+                            proteome_dirs = glob.glob(wild_proteome_dir)
+                            
+                            if proteome_dirs:
+                                proteome_dir = proteome_dirs[0]
+                                full_proteome_id = Path(proteome_dir).name
+                                db_path = os.path.join(proteome_dir, full_proteome_id)
+                                
+                                try:
+                                    with fc.open(db_path) as db:
+                                        target_name, pdb_data = db[retrieved_index]
+                                    
+                                    # Provide download directly from memory
+                                    st.download_button(
+                                        label=f"Download {target_name}.pdb",
+                                        data=pdb_data,
+                                        file_name=f"{target_name}.pdb",
+                                        mime="application/octet-stream",
+                                        icon=":material/download:",
+                                    )
+                                    st.snow()
+                                except Exception as e:
+                                    st.error(f"Error reading database: {e}")
+                            else:
+                                st.error("Database files missing.")
 
 
-#if st.checkbox('Tree by Kingdom'):
+# --- SECTION 4: TREE DOWNLOADS ---
 with st.expander('Tree by Clade'):
     st.subheader('Tree (newick file) by Clade')
-    st.write('Here it is possible to download the tree file (.newick) for each main clade. To open it, try uploading it on iTOL (https://itol.embl.de/upload.cgi)!')
-    df = pd.DataFrame({
-        'kingdom': ["All", "Opisthokonta", "Amoebozoa", "Sar", "Viridiplantae", "Discoba", "Rhodophyta"],
-        'number_species': [10, 20, 30, 40, 50, 70, 80] # change to actual number of species
-        })
-
-    for kingdom in df['kingdom']:
-        file = "data/tree/" + kingdom + "/" + "kingdoms_" + kingdom + "_tree.newick"
-        file_name= kingdom + "_tree.newick"
-        label1="Download Tree " + kingdom
-        label2="Download Tree Eukarya"
-        if kingdom == "All":
-            with open(file, "rb") as file:
+    st.caption('Upload these files to iTOL (https://itol.embl.de/) for visualization.')
+    
+    kingdoms = ["All", "Opisthokonta", "Amoebozoa", "Sar", "Viridiplantae", "Discoba", "Rhodophyta"]
+    
+    # Create columns for a grid layout of buttons
+    t_cols = st.columns(3)
+    
+    for i, k in enumerate(kingdoms):
+        file_name = f"kingdoms_{k}_tree.newick"
+        file_path = os.path.join("data", "tree", k, file_name)
+        
+        # Read file into memory once
+        file_content = get_file_content(file_path)
+        
+        if file_content:
+            with t_cols[i % 3]:
+                label = "Download Eukarya" if k == "All" else f"Download {k}"
                 st.download_button(
-                label=label2,
-                data=file,
-                file_name=file_name,
-                mime="image/png",
-                icon=":material/download:",
-            )
-        else:
-            #print(f"Downloading file: {file}")
-            with open(file, "rb") as file:
-                st.download_button(
-                    label=label1,
-                    data=file,
-                    file_name=file_name,
-                    mime="image/png",
+                    label=label,
+                    data=file_content,
+                    file_name=f"{k}_tree.newick",
+                    mime="text/plain", # Newick is text, not png
                     icon=":material/download:",
+                    use_container_width=True
                 )
 
-# --- CITATION
-st.markdown("""
-    <h3 style='
-        color: white;
-        text-shadow: 3px 3px 0 #000000;  /* The hard black shadow */
-        font-weight: 800;
-        font-size: 1.75rem;
-        margin-bottom: 0px;             /* Remove gap between text and line */
-    '>
-        Cite
-    </h3>
-""", unsafe_allow_html=True)
-st.subheader('', divider="rainbow")
+# --- FOOTER ---
+st.markdown("<br><hr>", unsafe_allow_html=True)
+st.subheader('Cite', divider="rainbow")
 st.write('Preprint:  Qiuzhen Li, Daumiller Diandra, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
-#align figs
-st.markdown("""
-    <style>
-    [data-testid="stImage"] {
-        display: flex;
-        align-items: flex-start !important;
-        justify-content: center;
-        height: 100%;
-    }
-    img {
-        margin-top: 0 !important;
-    }
-    </style>
-""", unsafe_allow_html=True)
-colm1, colm2, colm3, colm4 = st.columns(4)
-with colm2:
+
+# Logo Footer
+col1, col2, col3, col4 = st.columns(4)
+with col2:
     st.markdown("<br>", unsafe_allow_html=True)
     st.image("data/logos/scilifelab.png", use_container_width=False)
-with colm3:
+with col3:
     st.image("data/logos/su.png", use_container_width=False)
-

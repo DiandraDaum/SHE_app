@@ -8,7 +8,6 @@ from ete3 import Tree, TreeStyle, NodeStyle
 import sys
 import pathlib
 import base64
-import textwrap
 import time
 import requests
 from urllib.parse import urlparse
@@ -44,6 +43,7 @@ NAV_ITEMS = [
 #FUNCTIONS -----------------------------------------------------------------------------------------------------------------------------------
 #@st.cache_data
 # for coloring the selectbox
+@st.cache_data
 def kingdom_color(kingdom):
     if kingdom == 'Opisthokonta':
         return "#bfdbfe"
@@ -66,6 +66,7 @@ def kingdom_color(kingdom):
         return "#080808"
     
 #for find species
+@st.cache_data
 def extract_closest_species(newick_file, input_species, num_neighbors): #species
     """
     Extracts a subtree containing a target species and its N closest relatives
@@ -154,7 +155,7 @@ def extract_closest_species(newick_file, input_species, num_neighbors): #species
     
     return output_path, target_species
 
-
+@st.cache_data
 def load_species_tree(species, layout, species_out):
 # File paths
     #species_out =  'SHE/species_trees/' + species +'_subtree.newick'
@@ -196,6 +197,7 @@ def load_species_tree(species, layout, species_out):
     return svg_path
 
 #for find taxon
+@st.cache_data
 def extract_subtree(csv_file, newick_file, taxonomic_group): #taxon
     """
     Extracts a subtree from a larger phylogenetic tree based on a taxonomic group.
@@ -276,7 +278,7 @@ def extract_subtree(csv_file, newick_file, taxonomic_group): #taxon
         print("The resulting subtree has no leaves. No file was written.")
     return output_file
 
-
+@st.cache_data
 def load_extracted_tree(taxon, layout, taxon_out):
 # File paths
     taxon = taxon
@@ -321,12 +323,14 @@ def load_extracted_tree(taxon, layout, taxon_out):
     return taxon_tree_out
 
 # for find protein: color tree if a protein is present in species
+@st.cache_data
 def get_species_id(protein_name):
     """Robustly parses a protein name to find a UniProt proteome ID."""
     if isinstance(protein_name, str) and protein_name.startswith("UP"):
         return protein_name.split('-')[0].split('_')[0]
     return None
 
+@st.cache_data
 def protein_in_family(protein, families_csv_path):
     """
     Find the homologs family of a protein UniProt ID.
@@ -347,6 +351,7 @@ def protein_in_family(protein, families_csv_path):
         st.stop()
         sys.exit(1)
 
+@st.cache_data
 def protein_tree_color(protein, families_csv_path, new_proteomes_path, main_tree):
     """
     Given a protein PniProt ID, find its family and color the tree of all organisms sharing that protein.
@@ -506,7 +511,7 @@ def get_tree_coordinates(tree):
 
     return tree
 
-
+@st.cache_data
 def create_plotly_data(tree):
     # This collects all the branch line segments and node scatter points
     branch_lines_x = []
@@ -543,7 +548,7 @@ def create_plotly_data(tree):
             
     return branch_lines_x, branch_lines_y, node_coords
 
-
+@st.cache_data
 def display_interactive_tree(tree_path):
     
     try:
@@ -639,6 +644,7 @@ def display_interactive_tree(tree_path):
 
 
 # new plotly circular
+@st.cache_data
 def polar_coordinates_transform_c(tree):
     """
     Transforms the Linear (X, Y) coordinates of the tree nodes 

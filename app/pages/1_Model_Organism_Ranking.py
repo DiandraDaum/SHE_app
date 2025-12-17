@@ -1,44 +1,29 @@
 import os
-os.environ['QT_QPA_PLATFORM'] = 'offscreen'
 import streamlit as st
 import pandas as pd
 import numpy as np
-import time
 import csv
 import sys
-import pathlib
 import base64
-import textwrap
-import time
-from collections import defaultdict
-from tqdm import tqdm
 from datetime import datetime
 import glob
-from urllib.parse import urlparse
 import py3Dmol
 from stmol import showmol
 from stmol import *
-from IPython.display import HTML
 from scipy.spatial.distance import pdist, squareform
-from ete3 import Tree, TreeStyle, NodeStyle
-import plotly.graph_objects as go
+from ete3 import Tree, TreeStyle
 import plotly.express as px
-#from ete3.webplugin import WebTreeApplication
-#from ete3.treeview.web import WebTreeApplication
 from Bio import Phylo
 from Bio.Phylo import Consensus
-from biotite.sequence.phylo import neighbor_joining
 from io import StringIO
 import copy
 import shutil
-import re
 from pathlib import Path
 import foldcomp as fc
 import random
 import requests
 import subprocess
-import gzip
-from Bio.PDB import MMCIFParser, PDBParser, PDBIO, Structure, Model, PDBExceptions
+from Bio.PDB import MMCIFParser, PDBParser, PDBIO, Structure, Model
 from Bio.SVDSuperimposer import SVDSuperimposer
 
 #Code to analyse:
@@ -94,56 +79,7 @@ def get_base64_of_bin_file(bin_file):
         st.error(f"Error: Video file not found at path: {bin_file}. Please check the path.")
         return None
     
-@st.cache_data
-def embed_video_background(video_path):
-    """
-    Embeds a local MP4 video as a fixed background using Base64 encoding.
-    """
-    video_base64 = get_base64_of_bin_file(video_path)
-    
-    if video_base64 is None:
-        return # Stop execution if file wasn't found
 
-    # 1. Construct the Base64 URL for the video source
-    video_url = f"data:video/mp4;base64,{video_base64}"
-
-    # 2. Inject the HTML/CSS for the background video
-    st.markdown(
-        f"""
-        <style>
-        /* This hides all Streamlit content (which we will put back later) */
-        .stApp > header, .stApp > div:not(.video-container) {{
-            z-index: 10; /* Bring content above the video */
-            position: relative; 
-            background: none; /* Make content background transparent */
-        }}
-
-        /* Video element to cover the entire screen */
-        .video-background {{
-            position: fixed;
-            top: 0;
-            left: 0;
-            min-width: 100%;
-            min-height: 100%;
-            width: auto;
-            height: auto;
-            z-index: -100; /* Puts the video behind all other content */
-            overflow: hidden;
-        }}
-        </style>
-        
-        <div class="video-container">
-            <video class="video-background" autoplay muted loop>
-                <source src="{video_url}" type="video/mp4">
-                Your browser does not support the video tag.
-            </video>
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-video_path_bg = "data/tree/bg2.mp4" 
-# Call the function to set the background
-#embed_video_background(video_path_bg)
 
 # find model organisms --------------------------------------------------------------------------------------------------------------------------
 @st.cache_data
@@ -155,6 +91,7 @@ def load_mapping(mapping_file):
         print(f"Error reading mapping file: {e}")
         st.stop()
         sys.exit(1)
+    
 @st.cache_data
 def load_mapping_proteome(mapping_file):
     try:
@@ -164,6 +101,7 @@ def load_mapping_proteome(mapping_file):
         print(f"Error reading mapping file: {e}")
         st.stop()
         sys.exit(1)
+
 @st.cache_data
 def find_comparison_csv(target_dir, compare_dir_id):
     """Finds the Human_vs_Species or Species_vs_Human CSV file."""
@@ -224,6 +162,7 @@ def process_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
     
     return total_score, presence_map, score_vector, best_hits_df
 
+@st.cache_data
 def get_human_self_vector(target_dir, uniprot_ids):
     """
     [NEW FEATURE]
@@ -402,6 +341,7 @@ def generate_distance_matrix(species_scores_dict, uniprot_ids, out_dir):
 
 
 # make tree from distance matrix -------------------------------------------
+#do not cahce because of random
 def bootstrap_from_distance_matrix(distance_matrix):
     """Bootstrap by resampling cells in the distance matrix"""
     n = len(distance_matrix)
@@ -420,6 +360,7 @@ def bootstrap_from_distance_matrix(distance_matrix):
 
     return bootstrap_matrix
 
+@st.cache_data
 def load_ids(ids_file):
     """Load sequence IDs from file with flexible format handling"""
     try:
@@ -457,12 +398,10 @@ def parse_biotite_tree(biotite_tree, ids):
     newick = biotite_tree.to_newick(ids)
     return Phylo.read(StringIO(newick), 'newick')
 
-
+@st.cache_data
 def analyze_bootstrap_support(original_tree, bootstrap_trees):
     """Calculate bootstrap support values"""
     support_tree = Consensus.get_support(original_tree, bootstrap_trees)
-
-
     return support_tree
 
 def get_support_statistics(tree):
@@ -497,23 +436,19 @@ def load_tree(tree_path):
         tree = Tree(tree_path, format=1) 
     except Exception as e:
         st.error(f"Error loading tree: {e}")
-
     # --- 2. Define a Tree Style (Optional) ---
     ts = TreeStyle()
     ts.show_leaf_name = True
     ts.mode = "r"  # 'r' for rectangular, 'c' for circular
     ts.arc_start = -180 # 0 degrees
     ts.arc_span = 180 # 180 degrees
-
     # --- 3. Render the Tree to a File-like Object (SVG is best) ---
     # We use an in-memory string buffer to avoid writing a temp file
     svg_buffer = StringIO()
     tree.render(svg_buffer, w=600, h=400, units="px", tree_style=ts)
-    
     # --- 4. Display the SVG in Streamlit ---
     # Streamlit can display SVG content directly as HTML
     st.markdown(svg_buffer.getvalue(), unsafe_allow_html=True)
-    
     return tree
 
 
@@ -802,7 +737,7 @@ def run_foldseek_alignment_only(query_path, target_path):
         #status_placeholder.error(f"An unexpected error occurred: {e}")
         return None
 
-@st.cache_data
+
 def get_format_from_path(filepath):
     """Simple helper to determine PDB/CIF format from file extension."""
     if filepath.lower().endswith(('.cif', '.mmcif')):
@@ -1898,7 +1833,7 @@ if st.session_state['ranking_active']:
                 icon=":material/download:",
             )
         
-
+    st.write("---")
     if st.button("Close Analysis"):
         if is_random_user:
             os.remove(zip_file_path)
