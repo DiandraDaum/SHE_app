@@ -343,7 +343,7 @@ def protein_in_family(protein, families_csv_path):
         print(f"Mapped Protein UniProt ID '{protein}' to family: {family}")
         return family, families_df
     else:
-        st.warning(f"This protein does not seem to have a structural homologs...")
+        st.warning(f"This protein does not seem to have a structural homolog...")
         st.stop()
         sys.exit(1)
 
@@ -1310,7 +1310,7 @@ def display_protein_presence_tree_plotly(protein, families_csv_path, new_proteom
     #fig = go.Figure(data=[trace_nodes])
     
     layout_params = dict(
-        title=f"Structural Homologs of {protein})",
+        title=f"Structural orthologs of {protein}",
         height=900,
         showlegend=True,
         hovermode="closest",
@@ -1992,7 +1992,7 @@ if st.session_state.get("find_taxon_box"):
 ############### Protein tree extraction -----------------------------------------------------------------------------------------
 st.sidebar.subheader('2. Structural Homologs', divider="red")
 with st.sidebar.expander("Help: How to Find Protein Structural Homologs"):
-    st.write("Digit the protein (UniProt ID) you want to find the homologs of.")
+    st.write("Digit the protein (UniProt ID) you want to find the orthologs of.")
     st.write("The resulting structural phylogenetic tree will show you all the species sharing a protein structural homolog of your input protein.")
 
 #if st.checkbox('Find Protein Structural Homologs'):
@@ -2058,21 +2058,21 @@ if st.session_state.get("homologs"):
                 # 3. Handle the Species List and Download Button
                 if present_species:
                     # Display a success message with the count
-                    st.markdown(f"**Found {len(present_species)} species with structural homologs.**")
+                    st.markdown(f"**Found {len(present_species)} species with structural orthologs.**")
                     
                     # Convert list to a string (one species per line)
                     list_data = "\n".join(present_species)
                     
                     # Create the download button
                     st.download_button(
-                        label=f"📥 Download list of species with structural homologs for {protein}",
+                        label=f"📥 Download list of species with structural orthologs for {protein}",
                         data=list_data,
-                        file_name=f"{protein}_structural_homologs_species.txt",
+                        file_name=f"{protein}_structural_orthologs_species.txt",
                         mime="text/plain",
                         help="Download a text file containing the names of all species colored green in the tree."
                     )
                 else:
-                    st.info("No structural homologs found in the tree.")
+                    st.info("No structural orthologs found in the tree.")
 
 
 st.sidebar.subheader('3. Protein Set Structural Evolution', divider="red")

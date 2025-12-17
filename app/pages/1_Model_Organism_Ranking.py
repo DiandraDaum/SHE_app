@@ -782,13 +782,13 @@ def run_foldseek_alignment_only(query_path, target_path):
         
         # 5. Check Results
         if not os.path.exists(temp_m8) or os.path.getsize(temp_m8) == 0:
-            status_placeholder.warning("Foldseek ran but found **NO STRUCTURAL HITS**.")
+            #status_placeholder.warning("Foldseek ran but found **NO STRUCTURAL HITS**.")
             return None
             
         df = pd.read_csv(temp_m8, sep="\t", names=["qstart", "tstart", "qaln", "taln", "tm"])
         
         if df.empty:
-            status_placeholder.warning("Foldseek returned an empty alignment table.")
+            #status_placeholder.warning("Foldseek returned an empty alignment table.")
             return None
             
         #st.success("Foldseek alignment completed successfully!")
@@ -796,10 +796,10 @@ def run_foldseek_alignment_only(query_path, target_path):
         return df.iloc[0]
         
     except subprocess.CalledProcessError as e:
-        status_placeholder.error(f"FOLDSEEK FAILED.\n\nStderr: {e.stderr}")
+        #status_placeholder.error(f"FOLDSEEK FAILED.\n\nStderr: {e.stderr}")
         return None
     except Exception as e:
-        status_placeholder.error(f"An unexpected error occurred: {e}")
+        #status_placeholder.error(f"An unexpected error occurred: {e}")
         return None
 
 @st.cache_data
@@ -1277,7 +1277,7 @@ st.markdown(
     <div class="banner-container">
         <div class="banner-overlay"></div>
         <div class="banner-text">
-            <h2>Find the best model organism for your biological pathway by combined structural matching for all pathway proteins</h2>
+            <h2>Find the best model organism to study your biological pathway with</h2>
         </div>
     </div>
     """,
@@ -1841,27 +1841,53 @@ if st.session_state['ranking_active']:
                             else:
                                 st.warning("SVD superposition failed.")
                         else:
-                            st.warning("Foldseek alignment failed.")
+                            st.warning("Foldseek could not align the structures. Maybe too many disordered regions?")
+                            st.warning("Try it directly on Foldseek search page:")
+                            #st.page_link("https://search.foldseek.com/search", label="Foldseek search", icon="🌎")
+                            fold_path = "data/logos/foldseek_logo.png" # Replace with your png path
+                            fold_b64 = get_base64_image(fold_path)
+                            st.markdown(f"""
+                                <a href="https://search.foldseek.com/search" target="_blank" style="
+                                    text-decoration: none; 
+                                    color: inherit; 
+                                    display: inline-flex; 
+                                    align-items: center; 
+                                    gap: 10px; 
+                                    background-color: #f0f2f6;
+                                    padding: 10px 15px; 
+                                    border-radius: 8px; 
+                                    transition: 0.3s;
+                                    border: 1px solid rgba(0,0,0,0.1);
+                                "
+                                onmouseover="this.style.backgroundColor='#e0e2e6';"
+                                onmouseout="this.style.backgroundColor='#f0f2f6';"
+                                >
+                                    <img src="data:image/png;base64,{fold_b64}" style="
+                                        width: 20px; 
+                                        height: 20px; 
+                                        object-fit: contain;
+                                    ">
+                                    
+                                    <span style="font-weight: 600;">Foldseek search</span>
+                                </a>
+                            """, unsafe_allow_html=True)
 
         # --- DOWNLOAD BUTTON LOGIC ---
         is_random_user = False
-        if not user_email: # Assuming user_email is defined in global scope
+        if not user_email:
             is_random_user = True
         user_dir = os.path.join("results", "model_trees", user)
-        
         target_folder_path = user_dir
         user_name = user.split('@')[0]
         zip_file_name = f"results_{user_name}" 
         output_base_dir = "temp_archives" 
         os.makedirs(output_base_dir, exist_ok=True) 
-        
         shutil.make_archive(
             base_name=os.path.join(output_base_dir, zip_file_name),
             format='zip',
             root_dir=os.path.dirname(target_folder_path), 
             base_dir=os.path.basename(target_folder_path)
         )
-        
         zip_file_path = os.path.join(output_base_dir, f"{zip_file_name}.zip")
         with open(zip_file_path, "rb") as file:
             st.sidebar.download_button(

@@ -29,8 +29,8 @@ FEATURES = [
     {"icon": "🌳", "title": "Structural Phylogeny", "description": "Explore the structural phylogenetic tree for the main eukaryotic clades.", "link_path": "pages/2_Explore_Tree.py", "demo": "data/subset/figure_model/plant_Q9NXK8.mp4"}, #"demo": "data/demos/demo1.mp4"
     {"icon": "📈", "title": "Evolutionary Rate", "description": "Visualize colored branches by evolutionary rate to identify fast and slow-evolving proteomes.", "link_path": "pages/2_Explore_Tree.py", "demo": "data/subset/figure_model/mouse_Q9NXK8.mp4"},
     {"icon": "🍄", "title": "Taxon Interactive Search", "description": "Zoom on specific taxa or species to discover new evolutionary relationships.", "link_path": "pages/3_Interactive_Tree.py", "demo": "data/subset/figure_model/fish_Q9NXK8.mp4"},
-    {"icon": "🔎", "title": "Structural Homologs Search", "description": "Analyze the presence/absence of protein structural homologs across all eukaryotic organisms.", "link_path": "pages/3_Interactive_Tree.py", "demo": "data/subset/figure_model/plant_Q9NVI1.mp4"}, # Reusing Model Organisms page for search
-    {"icon": "🐁", "title": "Model Organism Ranking", "description": "Find the best model organism match for your biological pathway by combined structural matching for all pathway proteins.", "link_path": "pages/1_Model_Organism_Ranking.py", "demo": "data/subset/figure_model/mouse_Q9NVI1.mp4"},
+    {"icon": "🔎", "title": "Structural Homologs Search", "description": "Analyze the presence/absence of protein structural orthologs across all eukaryotic organisms.", "link_path": "pages/3_Interactive_Tree.py", "demo": "data/subset/figure_model/plant_Q9NVI1.mp4"}, # Reusing Model Organisms page for search
+    {"icon": "🐁", "title": "Model Organism Ranking", "description": "Find the best model organism match to study your biological pathway with.", "link_path": "pages/1_Model_Organism_Ranking.py", "demo": "data/subset/figure_model/mouse_Q9NVI1.mp4"},
     {"icon": "📥", "title": "Data Downloads", "description": "Download the trees, the structural alignment scores and the predicted protein structures.", "link_path": "pages/4_Downloads.py", "demo": "data/subset/figure_model/fish_Q9NVI1.mp4"},
 ]
 
@@ -63,7 +63,7 @@ def save_email(email):
         return False
 
 #@st.cache_data
-@st.fragment
+@st.cache_data(show_spinner=False)
 def get_base64_of_bin_file(bin_file):
     """Encodes a binary file (like a video) to base64 for embedding in HTML."""
     try:
@@ -74,7 +74,7 @@ def get_base64_of_bin_file(bin_file):
         return None
 
 #@st.cache_data
-@st.fragment
+@st.cache_data(show_spinner=False)
 def embed_video_background(video_path):
     """Embeds the video and custom CSS for styling the landing page."""
     video_base64 = get_base64_of_bin_file(video_path)
@@ -150,7 +150,7 @@ def embed_video_background(video_path):
     )
 
 #@st.cache_data
-@st.fragment
+@st.cache_data(show_spinner=False)
 def get_base64_image(image_path):
     """Converts a local file to a base64 string for HTML embedding."""
     if not os.path.exists(image_path):
@@ -167,13 +167,11 @@ def set_background(image_path):
     if not os.path.exists(image_path):
         st.error(f"Background image not found at: {image_path}")
         return
-
     with open(image_path, "rb") as f:
         data = f.read()
-    
     # Convert image to Base64
-    encoded_image = base64.b64encode(data).decode()
-
+    #encoded_image = base64.b64encode(data).decode()
+    encoded_image = get_base64_image(image_path)
     # Inject CSS with the Base64 image
     st.markdown(
         f"""
@@ -309,12 +307,8 @@ st.sidebar.success("Find more analysis options in the panels above.")
 #image_path = 'data/logos/SHE.png'
 image_path = 'data/logos/interactive.png'
 set_background(image_path)
-# 2. Check if file exists and encode
 if os.path.exists(image_path):
     img_b64 = get_base64_image(image_path)
-else:
-    st.error("Image not found. Please check the path 'data/logos/SHE.png'")
-    img_b64 = ""
 # 3. Render the Banner with Overlay Text
 st.markdown(
     f"""
@@ -404,7 +398,7 @@ with st.container():
                 <div class="card-header">
                     <h3>🐁 Model Organism Ranking</h3>
                     <p class="card-description">
-                        Find the best model organism match for your biological pathway by  combined structural matching for all pathway proteins.
+                        Find the best model organism for your study by combined structural matching for all proteins in your pathway.
                     </p>
                 </div>
                 <div style="background: #1f2937; padding: 10px; border-radius: 12px;">
