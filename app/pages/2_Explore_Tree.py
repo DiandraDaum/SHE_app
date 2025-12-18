@@ -37,7 +37,6 @@ def get_base64_image(image_path):
     with open(image_path, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode()
 
-@st.cache_data
 def load_csv_data(file_path):
     """Loads CSV data into a DataFrame (Cached)."""
     if os.path.exists(file_path):
@@ -231,7 +230,7 @@ if st.sidebar.toggle('See tree with evolutionary rate'):
     evo_tree_path = os.path.join("data", "tree", kingdom, filename_evo)
 
     if os.path.exists(evo_tree_path):
-        st.image(evo_tree_path, caption=f'Evolutionary Rate ({layout})', use_container_width=True)
+        st.image(evo_tree_path, caption=f'Evolutionary Rate - Yellow: High rate, Purple: Low rate', use_container_width=True)
         
         # Load the Evo Rate CSV
         csv_evo = "merged_evo_rate.csv"

@@ -512,7 +512,7 @@ with st.container():
 
     row1 = st.columns(4)
     titles = ["Organisms", "Proteins", "Structure Alignments", "Powered By"]
-    values = ["1,542", "24.3M", "296,000B", "Foldseek"]
+    values = ["1,541", "24.3M", "296,000B", "Foldseek"]
 
     for i, (col, value, title) in enumerate(zip(row1, values, titles)):
         with col:
