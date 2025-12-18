@@ -159,12 +159,10 @@ st.write('Please select the type of file you want to download below.')
 with st.expander('Alignment scores by Organism'):
     st.subheader('Protein-protein alignment bitscores by Organism')
     st.caption('Download Foldseek proteome-proteome comparison bitscores (.csv)')
-    
     proteome_bit = st.text_input('Which proteome: UniProt ID? (e.g. UP000005640)', key="proteome_bit")
-    
     if proteome_bit:
+        proteome_bit = proteome_bit.strip().upper()
         st.page_link(f"https://www.uniprot.org/proteomes/{proteome_bit}", label="UniProt Proteomes", icon="🌎")
-        
         # ACTION BUTTON: Prevents heavy operation from running on every keystroke
         if st.button("Prepare Download", key="btn_bit"):
             root_dir_bitscores = 'data/decompressed'
@@ -196,10 +194,9 @@ with st.expander('Alignment scores by Organism'):
 with st.expander('Complete Foldcomp results by Proteome'):
     st.subheader('Foldcomp results per Proteome')
     st.caption('See https://github.com/steineggerlab/foldcomp for usage instructions.')
-
     proteome_fc = st.text_input('Which proteome: UniProt ID (ie. UP000005640)?', key="proteome_fc")
-
     if proteome_fc:
+        proteome_fc = proteome_fc.strip().upper()
         st.page_link(f"https://www.uniprot.org/proteomes/{proteome_fc}", label="UniProt Proteomes", icon="🌎")
         if st.button("Prepare Download", key="btn_fc"):
             subset_dir = 'data/subset/subset'
@@ -235,6 +232,8 @@ with st.expander('Protein Structure Predictions'):
     with col_search[1]:
         protein_struct = st.text_input('Protein ID (e.g. V7ATE2)', key="protein_struct")
     if proteome_struct and protein_struct:
+        proteome_struct = proteome_struct.strip().upper()
+        protein_struct = protein_struct.strip().upper()
         st.page_link(f"https://www.uniprot.org/uniprotkb/{protein_struct}/entry", label="View in UniProtKB", icon="🌎")
         if st.button("Prepare Download", key="btn_struct"):
             index_dir = 'data/subset/index'

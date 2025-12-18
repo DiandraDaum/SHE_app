@@ -946,7 +946,7 @@ def display_protein_presence_tree_plotly(protein, families_csv_path, new_proteom
 
 #pruned tree for protein presence/absence
 
-def prune_and_display_tree(families_file, newick_tree_file, names_file, family_to_keep, output_file, layout='Linear', input_protein):
+def prune_and_display_tree(input_protein, families_file, newick_tree_file, names_file, family_to_keep, output_file, layout='Linear'):
     """
     Prunes a Newick tree to a specific family AND returns a Plotly figure.
     """
@@ -1075,7 +1075,7 @@ def prune_and_display_tree(families_file, newick_tree_file, names_file, family_t
 
         trace_nodes = go.Scatter(
             x=node_coords['x'], y=node_coords['y'],
-            mode='markers+text',             # Enable both dots and text
+            mode='markers',             # Enable both dots and text
             text=node_labels,                # Use our prepared list of names
             textposition="middle right",     # Place text to the right of the dot
             textfont=dict(size=12, color='white'), # Readable white font
@@ -1096,7 +1096,7 @@ def prune_and_display_tree(families_file, newick_tree_file, names_file, family_t
         # 4. Layout
         pruned_fig = go.Figure(data=[trace_branches, trace_nodes, trace_legend])
         layout_params = dict(
-            title=f"Pruned Tree: Orhtologs of {input_protein}",
+            title=f"Pruned Tree: Orthologs of {input_protein}",
             height=900,
             showlegend=True,
             hovermode="closest",
@@ -1975,7 +1975,7 @@ if st.session_state.get("homologs"):
                         pruned_path = f'results/protein_trees/{protein}_prunedtree.newick'
                         os.makedirs(os.path.dirname(pruned_path), exist_ok=True)
                         st.info("Generating pruned tree...")
-                        pruned_fig = prune_and_display_tree(families_csv_path, main_tree_path, new_proteomes_path, family, pruned_path, layout='Linear', input_protein=protein)
+                        pruned_fig = prune_and_display_tree(protein, families_csv_path, main_tree_path, new_proteomes_path, family, pruned_path, layout='Linear')
                         if pruned_fig:
                             st.plotly_chart(pruned_fig, use_container_width=True)
                             file_content = get_file_content(pruned_path)
@@ -2006,6 +2006,7 @@ if st.session_state.get("set"):
     if proteins == '':
             st.warning('Please enter a list of protein UniProt ID split by a space i.e. "P05023 A0A0P8ZLX7"')
     else:
+        proteins = proteins.replace(',', '').upper()
         random_num = random.randint(100000, 999999)
         user = f"user_{random_num}"
         uniprot_ids=proteins.split()

@@ -1375,7 +1375,7 @@ with st.expander(":violet[See Example Usage]"):
             """,
             unsafe_allow_html=True
         )
-    st.image("data/subset/figure_model/ranking2.png", caption="Organisms Ranking based on bitscore (the higher, the better)", width='stretch')
+    st.image("data/subset/figure_model/ranking2.png", caption="Organisms Ranking based on bitscore (the higher, the better)", use_container_width=True)
 
     row2 = st.columns(3)
     emojis = [":mouse2:", ":tropical_fish:", ":seedling:"]
@@ -1624,7 +1624,6 @@ if st.session_state['ranking_active']:
     #choose proteins -----------------------------------------------------------------------
     protein_list = st.text_input(
     'Which proteins are you studying in your target organism? (each UniProt ID separated by a space, i.e: Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616). Please note that the protein IDs have to be found in the reference proteome of the target organism selected above.', key="protein_list")
-
     st.write("---")
     # Ratios: [Spacer, Button, Spacer]
     c_left, c_run, c_right = st.columns([2, 1.5, 2])
@@ -1636,6 +1635,7 @@ if st.session_state['ranking_active']:
         if (protein_list == '') or not model_organisms:
             st.warning('Please input the UniProt ID of the protein(s) in your pathway of interest, the target organism to study, and the model organisms you can choose from.')
         else:
+            protein_list = protein_list.replace(',', '').upper()
             st.write('Selected Protein(s) in your study: ', protein_list)
             
             # Handle Target Name
@@ -1758,7 +1758,7 @@ if st.session_state['ranking_active']:
                 ),
                 coloraxis_showscale=False,
             )
-            st.plotly_chart(fig, width='stretch')
+            st.plotly_chart(fig, use_container_width=True)
 
             # 3. Radar Chart (Protein Hits)
             radar_fig = px.line_polar(
@@ -1844,7 +1844,7 @@ if st.session_state['ranking_active']:
                         radialaxis=dict(visible=True, showticklabels=True, showline=False, angle=90, tickangle=90,
                                         range=[0, selected_protein_df['bit_score'].max() * 1.1])
                     )
-                    st.plotly_chart(radar_fig_alone, width='stretch')
+                    st.plotly_chart(radar_fig_alone, use_container_width=True)
                     
                     # --- STRUCTURE LOOP ---
                     # Pre-load Mapping/PDB info for the target ONCE
