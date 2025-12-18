@@ -329,6 +329,17 @@ def get_species_id(protein_name):
         return protein_name.split('-')[0].split('_')[0]
     return None
 
+def get_species_id2(protein_name):
+    """
+    Extracts the full species ID (ProteomeID_TaxID) from the protein string.
+    Input:  UP000053283_128390-AF-A0A091VYB8...
+    Output: UP000053283_128390  (Matches the 'ID' column in your names file)
+    """
+    if isinstance(protein_name, str) and protein_name.startswith("UP"):
+        # We only split on the first hyphen to keep the _TaxID part
+        return protein_name.split('-')[0]
+    return None
+
 def protein_in_family(protein, families_csv_path):
     """
     Find the homologs family of a protein UniProt ID.
@@ -348,7 +359,6 @@ def protein_in_family(protein, families_csv_path):
         st.warning(f"No structural ortholog match found for protein '{protein}'...")
         st.stop()
         sys.exit(1)
-
 
 
 def get_tree_coordinates(tree):
@@ -932,8 +942,270 @@ def display_protein_presence_tree_plotly(protein, families_csv_path, new_proteom
 
     present_species_names = present_species_info
     
-    return fig, present_species_names
+    return fig, present_species_names, family
 
+#pruned tree for protein presence/absence
+
+def prune_and_display_tree(families_file, newick_tree_file, names_file, family_to_keep, output_file, layout='Linear', input_protein):
+    """
+    Prunes a Newick tree to a specific family AND returns a Plotly figure.
+    """
+    print(f"--- Step 1: Loading Name Mappings ---")
+    input_protein=input_protein
+    try:
+        # Load the Names Map
+        names_df = pd.read_csv(names_file)
+        
+        # Verify columns exist
+        if 'ID' not in names_df.columns or 'Organism_formatted' not in names_df.columns:
+            print("Error: names file must contain 'ID' and 'Organism_formatted' columns.")
+            st.stop()
+
+        # Create dictionary: {'UP000053283': 'Corythaixoides_concolor...'}
+        id_to_name = pd.Series(names_df.Organism_formatted.values, index=names_df.ID).to_dict()
+        # Create Reverse Dictionary for visual lookup later: {'Corythaixoides_concolor...': 'UP000053283'}
+        name_to_id = {v: k for k, v in id_to_name.items()}
+        #st.info(f"Loaded {len(id_to_name)} name mappings.")
+        
+    except Exception as e:
+        print(f"Error loading names file: {e}")
+        st.stop()
+
+    print(f"--- Step 2: Identifying species for family '{family_to_keep}' ---")
+    try:
+        family_df = pd.read_csv(families_file)
+    except FileNotFoundError:
+        print(f"Error: Could not find {families_file}")
+        st.stop()
+
+    family_df['species_id'] = family_df['protein'].apply(get_species_id2)
+    
+    # Filter for target family
+    target_family = family_df[family_df['family_id'] == family_to_keep]
+    
+    if target_family.empty:
+        print(f"Error: Family '{family_to_keep}' not found in families file.")
+        st.stop()
+
+    # --- NEW LOGIC: Create Proteome -> Uniprot Mapping for Tooltips ---
+    # { 'UP000005640': 'P12345, Q99999' }
+    proteome_to_uniprot = target_family.groupby('species_id')['protein'].apply(lambda x: ', '.join(x)).to_dict()
+
+    # Get valid IDs and map them to Names
+    valid_ids = set(target_family['species_id'].unique())
+    
+    valid_names = set()
+    for uid in valid_ids:
+        if uid in id_to_name:
+            valid_names.add(id_to_name[uid])
+    
+    print(f"Family found in {len(valid_ids)} IDs -> Mapped to {len(valid_names)} tree names.")
+
+    if len(valid_names) == 0:
+        print("FATAL ERROR: No matching IDs found between family file and names file.")
+        st.stop()
+
+    print(f"--- Step 3: Pruning Tree '{newick_tree_file}' ---")
+    try:
+        t = Tree(newick_tree_file, format=1)
+    except Exception as e:
+        print(f"Error loading tree: {e}")
+        st.stop()
+
+    leaves_to_keep = []
+    
+    # Check matches
+    for leaf in t.get_leaves():
+        clean_name = leaf.name.strip()
+        if clean_name in valid_names:
+            leaves_to_keep.append(clean_name)
+
+    print(f"Matched {len(leaves_to_keep)} leaves in the tree.")
+
+    if len(leaves_to_keep) < 2:
+        print("Error: Less than 2 matches found. Cannot build a tree.")
+        st.stop()
+
+    # Prune the tree (preserve_branch_length=True is default/good)
+    t.prune(leaves_to_keep, preserve_branch_length=True)
+    t.write(outfile=output_file)
+    print(f"Success! Saved pruned tree to '{output_file}'.")
+    print(f"--- Step 4: Generating Plotly Figure ---")
+    
+    try:
+        # Use the ALREADY pruned tree object 't'
+        # 1. Generate Coordinates
+        tree_coords = get_tree_coordinates(t) 
+            
+        branch_x, branch_y, node_coords = create_plotly_data_c(tree_coords, layout=layout) 
+        
+        # 2. Assign Colors, Hover Text, AND Label Text
+        node_colors = []
+        hover_texts = []
+        node_labels = []  # List to store labels for display
+        
+        COLOR_PRESENT = "#a0fc97"
+        COLOR_EMPTY   = "rgba(0,0,0,0)"
+        
+        for node_name in node_coords['name']:
+            if node_name and node_name in valid_names:
+                # It is a species leaf -> Add Color & Label
+                node_colors.append(COLOR_PRESENT)
+                node_labels.append(node_name)  # <--- Add name to labels
+                
+                # Retrieve info
+                proteome_id = name_to_id.get(node_name)
+                hit_ids = proteome_to_uniprot.get(proteome_id, "Unknown")
+                hover_texts.append(f"<b>{node_name}</b><br>Family: {family_to_keep}<br>Protein(s): {hit_ids}")
+                
+            else:
+                # Internal node -> Transparent & No Label
+                node_colors.append(COLOR_EMPTY)
+                node_labels.append("")  # <--- Empty string (no label)
+                hover_texts.append(f"Node: {node_name}" if node_name else "")
+
+        # 3. Build Traces
+        trace_branches = go.Scatter(
+            x=branch_x, y=branch_y,
+            mode='lines',
+            line=dict(color='lightgrey', width=1),
+            hoverinfo='none',
+            name='Branches'
+        )
+
+        trace_nodes = go.Scatter(
+            x=node_coords['x'], y=node_coords['y'],
+            mode='markers+text',             # Enable both dots and text
+            text=node_labels,                # Use our prepared list of names
+            textposition="middle right",     # Place text to the right of the dot
+            textfont=dict(size=12, color='white'), # Readable white font
+            # -----------------------
+            marker=dict(size=8, color=node_colors, line=dict(width=1, color='white')),
+            hovertext=hover_texts,
+            hoverinfo='text',
+            name='Leaves'
+        )
+        
+        # Legend Trace
+        trace_legend = go.Scatter(
+            x=[None], y=[None], mode='markers',
+            marker=dict(size=10, color=COLOR_PRESENT, line=dict(width=1, color='white')),
+            name=f'Members of {family_to_keep}'
+        )
+
+        # 4. Layout
+        pruned_fig = go.Figure(data=[trace_branches, trace_nodes, trace_legend])
+        layout_params = dict(
+            title=f"Pruned Tree: Orhtologs of {input_protein}",
+            height=900,
+            showlegend=True,
+            hovermode="closest",
+            template="plotly_dark",
+            plot_bgcolor='black',
+            paper_bgcolor='black',
+            font=dict(color='white'),
+            margin=dict(l=20, r=20, t=40, b=20),
+            autosize=True
+        )
+
+        layout_params.update(
+            xaxis=dict(showgrid=False, title='Branch length', showticklabels=True),
+            yaxis=dict(showgrid=False, showticklabels=False)
+        )
+
+        pruned_fig.update_layout(**layout_params)
+        
+        return pruned_fig
+
+    except Exception as e:
+        print(f"Error generating Plotly figure: {e}")
+        return None
+    
+
+def prune_tree(families_file, newick_tree_file, names_file, family_to_keep, output_file, layout='Linear'):
+    print(f"--- Step 1: Loading Name Mappings ---")
+    
+    try:
+        # Load the Names Map
+        names_df = pd.read_csv(names_file)
+        
+        # Verify columns exist
+        if 'ID' not in names_df.columns or 'Organism_formatted' not in names_df.columns:
+             print("Error: names file must contain 'ID' and 'Organism_formatted' columns.")
+             print(f"Found columns: {list(names_df.columns)}")
+             sys.exit(1)
+        
+        # Create dictionary: {'UP000053283_128390': 'Corythaixoides_concolor_Grey_go_away_bird'}
+        id_to_name = pd.Series(names_df.Organism_formatted.values, index=names_df.ID).to_dict()
+        print(f"Loaded {len(id_to_name)} name mappings.")
+        
+    except Exception as e:
+        print(f"Error loading names file: {e}")
+        sys.exit(1)
+
+    print(f"--- Step 2: Identifying species for family '{family_to_keep}' ---")
+    try:
+        family_df = pd.read_csv(families_file)
+    except FileNotFoundError:
+        print(f"Error: Could not find {families_file}")
+        sys.exit(1)
+
+    # Extract ID
+    family_df['species_id'] = family_df['protein'].apply(get_species_id2)
+    
+    # Filter for target family
+    target_family = family_df[family_df['family_id'] == family_to_keep]
+    
+    if target_family.empty:
+        print(f"Error: Family '{family_to_keep}' not found in families file.")
+        sys.exit(1)
+
+    # Get valid IDs and map them to Names
+    valid_ids = set(target_family['species_id'].unique())
+    
+    valid_names = set()
+    for uid in valid_ids:
+        # 1. Direct ID match
+        if uid in id_to_name:
+            valid_names.add(id_to_name[uid])
+        else:
+            # Debugging hint: print the first failure to help diagnosis
+            if len(valid_names) == 0:
+                print(f"DEBUG: Could not find ID '{uid}' in names file.")
+    
+    print(f"Family found in {len(valid_ids)} IDs -> Mapped to {len(valid_names)} tree names.")
+
+    if len(valid_names) == 0:
+        print("FATAL ERROR: IDs in family file did not match any IDs in names file.")
+        print("Please check that the ID format in both files is identical (e.g., UPxxxx_TaxID).")
+        sys.exit(1)
+
+    print(f"--- Step 3: Pruning Tree '{newick_tree_file}' ---")
+    try:
+        t = Tree(newick_tree_file, format=1) # format=1 is standard for named trees
+    except Exception as e:
+        print(f"Error loading tree: {e}")
+        sys.exit(1)
+
+    leaves_to_keep = []
+    
+    # Check matches
+    for leaf in t.get_leaves():
+        clean_name = leaf.name.strip()
+        
+        # Check if the leaf name is in our allowed list
+        if clean_name in valid_names:
+            leaves_to_keep.append(clean_name)
+
+    print(f"Matched {len(leaves_to_keep)} leaves in the tree.")
+
+    if len(leaves_to_keep) < 2:
+        print("Error: Less than 2 matches found. Cannot build a tree.")
+        sys.exit(1)
+
+    t.prune(leaves_to_keep, preserve_branch_length=True)
+    t.write(outfile=output_file)
+    print(f"Success! Saved pruned tree to '{output_file}'.")
 
 
 # --- Function to generate the Mol* HTML viewer ---
@@ -1204,7 +1476,13 @@ def generate_distance_matrix(species_scores_dict, uniprot_ids, out_dir):
 
     return dmat_out, ids_out
 
-
+@st.cache_data
+def get_file_content(file_path):
+    """Reads a text file (like .newick) into memory."""
+    if os.path.exists(file_path):
+        with open(file_path, "rb") as f:
+            return f.read()
+    return None
 # make tree from distance matrix -------------------------------------------
 
 def bootstrap_from_distance_matrix(distance_matrix):
@@ -1620,9 +1898,10 @@ if st.session_state.get("homologs"):
     st.title('Tree of all organisms sharing a protein structure:')
     protein = st.text_input(
     'Which protein (UniProt ID)?', key="protein")
+    protein = protein.strip().upper()
     st.write('Selected Protein: ', protein)
     if protein == '':
-            st.warning('Please enter protein uniprot ID i.e. P05023 or A0A0P8ZLX7')
+            st.warning('Please enter protein uniprot ID i.e. P05023 or A0A0B4KEU8')
     else:
         # uniprot link
         st.page_link("https://www.uniprot.org/uniprotkb/" + protein + "/entry", label="UniProt", icon="🌎")
@@ -1657,13 +1936,13 @@ if st.session_state.get("homologs"):
         layout = st.radio(
             "Select Tree Layout:",
             ('Linear', 'Circular'),
-            index=0,
+            index=1,
             horizontal=True
         )
         #protein_svg = pathlib.Path('results/protein_trees/' + protein +'_presence_tree_' + layout +'.svg')
         for protein in [protein]:
             families_csv_path = 'data/core/protein_families_238.csv' #i.e. ./data/core/protein_families_238.csv
-            fig, present_species = display_protein_presence_tree_plotly(
+            fig, present_species, family = display_protein_presence_tree_plotly(
                 protein=protein, 
                 families_csv_path=families_csv_path, 
                 new_proteomes_path=new_proteomes_path, 
@@ -1690,6 +1969,23 @@ if st.session_state.get("homologs"):
                         mime="text/plain",
                         help="Download a text file containing the names of all species colored green in the tree."
                     )
+                
+                    if st.toggle(':red[Show Pruned tree]'):
+                        # 4. Prune the tree and provide download
+                        pruned_path = f'results/protein_trees/{protein}_prunedtree.newick'
+                        os.makedirs(os.path.dirname(pruned_path), exist_ok=True)
+                        st.info("Generating pruned tree...")
+                        pruned_fig = prune_and_display_tree(families_csv_path, main_tree_path, new_proteomes_path, family, pruned_path, layout='Linear', input_protein=protein)
+                        if pruned_fig:
+                            st.plotly_chart(pruned_fig, use_container_width=True)
+                            file_content = get_file_content(pruned_path)
+                            st.download_button(
+                                label=f"📥 Download prune tree for {protein} structural orthologs",
+                                data=file_content,
+                                file_name=f"{protein}_orthologs.newick",
+                                mime="text/plain",
+                                help="Download the pruned tree.newcik file."
+                            )
                 else:
                     st.info("No structural orthologs found in the tree.")
 
@@ -1808,7 +2104,7 @@ if st.session_state.get("set"):
         # distance matrix---------------------------------------
         matrix_out=csv_out
         distance_matrix, ids = generate_distance_matrix(tree_data, uniprot_ids, matrix_out)
-        n_bootstraps=100
+        n_bootstraps=10
         #make tree----------------------------------
         distance_matrix = np.load(distance_matrix)
         ids = pd.read_csv(ids)['id'].values #Read from csv - keep the format consistens

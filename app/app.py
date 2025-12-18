@@ -429,7 +429,7 @@ with st.container():
         </a>
         """, unsafe_allow_html=True)
         # Keep the st.page_link as a secondary navigation option
-        #st.page_link("pages/1_Model_Organism_Ranking.py", label="Find Best Model Organism", icon="🐁", use_container_width=True)
+        #st.page_link("pages/1_Model_Organism_Ranking.py", label="Find Best Model Organism", icon="🐁", width=True)
 
     # --- CARD 2 ---
     with dashboard_row1[1]:
@@ -448,7 +448,7 @@ with st.container():
             </div>
         </a>
         """, unsafe_allow_html=True)
-        #st.page_link("pages/2_Explore_Tree.py", label="Explore Evolutionary Rates", icon="📈", use_container_width=True)
+        #st.page_link("pages/2_Explore_Tree.py", label="Explore Evolutionary Rates", icon="📈", width=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -471,7 +471,7 @@ with st.container():
         </div>
     </a>
     """, unsafe_allow_html=True)
-    #st.page_link("pages/3_Interactive_Tree.py", label="Search Homologs", icon="🔎", use_container_width=True)
+    #st.page_link("pages/3_Interactive_Tree.py", label="Search Homologs", icon="🔎", width=True)
     st.markdown("<br>", unsafe_allow_html=True)
     # --- A. STATISTICS TILES SECTION ---
     css = """
@@ -605,7 +605,7 @@ with st.container():
             """, unsafe_allow_html=True)
             
             # 3. The Demo Button (Optimized)
-            with st.popover(f"▶️ Watch Demo", use_container_width=True):
+            with st.popover(f"▶️ Watch Demo", width='stretch'):
                 st.markdown(f"**Demo for {feature['title']}**")
                 if "demo" in feature and feature["demo"]:
                     video_bytes = get_video_bytes(feature["demo"])
@@ -726,6 +726,6 @@ st.markdown("""
 colm1, colm2, colm3, colm4 = st.columns(4)
 with colm2:
     st.markdown("<br>", unsafe_allow_html=True)
-    st.image("data/logos/scilifelab.png", use_container_width=False)
+    st.image("data/logos/scilifelab.png", width='content')
 with colm3:
-    st.image("data/logos/su.png", use_container_width=False)
+    st.image("data/logos/su.png", width='content')

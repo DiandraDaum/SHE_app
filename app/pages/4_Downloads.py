@@ -314,7 +314,7 @@ with st.expander('Tree by Clade'):
                     file_name=f"{k}_tree.newick",
                     mime="text/plain", # Newick is text, not png
                     icon=":material/download:",
-                    use_container_width=True
+                    width='stretch'
                 )
 
 # --- FOOTER ---
@@ -326,6 +326,6 @@ st.write('Preprint:  Qiuzhen Li, Diandra Daumiller, Patrick Bryant: <The structu
 col1, col2, col3, col4 = st.columns(4)
 with col2:
     st.markdown("<br>", unsafe_allow_html=True)
-    st.image("data/logos/scilifelab.png", use_container_width=False)
+    st.image("data/logos/scilifelab.png", width='content')
 with col3:
-    st.image("data/logos/su.png", use_container_width=False)
+    st.image("data/logos/su.png", width='content')

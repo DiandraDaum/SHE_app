@@ -220,7 +220,7 @@ def process_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
 
 
     except Exception as e:
-        st.error("Your input protein(s) cannot be found in the proteone of the input target organism... Try again with the right target protein(s): the UniProt ID has to be found in the proteome of the target species selected above.")
+        print("Your input protein(s) cannot be found in the proteome of the input target organism... Try again with the right target protein(s): the UniProt ID has to be found in the proteome of the target species selected above.")
         st.stop()
         
     # Convert map to list (Vector) ensures order is identical for all species
@@ -803,54 +803,6 @@ def render_3dmol_alignment(color, structure_path, target_name, query_name, tm_sc
          st.error(f"Error rendering 3Dmol viewer with stmol: {e}")
 
 
-# --- Function to generate the Mol* HTML viewer ---
-@st.cache_data
-def render_3dmol(afdb_download_url: str):
-    """
-    Fetches the CIF data and renders it using py3Dmol via stmol.
-    """
-    st.info("Fetching protein structure from AlphaFold database...")
-    cif_data = None
-    
-    try:
-        # 1. Fetch the CIF data
-        cif_response = requests.get(afdb_download_url, timeout=30)
-        cif_response.raise_for_status() 
-        cif_data = cif_response.text
-        
-        if not cif_data or not isinstance(cif_data, str):
-             st.error("Fetched data is empty or not a string. Cannot render structure.")
-             return
-             
-    except requests.exceptions.RequestException as e:
-        st.error(f"Network error during CIF download: {e}")
-        return
-
-    # 2. Initialize the py3Dmol viewer object
-    # DO NOT call .render()
-    view = py3Dmol.view(width=800, height=500, js='https://3dmol.org/build/3Dmol.js')
-
-    # 3. Add the model
-    view.addModel(cif_data, 'cif')
-
-    # 4. Set the coloring scheme (lDDT for AlphaFold)
-    # Official Hex Codes (approximate):
-    # Very High (>90): Dark Blue (#0053D6)
-    # High (70-90): Light Blue/Cyan (#64CCEB)
-    # Low (50-70): Yellow (#FFDB00)
-    # Very Low (<50): Red/Orange (#FF7D45)
-    view.setStyle({'cartoon': {'colorscheme': {'prop':'b','gradient': 'roygb','min':50,'max':90}}})
-    #view.render()
-    #view.show()
-    
-    # 5. Render the view using the stmol component
-    # The showmol function handles the Streamlit component embedding correctly.
-    try:
-        showmol(view, height=510, width=800)
-    except Exception as e:
-         st.error(f"Error rendering 3Dmol viewer with stmol: {e}")
-
-
 # fast change in display
 @st.fragment
 def render_interactive_structure(key_suffix, out_file, target_name, query_name, tm_score, rmsd):
@@ -940,18 +892,25 @@ def prepare_ranking_data(target_species, model_organisms, protein_list_str):
                 search_col = 'proteinB'
 
         if csv_file:
-            score, presence, vector, best_hits_df = process_orthologs(csv_file, uniprot_ids, search_col)
-
-            # Swap columns if we looked up proteinB
+            try:
+                score, presence, vector, best_hits_df = process_orthologs(csv_file, uniprot_ids, search_col)
+            except Exception:
+                best_hits_df = pd.DataFrame()
+                st.warning(f"The protein ID **{', '.join(uniprot_ids)}** was not found in the reference proteome of **{target_species}**. This can happen if the protein ID is not reviewed in the reference proteome used for AFDB v4 predictions.")
+                cols = st.columns(len(uniprot_ids))
+                for i, uid in enumerate(uniprot_ids):
+                    with cols[i]: # Prevent creating too many columns if list is long
+                        st.page_link(f"https://www.uniprot.org/uniprotkb/{uid}/entry", label=f"Check {uid} existence in {target_species} proteome and potential updated reviewed ID on UniProt", icon="🌎")
+                continue
+            
             if search_col == 'proteinB':
+                # This suggests the Input ID exists, but isn't in the provided AFDB subset.
                 try:
                     temp_col = best_hits_df['proteinA'].copy()
                     best_hits_df['proteinA'] = best_hits_df['proteinB']
                     best_hits_df['proteinB'] = temp_col
                 except Exception:
-                    st.warning("Input protein mismatch: UniProt ID must exist in target proteome. Please note that the input protein have to be related to the proteome of the target species. Please change your input protein(s) or target organism accordingly.")
-                    st.stop()
-                    return None, None, "Input protein mismatch. UniProt ID must exist in target proteome."
+                    continue
             
             best_hits_df['Compared_Species'] = species 
             all_best_hits_dfs.append(best_hits_df)
@@ -962,12 +921,12 @@ def prepare_ranking_data(target_species, model_organisms, protein_list_str):
             ranking_scores[species] = 0.0
             itol_data[species] = {uid: -1 for uid in uniprot_ids}
             tree_data[species] = [0.0] * len(uniprot_ids)
+            st.warning(f"No match found in {species}")
 
     # 4. Merge Results
     if all_best_hits_dfs:
         comparison_df = pd.concat(all_best_hits_dfs, ignore_index=True)
-    else:
-        comparison_df = pd.DataFrame()
+    #else: comparison_df = pd.DataFrame()
 
     # Build Rank DataFrame
     df_rank = pd.DataFrame.from_dict(ranking_scores, orient='index', columns=['Score'])
@@ -997,37 +956,248 @@ def prepare_ranking_data(target_species, model_organisms, protein_list_str):
     
     return df_final, comparison_df, None  # None means no error
 
-#bg
-@st.cache_data
-def set_background(image_path):
+# hadles input protein mismatches
+@st.cache_data(show_spinner=False)
+def get_uniprot_suggestion(invalid_id, target_species_fmt):
     """
-    Adds a background image to the main Streamlit app container.
+    Queries UniProt to find out why an ID is invalid and suggests a fix.
+    Handles: Outdated IDs, Species Mismatches, and Unreviewed (TrEMBL) entries.
     """
-    if not os.path.exists(image_path):
-        st.error(f"Background image not found at: {image_path}")
-        return
-
-    with open(image_path, "rb") as f:
-        data = f.read()
+    # Clean the target species name (e.g., "Homo_sapiens_Human" -> "Homo sapiens")
+    clean_target = ' '.join(target_species_fmt.split('_')[:2])
     
-    # Convert image to Base64
-    encoded_image = base64.b64encode(data).decode()
+    base_url = "https://rest.uniprot.org/uniprotkb"
+    
+    try:
+        # 1. Check if the ID exists at all (Look up the ID)
+        response = requests.get(f"{base_url}/{invalid_id}")
+        
+        if response.status_code == 404:
+            return None, "ID does not exist in UniProt: please check the correctness of your UniProt ID."
+        
+        if response.status_code != 200:
+            return None, "UniProt API error: please check the correctness of your UniProt ID."
+            
+        data = response.json()
+        
+        # 2. Check if it is a Secondary/Outdated Accession
+        primary_accession = data.get('primaryAccession')
+        if primary_accession and primary_accession != invalid_id:
+            return primary_accession, f"The ID **{invalid_id}** is outdated. The current primary ID is **{primary_accession}**."
 
-    # Inject CSS with the Base64 image
-    st.markdown(
-        f"""
-        <style>
-        .stApp {{
-            background-image: url("data:image/png;base64,{encoded_image}");
-            background-size: cover;        /* Scale image to cover entire screen */
-            background-position: center;   /* Center the image */
-            background-repeat: no-repeat;  /* Do not repeat */
-            background-attachment: fixed;  /* Keep background fixed when scrolling */
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
+        # Extract Gene and Organism info for further checks
+        input_gene = None
+        if 'genes' in data and len(data['genes']) > 0:
+            input_gene = data['genes'][0].get('geneName', {}).get('value', '')
+            
+        org_sci_name = data.get('organism', {}).get('scientificName', '')
+        input_tax_id = data.get('organism', {}).get('taxonId')
+
+        # 3. Check Species Mismatch (e.g., User put Mouse ID, Target is Human)
+        if clean_target.lower() not in org_sci_name.lower():
+            # The ID is valid, but it belongs to the wrong species.
+            if input_gene:
+                # Search for this gene in the intended Target Species (Reviewed only)
+                query = f"gene_exact:{input_gene} AND organism_name:\"{clean_target}\" AND reviewed:true"
+                search_url = f"{base_url}/search?query={query}&fields=accession&size=1"
+                
+                search_resp = requests.get(search_url)
+                if search_resp.status_code == 200:
+                    results = search_resp.json().get('results', [])
+                    if results:
+                        best_match = results[0]['primaryAccession']
+                        return best_match, f"The ID **{invalid_id}** belongs to *{org_sci_name}*. Did you mean the **{clean_target}** ID **{best_match}** (Gene: {input_gene})?"
+            
+            return None, f"The ID **{invalid_id}** belongs to *{org_sci_name}*, not {clean_target}. Please change your target species or provide the correspondent ID for {clean_target}, accordingly."
+
+        # 4. Check if it is Unreviewed (TrEMBL) -> Suggest Reviewed (Swiss-Prot)
+        # If we reached here, the species is correct, but the ID is missing from AFDB.
+        # It is likely a TrEMBL entry. Let's find the Swiss-Prot version.
+        if input_gene and input_tax_id:
+             query = f"gene_exact:{input_gene} AND organism_id:{input_tax_id} AND reviewed:true"
+             search_url = f"{base_url}/search?query={query}&fields=accession&size=1"
+             
+             s_resp = requests.get(search_url)
+             if s_resp.status_code == 200:
+                 results = s_resp.json().get('results', [])
+                 if results:
+                     reviewed_id = results[0]['primaryAccession']
+                     # Only suggest if it is actually a different ID
+                     if reviewed_id != invalid_id:
+                         return reviewed_id, f"The ID **{invalid_id}** is an unreviewed (TrEMBL) entry. The reviewed (Swiss-Prot) entry for gene **{input_gene}** is **{reviewed_id}**."
+
+        # 5. Default Fallback
+        return None, "ID exists but was probably not reviewed in the reference proteome used for AFDB v4 predictions. All its comparisons will be skipped."
+
+    except Exception:
+        return None, "Could not connect to UniProt."
+
+
+#rank proteins
+@st.cache_data(show_spinner=False)
+def prepare_ranking_data2(target_species, model_organisms, protein_list_str):
+    """
+    Performs all data parsing, ranking, and merging.
+    Handled partial mismatches by warning user but continuing with valid data.
+    """
+    # 1. Setup
+    uniprot_ids = protein_list_str.split()
+    root_dir = 'data/decompressed/'
+    mapping_file = 'data/core/model/extracted_and_renamed.csv'
+    
+    # Load mapping
+    try:
+        species_map = load_mapping(mapping_file)
+    except Exception:
+        return None, None, "Could not load species mapping file."
+    
+    # Check Target
+    target_dir_id = species_map.get(target_species) # returns ta
+    #st.info(f"species_map: {target_dir_id}")
+    if not target_dir_id:
+        return None, None, f"Target species '{target_species}' not found in mapping."
+    target_dir = os.path.join(root_dir, target_dir_id)
+    
+    # from target species to target proteome
+    proteome_map = load_mapping_proteome(mapping_file)
+    proteome_target_id = proteome_map.get(target_species)
+    index_file_path = f"data/subset/index/{proteome_target_id}_*_fc_id_mapping.csv"
+    matching_proteome = glob.glob(index_file_path)
+    if not matching_proteome:
+        print(f"Error: No matching proteome file found for {proteome_target_id}")
+    else:
+        print(f"Found proteome file for {proteome_target_id}")
+    index_file_path = matching_proteome[0]
+    proteome_df = pd.read_csv(index_file_path) # columns: 'fc_db_index' and 'afdb_id'
+    
+    # handle protein mismatch in target proteome
+    uid_missing = []
+    final_analysis_ids = []
+    for uid in uniprot_ids:
+        pid="AF-"+uid+"-F1-model_v4"
+        #st.info(f"UID check: {uid}, PID check: {pid}")
+        if pid in proteome_df['afdb_id'].values:
+            final_analysis_ids.append(uid)
+        else:
+            uid_missing.append(uid)
+            #st.error(f"The protein ID **{uid}** was not found in the reference proteome of **{target_species}**. This can happen if the protein ID is not reviewed in the reference proteome used for AFDB v4 predictions. All its comparisons will be skipped.")
+            suggested_id, reason_msg = get_uniprot_suggestion(uid, target_species)
+            st.error(f"**Mismatch:** Protein **{uid}** was not found in the reference proteome of your target species: **{target_species}**.")
+            if suggested_id:
+                new_pid = "AF-" + suggested_id + "-F1-model_v4"
+                # If we found a better ID, show it clearly
+                #st.info(f"**Suggestion:** {reason_msg}")
+                #st.code(suggested_id, language="text") # Easy copy-paste for user
+                if new_pid in proteome_df['afdb_id'].values:
+                    # SUCCESS: Replace it
+                    final_analysis_ids.append(suggested_id)
+                    st.info(f"Replacing **{uid}** with **{suggested_id}** for this analysis...")
+                    with st.expander(f"See details for {uid} replacement"):
+                        st.info(f"{reason_msg}")
+                        st.page_link(f"https://www.uniprot.org/uniprotkb/{uid}/entry", label=f"Check {uid} existence in {target_species} proteome and potential updated reviewed ID on UniProt", icon="🌎")
+                else:
+                    # Suggestion exists in UniProt but NOT in local AFDB (e.g. >2700aa)
+                    with st.expander(f"See {uid} error details"):
+                        st.warning(f"{reason_msg}. UniProt suggests **{suggested_id}**, but it is also missing from the AFDB v4 (it might be too large or new).")
+                        st.page_link(f"https://www.uniprot.org/uniprotkb/{uid}/entry", label=f"Check {uid} existence in {target_species} proteome and potential updated reviewed ID on UniProt", icon="🌎")
+            else:
+                # If no suggestion
+                if reason_msg:
+                    with st.expander(f"See {uid} error details"):
+                        st.warning(f"{reason_msg}")
+                        st.page_link(f"https://www.uniprot.org/uniprotkb/{uid}/entry", label=f"Check {uid} existence in {target_species} proteome and potential updated reviewed ID on UniProt", icon="🌎")
+
+    # Update the main list to use ONLY the validated/replaced IDs
+    uniprot_ids = final_analysis_ids
+    # Stop if we have no proteins left to analyze
+    if not uniprot_ids:
+        return None, None, "No valid proteins found in the target proteome to analyze."
+    st.success(f"Proceeding with the following valid protein IDs: **{', '.join(uniprot_ids)}**")
+    # Storage
+    ranking_scores = {}
+    itol_data = {}
+    tree_data = {} 
+    all_best_hits_dfs = [] 
+    # 2. Calculate Human (Target) Data
+    human_score, human_vector = get_human_self_vector(target_dir, uniprot_ids)
+    ranking_scores[target_species] = human_score
+    tree_data[target_species] = human_vector
+    itol_data[target_species] = {uid: 1 for uid in uniprot_ids}
+    # 3. Calculate Comparison Species
+    for species in model_organisms:
+        if species not in species_map: 
+            continue
+        
+        compare_dir_id = species_map[species]
+        csv_file = find_comparison_csv(target_dir, compare_dir_id)
+        search_col = 'proteinA'
+        
+        # Try reverse direction if needed
+        if not csv_file:
+            reverse_dir = os.path.join(root_dir, compare_dir_id)
+            if os.path.isdir(reverse_dir):
+                csv_file = find_comparison_csv(reverse_dir, target_dir_id)
+                search_col = 'proteinB'
+
+        if csv_file:
+            score, presence, vector, best_hits_df = process_orthologs(csv_file, uniprot_ids, search_col)
+
+            # --- FIX: Handle Reverse Lookup (Column Swap) Robustly ---
+            if search_col == 'proteinB':
+                try:
+                    temp_col = best_hits_df['proteinA'].copy()
+                    best_hits_df['proteinA'] = best_hits_df['proteinB']
+                    best_hits_df['proteinB'] = temp_col
+                except Exception:
+                    continue
+            best_hits_df['Compared_Species'] = species 
+            all_best_hits_dfs.append(best_hits_df)
+            ranking_scores[species] = score
+            itol_data[species] = presence
+            tree_data[species] = vector
+        else:
+            ranking_scores[species] = 0.0
+            itol_data[species] = {uid: -1 for uid in uniprot_ids}
+            tree_data[species] = [0.0] * len(uniprot_ids)
+            print(f"No comparison file found for {species}")
+
+    # 4. Merge Results
+    if all_best_hits_dfs:
+        comparison_df = pd.concat(all_best_hits_dfs, ignore_index=True)
+    else: 
+        comparison_df = pd.DataFrame()
+        st.error(f"No structural ortholog found in your model organisms.")
+        for uid in uniprot_ids:
+            st.page_link(f"https://www.uniprot.org/uniprotkb/{uid}/entry", label=f"Check {uid} existence in {target_species} proteome and potential updated reviewed ID on UniProt", icon="🌎")
+
+    # Build Rank DataFrame
+    df_rank = pd.DataFrame.from_dict(ranking_scores, orient='index', columns=['Score'])
+    df_target = df_rank.loc[[target_species]]
+    df_other = df_rank.drop(target_species).sort_values(by='Score', ascending=False)
+    df_rank_sorted = pd.concat([df_target, df_other])
+    df_rank = df_rank_sorted.reset_index()
+    df_rank.columns = ['Organism', 'Score']
+
+    # Build Presence DataFrame
+    presence_list = []
+    for sp, pres in itol_data.items():
+        row_data = {'Organism': sp}
+        for puid in uniprot_ids:
+            row_data[puid] = 1 if pres.get(puid, 0) == 1 else 0
+            if pres.get(puid, 0) != 1:
+                if puid not in uid_missing:
+                    st.warning(f"No structural match for {target_species} {puid} found in {sp}. Skipping.")
+        presence_list.append(row_data)
+    df_presence = pd.DataFrame(presence_list)
+
+    # Final Merge
+    df_rank_filtered = df_rank[df_rank['Organism'] != target_species].copy()
+    df_rank_filtered.reset_index(drop=True, inplace=True)
+    df_rank_filtered.insert(0, 'Rank', df_rank_filtered.index + 1)
+    df_final = pd.merge(df_rank_filtered, df_presence, on='Organism', how='left')
+
+    return df_final, comparison_df, None #(error_msg is None)
+
 
 @st.cache_data
 def get_base64_image(image_path):
@@ -1205,7 +1375,7 @@ with st.expander(":violet[See Example Usage]"):
             """,
             unsafe_allow_html=True
         )
-    st.image("data/subset/figure_model/ranking2.png", caption="Organisms Ranking based on bitscore (the higher, the better)", use_container_width=True)
+    st.image("data/subset/figure_model/ranking2.png", caption="Organisms Ranking based on bitscore (the higher, the better)", width='stretch')
 
     row2 = st.columns(3)
     emojis = [":mouse2:", ":tropical_fish:", ":seedling:"]
@@ -1293,7 +1463,7 @@ st.warning("Please note: Analysis time scales with the number of structural matc
 
 ###------sidebar sign up--------------------
 #user sign up for updates and analysis results
-st.sidebar.subheader('6. Model Organism Ranking', divider="violet")
+st.sidebar.subheader('Model Organism Ranking', divider="violet")
 with st.sidebar.expander("Help: How to use the Model Organism Ranking tool"):
     st.write("Start it by clicking on 'Rank Model Organisms'!")
     st.markdown("""
@@ -1362,10 +1532,15 @@ div.stButton > button:active {
 # 1. Initialize a "state" variable to remember if the analysis is active
 if 'ranking_active' not in st.session_state:
     st.session_state['ranking_active'] = False
-left, middle, right = st.columns([1, 2, 1])
+
+# Initialize state for the inner "Start Analysis" button
+if 'analysis_submitted' not in st.session_state:
+    st.session_state['analysis_submitted'] = False
+
+left, middle, right = st.columns([0.5, 2, 0.5])
 with middle:
     # This button will pick up the CSS styles defined above
-    if st.button('Rank Model Organisms', use_container_width=True):
+    if st.button('Rank Model Organisms', width='stretch'):
         st.session_state['ranking_active'] = True
 # 3. Check the STATE variable, not the button itself
 if st.session_state['ranking_active']:
@@ -1429,362 +1604,384 @@ if st.session_state['ranking_active']:
             model_organisms.append(selection)
 
     # 4. Add/Remove Buttons (Side by Side)
-    col_add, col_remove = st.columns([0.6, 0.6])
-    
+    #col_add, col_remove = st.columns([1.5, 1.5])
+    col_l, col_add, col_rem, col_r = st.columns([1, 1, 1, 1])
     with col_add:
         st.button(
             "➕ Add Another Model", 
             on_click=add_model_organism,
-            use_container_width=True
+            width='stretch'
         )
-        
-    with col_remove:
+    with col_rem:
         # Only show remove button if there is more than 1 box
         if st.session_state.model_count > 1:
             st.button(
                 "➖ Remove Last Model", 
                 on_click=remove_model_organism,
-                use_container_width=True
+                width='stretch'
             )
 
     #choose proteins -----------------------------------------------------------------------
     protein_list = st.text_input(
-    'Which proteins are you studying in your target organism? (each UniProt ID separated by a space, i.e: Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616). Please note that the protein IDs have to be associated to the proteome of the target organism selected above, otherwise they will not be found.', key="protein_list")
+    'Which proteins are you studying in your target organism? (each UniProt ID separated by a space, i.e: Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616). Please note that the protein IDs have to be found in the reference proteome of the target organism selected above.', key="protein_list")
 
-    #start ranking-------------------------------------------------------------------------
-    if (protein_list == '') or not model_organisms:
-        st.warning('Please input the UniProt ID of the protein(s) in your pathway of interest, the target organism to study, and the model organisms you can choose from.')
-    else:
-        st.write('Selected Protein(s) in your study: ', protein_list)
-        st.write('Selected Model Organism(s): ', ', '.join(model_organisms))
-        
-        # Handle Target Name
-        if target == '':
-            target_species = 'Homo_sapiens_Human'
+    st.write("---")
+    # Ratios: [Spacer, Button, Spacer]
+    c_left, c_run, c_right = st.columns([2, 1.5, 2])
+    # We use a callback or direct check to set the submission state
+    if c_run.button("Start Ranking Analysis", type="primary", width='stretch'):
+        st.session_state['analysis_submitted'] = True
+    if st.session_state['analysis_submitted']:
+        #start ranking-------------------------------------------------------------------------
+        if (protein_list == '') or not model_organisms:
+            st.warning('Please input the UniProt ID of the protein(s) in your pathway of interest, the target organism to study, and the model organisms you can choose from.')
         else:
-            target_species = target
-        st.write('Selected Target Organism: ', target_species)
-
-        status_placeholder = st.empty()
-        status_placeholder.info(f"a. Ranking your model organisms...")
-
-        # --- CALL CACHED FUNCTION ---
-        # This runs immediately if cached: #st.chache_data()
-        df_final, comparison_df, error_msg = prepare_ranking_data(target_species, model_organisms, protein_list)
-
-        if error_msg:
-            st.error(error_msg)
-            st.session_state['ranking_active'] = False
-            st.stop() # Stops execution safely
-
-        # --- SAVE FILES ---
-        # Side effects (saving files) should happen outside the cached function
-        csv_out = "results/model_trees/" + user + "/"
-        os.makedirs(csv_out, exist_ok=True)
-        
-        txt_path = csv_out + "model_ranking.txt"
-        df_final.to_csv(txt_path, index=False, sep='\t')
-        
-        ranking_df = comparison_df.copy()
-        ranking_df.columns = [f'{target}_Protein', 'Structural_ortholog', 'Bit_score', 'Model_Species']
-        txt_path2 = csv_out + "protein_hits_ranking.txt"
-        ranking_df.to_csv(txt_path2, index=False, sep='\t')
-
-        # --- DISPLAY LOGIC ---
-        st.write("--- Organism Ranking ---")
-        
-        top_model_organism = df_final.iloc[0]['Organism']
-        # Extract just Genus species (e.g., "Mus musculus")
-        top_model_organism = ' '.join(top_model_organism.split('_', maxsplit=2)[:2])
-        
-        st.markdown(
-            f"""
-            <div style='
-                text-align: center; 
-                color: orange; 
-                font-size: 2rem;           /* Much bigger size */
-                font-weight: 800;          /* Bold weight */
-                margin-bottom: 20px;       /* Space below */
-                text-shadow: 2px 2px 0 #000000; /* Black shadow for readability */
-            '>
-                The top model organism for your study is: {top_model_organism}
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
-        status_placeholder.empty()
-
-        # --- PLOTLY CHARTS (RESTORED) ---
-        
-        # 1. Prepare Data for Plotting
-        df_final.sort_values('Rank', ascending=True, inplace=True)
-        df_final['Display_Organism'] = df_final['Organism'].str.split('_', n=2).str[:2].str.join('_')
-        df_final['Display_Organism'] = df_final['Display_Organism'].str.replace('_', ' ')
-        
-        comparison_df['Model_Protein'] = comparison_df['proteinB'].str.split('-').str[1]
-        comparison_df['Model_Organism'] = comparison_df['Compared_Species'].str.split('_', n=2).str[:2].str.join('_')
-        comparison_df['Model_Organism'] = comparison_df['Model_Organism'].str.replace('_', ' ')
-        
-        # Create the color grouping based on proteinA
-        comparison_df['Color_Group'] = comparison_df['proteinA'].str.split('-').str[1]
-        
-        all_species = comparison_df['Model_Organism'].unique().tolist()
-        target_name = ' '.join(target_species.split('_', maxsplit=2)[:2])
-
-        # 2. Radial Bar Chart (Organism Ranking)
-        ordered_species = df_final['Display_Organism'].tolist()
-        fixed_cols = ['Rank', 'Organism', 'Score', 'Display_Organism']
-        uniprot_id_cols = [col for col in df_final.columns if col not in fixed_cols]
-        
-        # Initialize hover_data dictionary
-        hover_data_config = {'Score': ':.1f', 'Rank': True, 'Display_Organism': False}
-        for col in uniprot_id_cols:
-            hover_data_config[col] = True 
-
-        fig = px.line_polar(
-            df_final,
-            r='Score',                 
-            theta='Display_Organism',  
-            color_discrete_sequence=['#00CC96'],
-            line_close=True,
-            title='Model Organism Ranking by Bit score',
-            hover_data=hover_data_config,
-            start_angle=0,
-            direction="clockwise", 
-            template='plotly_dark'
-        )
-
-        fig.update_traces(
-            mode='lines+markers', 
-            fill='toself',        
-            opacity=0.7,      
-            marker=dict(size=8)
-        )
-        
-        fig.update_layout(
-            polar=dict(
-                radialaxis=dict(visible=True, showticklabels=True, showline=False, angle=90, tickangle=90),
-                angularaxis=dict(categoryorder='array', categoryarray=ordered_species)
-            ),
-            coloraxis_showscale=False,
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-        # 3. Radar Chart (Protein Hits)
-        radar_fig = px.line_polar(
-            comparison_df,
-            r='bit_score',         
-            theta='Model_Organism', 
-            color='Color_Group',    
-            line_close=True,
-            title=f'Protein Hit Bitscores by Species compared to {target_name}',
-            labels={'bit_score': 'Bit Score', 'Model_Organism': 'Model Organism', 'Color_Group': 'Target Protein (UniProt ID)'},
-            hover_data={'Model_Protein': True, 'bit_score': ':.0f', 'Compared_Species': False},
-            start_angle=0,
-            direction="clockwise", 
-            template='plotly_dark'
-        )
-
-        radar_fig.update_traces(
-            mode='lines+markers', 
-            fill='toself',       
-            opacity=0.5,      
-            marker=dict(size=5)  
-        )
-
-        radar_fig.update_polars(
-            radialaxis_showgrid=True,
-            angularaxis_showgrid=True,
-            bgcolor='#000000',
-            angularaxis_categoryorder='array', 
-            angularaxis_categoryarray=ordered_species,
-            radialaxis=dict(
-                visible=True, showticklabels=True, showline=False, angle=90, tickangle=90,
-                range=[0, comparison_df['bit_score'].max() * 1.1] 
-            )
-        )
-
-        # Extract color map for later use
-        color_map = {}
-        for trace in radar_fig.data:
-            color = trace.line.color 
-            if trace.name not in color_map and color:
-                color_map[trace.name] = color
-        # st.plotly_chart(radar_fig, use_container_width=True)
-
-        # --- STRUCTURE ALIGNMENT ---
-        if st.toggle(':green[Show protein structure alignments]'):
-            st.subheader(f'Structural comparison between {target_name} and model organisms')
+            st.write('Selected Protein(s) in your study: ', protein_list)
             
-            unique_target_proteins = comparison_df['proteinA'].unique()
-            selected_protein_A = st.radio(
-                "Select the **Target protein** to visualise:",
-                unique_target_proteins,
-                horizontal=True
-            )
-            
-            selected_protein_df = comparison_df[comparison_df['proteinA'] == selected_protein_A]
-            
-            if selected_protein_df.empty:
-                st.warning(f"No structural comparison hit found for {selected_protein_A}.")
+            # Handle Target Name
+            if target == '':
+                target_species = 'Homo_sapiens_Human'
             else:
-                selected_group = selected_protein_df['Color_Group'].iloc[0]
-                selected_protein_df=selected_protein_df.sort_values(by='bit_score', ascending=False)
-                
-                # --- Single Protein Radar Chart ---
-                radar_fig_alone = px.line_polar(
-                    selected_protein_df,  
-                    r='bit_score',
-                    theta='Model_Organism',
-                    color='Color_Group',
-                    color_discrete_map={selected_group: color_map.get(selected_group, '#FFFFFF')},
-                    line_close=True,
-                    title=f'Structural hits for {selected_protein_A} from {target_name}',
-                    labels={'bit_score': 'Bit Score', 'Model_Organism': 'Model Organism', 'Color_Group': 'Target Protein'},
-                    hover_data={'Model_Protein': True, 'bit_score': ':.0f', 'Compared_Species': False},
-                    start_angle=0,
-                    direction="clockwise",
-                    template='plotly_dark'
-                )
+                target_species = target
 
-                radar_fig_alone.update_traces(mode='lines+markers', fill='toself', opacity=0.8, marker=dict(size=5))
-                radar_fig_alone.update_polars(
-                    radialaxis_showgrid=True, angularaxis_showgrid=True, bgcolor='#000000',
-                    angularaxis_categoryorder='array', angularaxis_categoryarray=ordered_species,
-                    radialaxis=dict(visible=True, showticklabels=True, showline=False, angle=90, tickangle=90,
-                                    range=[0, selected_protein_df['bit_score'].max() * 1.1])
-                )
-                st.plotly_chart(radar_fig_alone, use_container_width=True)
-                
-                # --- STRUCTURE LOOP ---
-                # Pre-load Mapping/PDB info for the target ONCE
-                target_uniprot_id = selected_protein_A.split('-')[1]
-                mapping_file = 'data/core/model/extracted_and_renamed.csv'
-                proteome_map = load_mapping_proteome(mapping_file)
-                proteome_target_id = proteome_map.get(target_species)
-                
-                pdb_target = get_pdb2(target_uniprot_id, proteome_target_id)
-                
-                if not pdb_target:
-                    st.error(f"Could not retrieve PDB file for target {target_uniprot_id}")
-                else:
-                    for index, row in selected_protein_df.iterrows():
-                        hit_proteinB = row['proteinB']
-                        hit_species = row['Compared_Species']
-                        
-                        st.divider()
-                        st.write(f"### **{hit_species}** (Bit Score: {row['bit_score']:.0f})")
+            status_placeholder = st.empty()
+            status_placeholder.info(f"a. Ranking your model organisms...")
 
-                        # Get Model PDB
-                        model_uniprot_id = hit_proteinB.split('-')[1]
-                        proteome_model_id = proteome_map.get(hit_species)
-                        pdb_model = get_pdb2(model_uniprot_id, proteome_model_id)
+            # --- CALL CACHED FUNCTION ---
+            # This runs immediately if cached: #st.chache_data()
+            df_final, comparison_df, error_msg = prepare_ranking_data2(target_species, model_organisms, protein_list)
 
-                        if not pdb_model:
-                            st.warning(f"PDB file not found for {hit_species}.")
-                            continue
+            if error_msg:
+                print(error_msg)
+                #st.session_state['ranking_active'] = False
+                st.stop() # Stops execution safely
 
-                        # --- ALIGNMENT & SVD ---
-                        st.write(f"Structural Overlap {target_species} {target_uniprot_id} vs. {hit_species} {model_uniprot_id}")
-                        aln_data = run_foldseek_alignment_only(query_path=pdb_model, target_path=pdb_target)
+            # --- SAVE FILES ---
+            # Side effects (saving files) should happen outside the cached function
+            csv_out = "results/model_trees/" + user + "/"
+            os.makedirs(csv_out, exist_ok=True)
+            
+            txt_path = csv_out + "model_ranking.txt"
+            df_final.to_csv(txt_path, index=False, sep='\t')
+            
+            ranking_df = comparison_df.copy()
+            if not ranking_df.empty:
+                # Only rename if we actually have columns
+                ranking_df.columns = [f'{target}_Protein', 'Structural_ortholog', 'Bit_score', 'Model_Species']
+                txt_path2 = csv_out + "protein_hits_ranking.txt"
+                ranking_df.to_csv(txt_path2, index=False, sep='\t')
+            else:
+                # If empty, skipping saving the hits file and warn the user
+                st.warning("No structural orthologs were found.")
+                # Depending on your preference, you might want to stop here 
+                # because the plots below will likely be empty too.
+                if df_final['Score'].max() == 0:
+                    st.stop()
 
-                        #if aln_data:
-                        if aln_data is not None and not aln_data.empty:
-                            out_file_name = f"foldseek_{target_uniprot_id}_vs_{model_uniprot_id}.pdb"
-                            out_file = os.path.join(csv_out, out_file_name)
-                            
-                            target_fmt = get_format_from_path(pdb_target)
-                            model_fmt = get_format_from_path(pdb_model)
-                            
-                            success, rmsd = calculate_svd_and_merge(
-                                target_file=pdb_target, target_fmt=target_fmt, 
-                                query_file=pdb_model, query_fmt=model_fmt, 
-                                aln_data=aln_data, 
-                                out_name=out_file
-                            )
-
-                            if success:
-                                # --- USE THE FRAGMENT ---
-                                render_interactive_structure(
-                                    key_suffix=index, # Unique key per row ensures widgets don't conflict
-                                    out_file=out_file, 
-                                    target_name=selected_protein_A, 
-                                    query_name=hit_proteinB, 
-                                    tm_score=aln_data.get('tm', 0.0), 
-                                    rmsd=rmsd
-                                )
-                            else:
-                                st.warning("SVD superposition failed.")
-                        else:
-                            st.warning("Foldseek could not align the structures. Maybe too many disordered regions?")
-                            st.warning("Try it directly on Foldseek search page:")
-                            #st.page_link("https://search.foldseek.com/search", label="Foldseek search", icon="🌎")
-                            fold_path = "data/logos/foldseek_logo.png" # Replace with your png path
-                            fold_b64 = get_base64_image(fold_path)
-                            st.markdown(f"""
-                                <a href="https://search.foldseek.com/search" target="_blank" style="
-                                    text-decoration: none; 
-                                    color: inherit; 
-                                    display: inline-flex; 
-                                    align-items: center; 
-                                    gap: 10px; 
-                                    background-color: #f0f2f6;
-                                    padding: 10px 15px; 
-                                    border-radius: 8px; 
-                                    transition: 0.3s;
-                                    border: 1px solid rgba(0,0,0,0.1);
-                                "
-                                onmouseover="this.style.backgroundColor='#e0e2e6';"
-                                onmouseout="this.style.backgroundColor='#f0f2f6';"
-                                >
-                                    <img src="data:image/png;base64,{fold_b64}" style="
-                                        width: 20px; 
-                                        height: 20px; 
-                                        object-fit: contain;
-                                    ">
-                                    
-                                    <span style="font-weight: 600;">Foldseek search</span>
-                                </a>
-                            """, unsafe_allow_html=True)
-
-        # --- DOWNLOAD BUTTON LOGIC ---
-        is_random_user = False
-        if not user_email:
-            is_random_user = True
-        user_dir = os.path.join("results", "model_trees", user)
-        target_folder_path = user_dir
-        user_name = user.split('@')[0]
-        zip_file_name = f"results_{user_name}" 
-        output_base_dir = "temp_archives" 
-        os.makedirs(output_base_dir, exist_ok=True) 
-        shutil.make_archive(
-            base_name=os.path.join(output_base_dir, zip_file_name),
-            format='zip',
-            root_dir=os.path.dirname(target_folder_path), 
-            base_dir=os.path.basename(target_folder_path)
-        )
-        zip_file_path = os.path.join(output_base_dir, f"{zip_file_name}.zip")
-        with open(zip_file_path, "rb") as file:
-            st.sidebar.download_button(
-                label="Download results now",
-                data=file, 
-                file_name=f"{zip_file_name}.zip",
-                mime="application/zip",
-                icon=":material/download:",
+            # --- DISPLAY LOGIC ---
+            st.write("--- Organism Ranking ---")
+            st.write('Selected Target Organism: ', target_species)
+            st.write('Selected Model Organism(s): ', ', '.join(model_organisms))
+            
+            top_model_organism = df_final.iloc[0]['Organism']
+            # Extract just Genus species (e.g., "Mus musculus")
+            top_model_organism = ' '.join(top_model_organism.split('_', maxsplit=2)[:2])
+            
+            st.markdown(
+                f"""
+                <div style='
+                    text-align: center; 
+                    color: orange; 
+                    font-size: 2rem;           /* Much bigger size */
+                    font-weight: 800;          /* Bold weight */
+                    margin-bottom: 20px;       /* Space below */
+                    text-shadow: 2px 2px 0 #000000; /* Black shadow for readability */
+                '>
+                    The top model organism for your study is: {top_model_organism}
+                </div>
+                """,
+                unsafe_allow_html=True
             )
+            status_placeholder.empty()
+
+            # --- PLOTLY CHARTS (RESTORED) ---
+            
+            # 1. Prepare Data for Plotting
+            df_final.sort_values('Rank', ascending=True, inplace=True)
+            df_final['Display_Organism'] = df_final['Organism'].str.split('_', n=2).str[:2].str.join('_')
+            df_final['Display_Organism'] = df_final['Display_Organism'].str.replace('_', ' ')
+            
+            comparison_df['Model_Protein'] = comparison_df['proteinB'].str.split('-').str[1]
+            comparison_df['Model_Organism'] = comparison_df['Compared_Species'].str.split('_', n=2).str[:2].str.join('_')
+            comparison_df['Model_Organism'] = comparison_df['Model_Organism'].str.replace('_', ' ')
+            
+            # Create the color grouping based on proteinA
+            comparison_df['Color_Group'] = comparison_df['proteinA'].str.split('-').str[1]
+            
+            all_species = comparison_df['Model_Organism'].unique().tolist()
+            target_name = ' '.join(target_species.split('_', maxsplit=2)[:2])
+
+            # 2. Radial Bar Chart (Organism Ranking)
+            ordered_species = df_final['Display_Organism'].tolist()
+            fixed_cols = ['Rank', 'Organism', 'Score', 'Display_Organism']
+            uniprot_id_cols = [col for col in df_final.columns if col not in fixed_cols]
+            
+            # Initialize hover_data dictionary
+            hover_data_config = {'Score': ':.1f', 'Rank': True, 'Display_Organism': False}
+            for col in uniprot_id_cols:
+                hover_data_config[col] = True 
+
+            fig = px.line_polar(
+                df_final,
+                r='Score',                 
+                theta='Display_Organism',  
+                color_discrete_sequence=['#00CC96'],
+                line_close=True,
+                title='Model Organism Ranking by Bit score',
+                hover_data=hover_data_config,
+                start_angle=0,
+                direction="clockwise", 
+                template='plotly_dark'
+            )
+
+            fig.update_traces(
+                mode='lines+markers', 
+                fill='toself',        
+                opacity=0.7,      
+                marker=dict(size=8)
+            )
+            
+            fig.update_layout(
+                polar=dict(
+                    radialaxis=dict(visible=True, showticklabels=True, showline=False, angle=90, tickangle=90),
+                    angularaxis=dict(categoryorder='array', categoryarray=ordered_species)
+                ),
+                coloraxis_showscale=False,
+            )
+            st.plotly_chart(fig, width='stretch')
+
+            # 3. Radar Chart (Protein Hits)
+            radar_fig = px.line_polar(
+                comparison_df,
+                r='bit_score',         
+                theta='Model_Organism', 
+                color='Color_Group',    
+                line_close=True,
+                title=f'Protein Hit Bitscores by Species compared to {target_name}',
+                labels={'bit_score': 'Bit Score', 'Model_Organism': 'Model Organism', 'Color_Group': 'Target Protein (UniProt ID)'},
+                hover_data={'Model_Protein': True, 'bit_score': ':.0f', 'Compared_Species': False},
+                start_angle=0,
+                direction="clockwise", 
+                template='plotly_dark'
+            )
+
+            radar_fig.update_traces(
+                mode='lines+markers', 
+                fill='toself',       
+                opacity=0.5,      
+                marker=dict(size=5)  
+            )
+
+            radar_fig.update_polars(
+                radialaxis_showgrid=True,
+                angularaxis_showgrid=True,
+                bgcolor='#000000',
+                angularaxis_categoryorder='array', 
+                angularaxis_categoryarray=ordered_species,
+                radialaxis=dict(
+                    visible=True, showticklabels=True, showline=False, angle=90, tickangle=90,
+                    range=[0, comparison_df['bit_score'].max() * 1.1] 
+                )
+            )
+
+            # Extract color map for later use
+            color_map = {}
+            for trace in radar_fig.data:
+                color = trace.line.color 
+                if trace.name not in color_map and color:
+                    color_map[trace.name] = color
+            # st.plotly_chart(radar_fig, width='stretch')
+
+            # --- STRUCTURE ALIGNMENT ---
+            if st.toggle(':green[Show protein structure alignments]'):
+                st.subheader(f'Structural comparison between {target_name} and model organisms')
+                
+                unique_target_proteins = comparison_df['proteinA'].unique()
+                selected_protein_A = st.radio(
+                    "Select the **Target protein** to visualise:",
+                    unique_target_proteins,
+                    horizontal=True
+                )
+                
+                selected_protein_df = comparison_df[comparison_df['proteinA'] == selected_protein_A]
+                
+                if selected_protein_df.empty:
+                    st.warning(f"No structural comparison hit found for {selected_protein_A}.")
+                else:
+                    selected_group = selected_protein_df['Color_Group'].iloc[0]
+                    selected_protein_df=selected_protein_df.sort_values(by='bit_score', ascending=False)
+                    
+                    # --- Single Protein Radar Chart ---
+                    radar_fig_alone = px.line_polar(
+                        selected_protein_df,  
+                        r='bit_score',
+                        theta='Model_Organism',
+                        color='Color_Group',
+                        color_discrete_map={selected_group: color_map.get(selected_group, '#FFFFFF')},
+                        line_close=True,
+                        title=f'Structural hits for {selected_protein_A} from {target_name}',
+                        labels={'bit_score': 'Bit Score', 'Model_Organism': 'Model Organism', 'Color_Group': 'Target Protein'},
+                        hover_data={'Model_Protein': True, 'bit_score': ':.0f', 'Compared_Species': False},
+                        start_angle=0,
+                        direction="clockwise",
+                        template='plotly_dark'
+                    )
+
+                    radar_fig_alone.update_traces(mode='lines+markers', fill='toself', opacity=0.8, marker=dict(size=5))
+                    radar_fig_alone.update_polars(
+                        radialaxis_showgrid=True, angularaxis_showgrid=True, bgcolor='#000000',
+                        angularaxis_categoryorder='array', angularaxis_categoryarray=ordered_species,
+                        radialaxis=dict(visible=True, showticklabels=True, showline=False, angle=90, tickangle=90,
+                                        range=[0, selected_protein_df['bit_score'].max() * 1.1])
+                    )
+                    st.plotly_chart(radar_fig_alone, width='stretch')
+                    
+                    # --- STRUCTURE LOOP ---
+                    # Pre-load Mapping/PDB info for the target ONCE
+                    target_uniprot_id = selected_protein_A.split('-')[1]
+                    mapping_file = 'data/core/model/extracted_and_renamed.csv'
+                    proteome_map = load_mapping_proteome(mapping_file)
+                    proteome_target_id = proteome_map.get(target_species)
+                    
+                    pdb_target = get_pdb2(target_uniprot_id, proteome_target_id)
+                    
+                    if not pdb_target:
+                        st.error(f"Could not retrieve PDB file for target {target_uniprot_id}")
+                    else:
+                        for index, row in selected_protein_df.iterrows():
+                            hit_proteinB = row['proteinB']
+                            hit_species = row['Compared_Species']
+                            
+                            st.divider()
+                            st.write(f"### **{hit_species}** (Bit Score: {row['bit_score']:.0f})")
+
+                            # Get Model PDB
+                            model_uniprot_id = hit_proteinB.split('-')[1]
+                            proteome_model_id = proteome_map.get(hit_species)
+                            pdb_model = get_pdb2(model_uniprot_id, proteome_model_id)
+
+                            if not pdb_model:
+                                st.warning(f"PDB file not found for {hit_species}.")
+                                continue
+
+                            # --- ALIGNMENT & SVD ---
+                            st.write(f"Structural Overlap {target_species} {target_uniprot_id} vs. {hit_species} {model_uniprot_id}")
+                            aln_data = run_foldseek_alignment_only(query_path=pdb_model, target_path=pdb_target)
+
+                            #if aln_data:
+                            if aln_data is not None and not aln_data.empty:
+                                out_file_name = f"foldseek_{target_uniprot_id}_vs_{model_uniprot_id}.pdb"
+                                out_file = os.path.join(csv_out, out_file_name)
+                                
+                                target_fmt = get_format_from_path(pdb_target)
+                                model_fmt = get_format_from_path(pdb_model)
+                                
+                                success, rmsd = calculate_svd_and_merge(
+                                    target_file=pdb_target, target_fmt=target_fmt, 
+                                    query_file=pdb_model, query_fmt=model_fmt, 
+                                    aln_data=aln_data, 
+                                    out_name=out_file
+                                )
+
+                                if success:
+                                    # --- USE THE FRAGMENT ---
+                                    render_interactive_structure(
+                                        key_suffix=index, # Unique key per row ensures widgets don't conflict
+                                        out_file=out_file, 
+                                        target_name=selected_protein_A, 
+                                        query_name=hit_proteinB, 
+                                        tm_score=aln_data.get('tm', 0.0), 
+                                        rmsd=rmsd
+                                    )
+                                else:
+                                    st.warning("SVD superposition failed.")
+                            else:
+                                st.warning("Foldseek could not align the structures. Maybe too many disordered regions?")
+                                st.warning("Try it directly on Foldseek search page:")
+                                #st.page_link("https://search.foldseek.com/search", label="Foldseek search", icon="🌎")
+                                fold_path = "data/logos/foldseek_logo.png" # Replace with your png path
+                                fold_b64 = get_base64_image(fold_path)
+                                st.markdown(f"""
+                                    <a href="https://search.foldseek.com/search" target="_blank" style="
+                                        text-decoration: none; 
+                                        color: inherit; 
+                                        display: inline-flex; 
+                                        align-items: center; 
+                                        gap: 10px; 
+                                        background-color: #f0f2f6;
+                                        padding: 10px 15px; 
+                                        border-radius: 8px; 
+                                        transition: 0.3s;
+                                        border: 1px solid rgba(0,0,0,0.1);
+                                    "
+                                    onmouseover="this.style.backgroundColor='#e0e2e6';"
+                                    onmouseout="this.style.backgroundColor='#f0f2f6';"
+                                    >
+                                        <img src="data:image/png;base64,{fold_b64}" style="
+                                            width: 20px; 
+                                            height: 20px; 
+                                            object-fit: contain;
+                                        ">
+                                        
+                                        <span style="font-weight: 600;">Foldseek search</span>
+                                    </a>
+                                """, unsafe_allow_html=True)
+
+            # --- DOWNLOAD BUTTON LOGIC ---
+            is_random_user = False
+            if not user_email:
+                is_random_user = True
+            user_dir = os.path.join("results", "model_trees", user)
+            target_folder_path = user_dir
+            user_name = user.split('@')[0]
+            zip_file_name = f"results_{user_name}" 
+            output_base_dir = "temp_archives" 
+            os.makedirs(output_base_dir, exist_ok=True) 
+            shutil.make_archive(
+                base_name=os.path.join(output_base_dir, zip_file_name),
+                format='zip',
+                root_dir=os.path.dirname(target_folder_path), 
+                base_dir=os.path.basename(target_folder_path)
+            )
+            zip_file_path = os.path.join(output_base_dir, f"{zip_file_name}.zip")
+            with open(zip_file_path, "rb") as file:
+                st.sidebar.download_button(
+                    label="Download results now",
+                    data=file, 
+                    file_name=f"{zip_file_name}.zip",
+                    mime="application/zip",
+                    icon=":material/download:",
+                )
         
     st.write("---")
     if st.button("Close Analysis"):
         st.session_state['ranking_active'] = False
-        if is_random_user:
-            os.remove(zip_file_path)
-            shutil.rmtree(user_dir)
+        st.session_state['analysis_submitted'] = False # Reset internal state too
+        if is_random_user and 'user_dir' in locals():
+            try:
+                if os.path.exists(zip_file_path): os.remove(zip_file_path)
+                if os.path.exists(user_dir): shutil.rmtree(user_dir)
+            except Exception:
+                pass
         st.rerun()
     if st.session_state['ranking_active'] == False:
-        if is_random_user:
-            os.remove(zip_file_path)
-            shutil.rmtree(user_dir)
-    
+        # Cleanup if module is closed externally
+        if 'is_random_user' in locals() and is_random_user:
+            try:
+                if os.path.exists(zip_file_path): os.remove(zip_file_path)
+                if os.path.exists(user_dir): shutil.rmtree(user_dir)
+            except Exception:
+                pass
 
 # --- CITATION
 st.subheader('Cite', divider="rainbow")
