@@ -205,14 +205,17 @@ if st.session_state.show_tree:
         st.warning(f"Tree not found")
 
 # Branch Rates Data (Optimized with Cache)
-if st.sidebar.toggle('Show species branch rate in kingdom'):
-    csv_filename = f"kingdoms_{kingdom}_branch_rates.csv"
-    csv_path = os.path.join("data", "tree", kingdom, csv_filename)
-    
-    # Use the cached function
-    df_rates = load_csv_data(csv_path)
-    
-    if df_rates is not None:
+
+csv_filename = f"kingdoms_{kingdom}_branch_rates.csv"
+csv_path = os.path.join("data", "tree", kingdom, csv_filename)
+
+# Use the cached function
+df_rates = load_csv_data(csv_path)
+
+if df_rates is not None:
+    if 'Branch' in df_rates.columns:
+        df_rates = df_rates[~df_rates['Branch'].astype(str).str.contains("unnamed_branch", case=False, na=False)]
+    if st.sidebar.toggle('Show species branch rate in kingdom'):  
         st.dataframe(df_rates)
     else:
         st.info("Branch rate data not available for this kingdom.")
@@ -224,7 +227,6 @@ st.sidebar.subheader('2. Evolutionary rate', divider="green")
 if st.sidebar.toggle('See tree with evolutionary rate'):
     st.title('Evolutionary rate')
     st.caption(f"Showing {kingdom} ({layout}) - Yellow: High rate, Purple: Low rate")
-
     # Construct Path
     suffix_evo = "_labels.svg" if labels else ".svg"
     # Filename structure: kingdoms_Amoebozoa_Circular_tree_evorate.svg
@@ -233,6 +235,16 @@ if st.sidebar.toggle('See tree with evolutionary rate'):
 
     if os.path.exists(evo_tree_path):
         st.image(evo_tree_path, caption=f'Evolutionary Rate ({layout})', width='stretch')
+        csv_evo = "merged_evo_rate.csv"
+        csv_path = os.path.join("data", "core", csv_evo)
+        df_evo = load_csv_data(csv_path)
+        if df_evo is not None:
+            cols_to_show = ["Organism_formatted", "Rate"]
+            # Intersection of desired columns and actual columns
+            valid_cols = [c for c in cols_to_show if c in df_evo.columns]
+            if valid_cols:
+                # Display only the valid columns found
+                st.dataframe(df_evo[valid_cols], hide_index=True)
     else:
         st.warning(f"Evolutionary rate tree not found for {kingdom} in {layout} layout.")
 
