@@ -6,6 +6,7 @@ import glob
 import shutil
 import foldcomp as fc
 from pathlib import Path
+import requests
 
 # --- CONFIGURATION ---
 NAV_ITEMS = [
@@ -17,7 +18,6 @@ NAV_ITEMS = [
 ]
 
 # --- CACHED FUNCTIONS ---
-
 @st.cache_data
 def get_base64_image(image_path):
     """Reads an image from disk and converts to Base64 (Cached)."""
@@ -41,6 +41,94 @@ def get_file_content(file_path):
             return f.read()
     return None
 
+# hadles input protein mismatches
+#@st.cache_data(show_spinner=False)
+def get_uniprot_suggestion(invalid_id, target_species_proteome):
+    """
+    Queries UniProt to find out why an ID is invalid and suggests a fix.
+    Args:
+        invalid_id (str): The protein ID (e.g., P12345).
+        target_species_proteome (str): The Proteome ID (e.g., UP000005640).
+    """
+    # Clean inputs
+    target_proteome_id = target_species_proteome.strip().upper()
+    base_url = "https://rest.uniprot.org/uniprotkb"
+    
+    try:
+        # 1. Look up the ID
+        response = requests.get(f"{base_url}/{invalid_id}")
+        
+        if response.status_code == 404:
+            return None, "ID does not exist in UniProt: please check the correctness of your UniProt ID."
+        
+        if response.status_code != 200: 
+            return None, "UniProt API error: please check the correctness of your UniProt ID."
+            
+        data = response.json()
+        
+        # 2. Check if ID is Outdated (Secondary Accession)
+        primary_accession = data.get('primaryAccession')
+        if primary_accession and primary_accession != invalid_id:
+            return primary_accession, f"The ID **{invalid_id}** is outdated. The current primary ID is **{primary_accession}**."
+
+        # Extract useful metadata
+        input_gene = None
+        if 'genes' in data and len(data['genes']) > 0:
+            input_gene = data['genes'][0].get('geneName', {}).get('value', '')
+            
+        org_sci_name = data.get('organism', {}).get('scientificName', '')
+        input_tax_id = data.get('organism', {}).get('taxonId')
+
+        # 3. Check Proteome/Species Mismatch
+        # We check if the 'target_species_proteome' is listed in the protein's 'Proteomes' cross-references.
+        is_in_target_proteome = False
+        if 'uniProtKBCrossReferences' in data:
+            for ref in data['uniProtKBCrossReferences']:
+                if ref.get('database') == 'Proteomes' and ref.get('id') == target_proteome_id:
+                    is_in_target_proteome = True
+                    break
+        
+        # If the protein is NOT linked to the target proteome, it's a mismatch
+        if not is_in_target_proteome:
+            if input_gene:
+                # Search for this gene SPECIFICALLY in the target proteome
+                # Syntax: gene_exact:NAME AND proteome:UP000005640 AND reviewed:true
+                query = f"gene_exact:{input_gene} AND proteome:{target_proteome_id} AND reviewed:true"
+                search_url = f"{base_url}/search?query={query}&fields=accession&size=1"
+                
+                search_resp = requests.get(search_url)
+                if search_resp.status_code == 200:
+                    results = search_resp.json().get('results', [])
+                    if results:
+                        best_match = results[0]['primaryAccession']
+                        return best_match, f"The ID **{invalid_id}** belongs to *{org_sci_name}*. Did you mean the ID **{best_match}** (Gene: {input_gene}) found in your target proteome?"
+            
+            # If search fails, just return a generic mismatch error
+            return None, f"The ID **{invalid_id}** belongs to *{org_sci_name}* and is not linked to your target proteome ({target_proteome_id}). Please provide a valid ID for your target species."
+
+        # 4. Check if it is Unreviewed (TrEMBL)
+        # If we are here, the species is correct, but AFDB/AlphaFold usually prioritizes Swiss-Prot (Reviewed).
+        # We check if a reviewed version exists for the SAME organism.
+        entry_type = data.get('entryType', '') # 'UniProtKB reviewed (Swiss-Prot)' or 'UniProtKB unreviewed (TrEMBL)'
+        
+        if "unreviewed" in entry_type.lower() and input_gene and input_tax_id:
+            query = f"gene_exact:{input_gene} AND organism_id:{input_tax_id} AND reviewed:true"
+            search_url = f"{base_url}/search?query={query}&fields=accession&size=1"
+            
+            s_resp = requests.get(search_url)
+            if s_resp.status_code == 200:
+                results = s_resp.json().get('results', [])
+                if results:
+                    reviewed_id = results[0]['primaryAccession']
+                    if reviewed_id != invalid_id:
+                        return reviewed_id, f"The ID **{invalid_id}** is an unreviewed (TrEMBL) entry. The reviewed (Swiss-Prot) entry is **{reviewed_id}**."
+
+        # 5. Default Fallback
+        return None, "ID exists but was probably not reviewed or included in the reference proteome used for AFDB v4. It will be excluded from analysis."
+
+    except Exception as e:
+        return None, f"Could not connect to UniProt to verify ID: {e}"
+    
 # --- HELPER FUNCTIONS ---
 
 def zip_directory(source_path, output_name):
@@ -229,12 +317,13 @@ with st.expander('Protein Structure Predictions'):
     col_search = st.columns(2)
     with col_search[0]:
         proteome_struct = st.text_input('Proteome ID (e.g. UP000000226)', key="proteome_struct")
+        proteome_struct = proteome_struct.strip().upper()
+        st.page_link(f"https://www.uniprot.org/proteomes/{proteome_struct}", label="View in UniProt Proteomes", icon="🌎")
     with col_search[1]:
         protein_struct = st.text_input('Protein ID (e.g. V7ATE2)', key="protein_struct")
-    if proteome_struct and protein_struct:
-        proteome_struct = proteome_struct.strip().upper()
         protein_struct = protein_struct.strip().upper()
         st.page_link(f"https://www.uniprot.org/uniprotkb/{protein_struct}/entry", label="View in UniProtKB", icon="🌎")
+    if proteome_struct and protein_struct:
         if st.button("Prepare Download", key="btn_struct"):
             index_dir = 'data/subset/index'
             subset_dir = 'data/subset/subset'
@@ -244,7 +333,7 @@ with st.expander('Protein Structure Predictions'):
             matching_proteome = glob.glob(proteome_index_pattern)
             
             if not matching_proteome:
-                st.error(f"Proteome {proteome_struct} not found.")
+                st.error(f"Proteome {proteome_struct} not found. Please check the input Proteome ID.")
             else:
                 # 2. Load Index (Cached)
                 with st.spinner("Searching index..."):
@@ -255,7 +344,13 @@ with st.expander('Protein Structure Predictions'):
                         match = df_index[df_index['afdb_id'] == af_protein_id]
                         
                         if match.empty:
-                            st.error(f"Protein {af_protein_id} not found in this proteome.")
+                            invalid_protein_id = af_protein_id
+                            suggested_id, reason_msg = get_uniprot_suggestion(invalid_protein_id, proteome_struct)
+                            if suggested_id:
+                                st.error(f"Protein {af_protein_id} not found in proteome {proteome_struct}: {reason_msg} Did you mean **{suggested_id}**?.")
+                            else:
+                                st.error(f"Protein {af_protein_id} not found in proteome {proteome_struct}: {reason_msg}")
+                                st.page_link(f"https://www.uniprot.org/uniprotkb/{af_protein_id}/entry", label=f"Check {af_protein_id} existence in {proteome_struct} proteome and potential updated reviewed ID on UniProt", icon="🌎")
                         else:
                             # 3. Extract from Foldcomp
                             retrieved_index = match['fc_db_index'].iloc[0]

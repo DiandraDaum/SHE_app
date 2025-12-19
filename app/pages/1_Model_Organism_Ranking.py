@@ -753,7 +753,7 @@ def calculate_svd_and_merge(target_file, target_fmt, query_file, query_fmt, aln_
         return False, 0
 
 @st.cache_data
-def render_3dmol_alignment(color, structure_path, target_name, query_name, tm_score, rmsd, spin_on=True):
+def render_3dmol_alignment(color, structure_path, target_name, target_species, query_name, model_species, tm_score, rmsd, spin_on=True):
     """
     Renders the merged PDB file, applying different colors to the two chains 
     (Target: light blue, Query/Model: yellow).
@@ -792,7 +792,7 @@ def render_3dmol_alignment(color, structure_path, target_name, query_name, tm_sc
         **Alignment Details:**
         * **TM-Score:** `{tm_score:.4f}` 
         * **RMSD:** `{rmsd:.4f}` Å
-        * **Chain legend:** **{target_name}** (**cyan**) vs. **{query_name}** (**yellow**)
+        * **Chain legend:** **{target_species}** **{target_name}** (**cyan**) vs. **{model_species}** **{query_name}** (**yellow**)
         * **plDDT legend: >90 (dark blue), 81-90 (cyan), 71-80 (green), 61-70 (yellow), 51-60 (orange), <51 (red)**
     """)
 
@@ -805,7 +805,7 @@ def render_3dmol_alignment(color, structure_path, target_name, query_name, tm_sc
 
 # fast change in display
 @st.fragment
-def render_interactive_structure(key_suffix, out_file, target_name, query_name, tm_score, rmsd):
+def render_interactive_structure(key_suffix, out_file, target_name, target_species, query_name, model_species, tm_score, rmsd):
     """
     This function handles ONLY the UI for the structure viewer.
     Interacting with widgets here will NOT reload the whole page.
@@ -833,7 +833,9 @@ def render_interactive_structure(key_suffix, out_file, target_name, query_name, 
         alignment_color,
         structure_path=out_file, 
         target_name=target_name, 
+        target_species=target_species,
         query_name=query_name, 
+        model_species=model_species,
         tm_score=tm_score, 
         rmsd=rmsd,
         spin_on=enable_spin
@@ -1861,9 +1863,10 @@ if st.session_state['ranking_active']:
                         for index, row in selected_protein_df.iterrows():
                             hit_proteinB = row['proteinB']
                             hit_species = row['Compared_Species']
-                            
+                            target_species_clean = target_species.replace('_', ' ')
+                            hit_species_clean = hit_species.replace('_', ' ')
                             st.divider()
-                            st.write(f"### **{hit_species}** (Bit Score: {row['bit_score']:.0f})")
+                            st.write(f"### **{hit_species_clean}** (Bit Score: {row['bit_score']:.0f})")
 
                             # Get Model PDB
                             model_uniprot_id = hit_proteinB.split('-')[1]
@@ -1875,7 +1878,7 @@ if st.session_state['ranking_active']:
                                 continue
 
                             # --- ALIGNMENT & SVD ---
-                            st.write(f"Structural Overlap {target_species} {target_uniprot_id} vs. {hit_species} {model_uniprot_id}")
+                            st.write(f"Structural Overlap {target_species_clean} {target_uniprot_id} vs. {hit_species_clean} {model_uniprot_id}")
                             aln_data = run_foldseek_alignment_only(query_path=pdb_model, target_path=pdb_target)
 
                             #if aln_data:
@@ -1898,8 +1901,10 @@ if st.session_state['ranking_active']:
                                     render_interactive_structure(
                                         key_suffix=index, # Unique key per row ensures widgets don't conflict
                                         out_file=out_file, 
-                                        target_name=selected_protein_A, 
+                                        target_name=selected_protein_A,
+                                        target_species=target_species_clean,
                                         query_name=hit_proteinB, 
+                                        model_species=hit_species_clean,
                                         tm_score=aln_data.get('tm', 0.0), 
                                         rmsd=rmsd
                                     )
