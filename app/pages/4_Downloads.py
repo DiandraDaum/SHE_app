@@ -46,14 +46,11 @@ def get_file_content(file_path):
 def get_uniprot_suggestion(invalid_id, target_species_proteome):
     """
     Queries UniProt to find out why an ID is invalid and suggests a fix.
-    Args:
-        invalid_id (str): The protein ID (e.g., P12345).
-        target_species_proteome (str): The Proteome ID (e.g., UP000005640).
     """
     # Clean inputs
     target_proteome_id = target_species_proteome.strip().upper()
     base_url = "https://rest.uniprot.org/uniprotkb"
-    
+
     try:
         # 1. Look up the ID
         response = requests.get(f"{base_url}/{invalid_id}")
@@ -62,11 +59,11 @@ def get_uniprot_suggestion(invalid_id, target_species_proteome):
             return None, "ID does not exist in UniProt: please check the correctness of your UniProt ID."
         
         if response.status_code != 200: 
-            return None, "UniProt API error: please check the correctness of your UniProt ID."
+            return None, "UniProt API error."
             
         data = response.json()
         
-        # 2. Check if ID is Outdated (Secondary Accession)
+        # 2. Check if ID is Outdated
         primary_accession = data.get('primaryAccession')
         if primary_accession and primary_accession != invalid_id:
             return primary_accession, f"The ID **{invalid_id}** is outdated. The current primary ID is **{primary_accession}**."
@@ -80,36 +77,63 @@ def get_uniprot_suggestion(invalid_id, target_species_proteome):
         input_tax_id = data.get('organism', {}).get('taxonId')
 
         # 3. Check Proteome/Species Mismatch
-        # We check if the 'target_species_proteome' is listed in the protein's 'Proteomes' cross-references.
-        is_in_target_proteome = False
+        found_proteomes = []
         if 'uniProtKBCrossReferences' in data:
             for ref in data['uniProtKBCrossReferences']:
-                if ref.get('database') == 'Proteomes' and ref.get('id') == target_proteome_id:
-                    is_in_target_proteome = True
-                    break
+                if ref.get('database') == 'Proteomes':
+                    found_proteomes.append(ref.get('id'))
         
-        # If the protein is NOT linked to the target proteome, it's a mismatch
-        if not is_in_target_proteome:
+        # If the target proteome is NOT in the protein's list, we investigate why.
+        if target_proteome_id not in found_proteomes:
+            
+            # Check if it's actually a Species Mismatch or just a missing Reference Tag
+            is_genuine_mismatch = True 
+            
             if input_gene:
-                # Search for this gene SPECIFICALLY in the target proteome
-                # Syntax: gene_exact:NAME AND proteome:UP000005640 AND reviewed:true
+                # Search for the gene in the TARGET Proteome
+                # We request 'organism_id' to verify if the species matches our input
                 query = f"gene_exact:{input_gene} AND proteome:{target_proteome_id} AND reviewed:true"
-                search_url = f"{base_url}/search?query={query}&fields=accession&size=1"
+                search_url = f"{base_url}/search?query={query}&fields=accession,organism_id,organism_name&size=1"
                 
                 search_resp = requests.get(search_url)
                 if search_resp.status_code == 200:
                     results = search_resp.json().get('results', [])
                     if results:
                         best_match = results[0]['primaryAccession']
-                        return best_match, f"The ID **{invalid_id}** belongs to *{org_sci_name}*. Did you mean the ID **{best_match}** (Gene: {input_gene}) found in your target proteome?"
-            
-            # If search fails, just return a generic mismatch error
-            return None, f"The ID **{invalid_id}** belongs to *{org_sci_name}* and is not linked to your target proteome ({target_proteome_id}). Please provide a valid ID for your target species."
+                        match_tax_id = results[0].get('organism', {}).get('taxonId')
+                        
+                        # --- CRITICAL FIX ---
+                        # If the TaxID of the result (Target Proteome) matches the TaxID of the input (User ID),
+                        # THEN IT IS THE SAME SPECIES.
+                        # It is NOT a mismatch. It is likely just Unreviewed.
+                        # We allow the code to continue to Step 4.
+                        if match_tax_id == input_tax_id:
+                            is_genuine_mismatch = False
+                        else:
+                            # TaxIDs are different (e.g., Mouse vs Human). This is a real mismatch.
+                            return best_match, f"The ID **{invalid_id}** belongs to *{org_sci_name}*. Did you mean the ID **{best_match}** (Gene: {input_gene}) found in your target proteome **{target_proteome_id}**?"
+
+            # If we confirmed it's a different species, return error.
+            # If we confirmed it's the SAME species (is_genuine_mismatch=False), we SKIP this block.
+            if is_genuine_mismatch:
+                 # If we didn't find a gene match to verify, we default to assuming mismatch 
+                 # UNLESS we can check Step 4. 
+                 # However, if it's truly the same species, Step 4 will likely catch it.
+                 # To be safe, if we haven't proven it's the same species, we warn.
+                 # But for Q99870, we proved it above, so we skip this return.
+                 
+                 # Only return if we actually found a different species or really can't map it.
+                 if input_gene: # If we had a gene but failed to match TaxID or failed search
+                     # If the search returned nothing, we can't prove match, so we might return error or fallback.
+                     # Let's fallback to Step 4 if we are unsure.
+                     pass 
+                 else:
+                     actual_prot = found_proteomes[0] if found_proteomes else "Unknown"
+                     return None, f"The ID **{invalid_id}** belongs to *{org_sci_name}* (Proteome: {actual_prot}), not your target **{target_proteome_id}**."
 
         # 4. Check if it is Unreviewed (TrEMBL)
-        # If we are here, the species is correct, but AFDB/AlphaFold usually prioritizes Swiss-Prot (Reviewed).
-        # We check if a reviewed version exists for the SAME organism.
-        entry_type = data.get('entryType', '') # 'UniProtKB reviewed (Swiss-Prot)' or 'UniProtKB unreviewed (TrEMBL)'
+        # Q99870 will now reach here because we skipped the error above!
+        entry_type = data.get('entryType', '') 
         
         if "unreviewed" in entry_type.lower() and input_gene and input_tax_id:
             query = f"gene_exact:{input_gene} AND organism_id:{input_tax_id} AND reviewed:true"
@@ -121,13 +145,13 @@ def get_uniprot_suggestion(invalid_id, target_species_proteome):
                 if results:
                     reviewed_id = results[0]['primaryAccession']
                     if reviewed_id != invalid_id:
-                        return reviewed_id, f"The ID **{invalid_id}** is an unreviewed (TrEMBL) entry. The reviewed (Swiss-Prot) entry is **{reviewed_id}**."
+                        return reviewed_id, f"The ID **{invalid_id}** is an unreviewed (TrEMBL) entry. The reviewed (Swiss-Prot) entry for gene **{input_gene}** is **{reviewed_id}**."
 
         # 5. Default Fallback
-        return None, "ID exists but was probably not reviewed or included in the reference proteome used for AFDB v4. It will be excluded from analysis."
+        return None, "ID exists but was probably not reviewed or included in the reference proteome used for AFDB v4."
 
     except Exception as e:
-        return None, f"Could not connect to UniProt to verify ID: {e}"
+        return None, f"Could not connect to UniProt: {e}"
     
 # --- HELPER FUNCTIONS ---
 
@@ -344,12 +368,11 @@ with st.expander('Protein Structure Predictions'):
                         match = df_index[df_index['afdb_id'] == af_protein_id]
                         
                         if match.empty:
-                            invalid_protein_id = af_protein_id
-                            suggested_id, reason_msg = get_uniprot_suggestion(invalid_protein_id, proteome_struct)
+                            suggested_id, reason_msg = get_uniprot_suggestion(protein_struct, proteome_struct)
                             if suggested_id:
-                                st.error(f"Protein {af_protein_id} not found in proteome {proteome_struct}: {reason_msg} Did you mean **{suggested_id}**?.")
+                                st.error(f"Protein {protein_struct} not found: {reason_msg}")
                             else:
-                                st.error(f"Protein {af_protein_id} not found in proteome {proteome_struct}: {reason_msg}")
+                                st.error(f"Protein {protein_struct} not found in proteome {proteome_struct}: {reason_msg}")
                                 st.page_link(f"https://www.uniprot.org/uniprotkb/{af_protein_id}/entry", label=f"Check {af_protein_id} existence in {proteome_struct} proteome and potential updated reviewed ID on UniProt", icon="🌎")
                         else:
                             # 3. Extract from Foldcomp

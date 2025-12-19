@@ -1084,12 +1084,9 @@ def prepare_ranking_data2(target_species, model_organisms, protein_list_str):
             uid_missing.append(uid)
             #st.error(f"The protein ID **{uid}** was not found in the reference proteome of **{target_species}**. This can happen if the protein ID is not reviewed in the reference proteome used for AFDB v4 predictions. All its comparisons will be skipped.")
             suggested_id, reason_msg = get_uniprot_suggestion(uid, target_species)
-            st.error(f"**Mismatch:** Protein **{uid}** was not found in the reference proteome of your target species: **{target_species}**.")
             if suggested_id:
+                st.warning(f"**Mismatch:** Protein **{uid}** was not found in the reference proteome of your target species: **{target_species}**.")
                 new_pid = "AF-" + suggested_id + "-F1-model_v4"
-                # If we found a better ID, show it clearly
-                #st.info(f"**Suggestion:** {reason_msg}")
-                #st.code(suggested_id, language="text") # Easy copy-paste for user
                 if new_pid in proteome_df['afdb_id'].values:
                     # SUCCESS: Replace it
                     final_analysis_ids.append(suggested_id)
@@ -1098,6 +1095,7 @@ def prepare_ranking_data2(target_species, model_organisms, protein_list_str):
                         st.info(f"{reason_msg}")
                         st.page_link(f"https://www.uniprot.org/uniprotkb/{uid}/entry", label=f"Check {uid} existence in {target_species} proteome and potential updated reviewed ID on UniProt", icon="🌎")
                 else:
+                    st.error(f"**Mismatch:** Protein **{uid}** was not found in the reference proteome of your target species: **{target_species}**.")
                     # Suggestion exists in UniProt but NOT in local AFDB (e.g. >2700aa)
                     with st.expander(f"See {uid} error details"):
                         st.warning(f"{reason_msg}. UniProt suggests **{suggested_id}**, but it is also missing from the AFDB v4 (it might be too large or new).")
