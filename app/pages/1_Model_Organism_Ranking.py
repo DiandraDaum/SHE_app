@@ -1703,8 +1703,6 @@ if st.session_state['ranking_active']:
                 unsafe_allow_html=True
             )
             status_placeholder.empty()
-
-            # --- PLOTLY CHARTS (RESTORED) ---
             
             # 1. Prepare Data for Plotting
             df_final.sort_values('Rank', ascending=True, inplace=True)
