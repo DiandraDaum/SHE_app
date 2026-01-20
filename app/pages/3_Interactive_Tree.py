@@ -66,7 +66,7 @@ def kingdom_color(kingdom):
         return "#080808"
     
 #for find species
-@st.cache_data
+#@st.cache_data
 def extract_closest_species(newick_file, input_species, num_neighbors): #species
     """
     Extracts a subtree containing a target species and its N closest relatives
@@ -724,14 +724,14 @@ def display_interactive_tree_c_zoom(tree_path, name):
                 x=[target_x], y=[target_y],
                 mode='markers+text',
                 marker=dict(
-                    size=16, 
+                    size=14, 
                     color='#FF0000', # Red
                     symbol='star',   # Star shape
-                    line=dict(width=2, color='white')
+                    line=dict(width=1, color='white')
                 ),
-                text=[search_node],
-                textposition="top center",
-                textfont=dict(size=16, color='#FF0000', family="Arial Black"),
+                #text=[search_node],
+                #textposition="top center",
+                #textfont=dict(size=10, color='#FF0000', family="Arial Black"),
                 name='Selected'
             )
             data_traces.append(trace_highlight)
@@ -1303,6 +1303,67 @@ def process_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
     
     return total_score, presence_map, score_vector
 
+
+def process_orthologs2(csv_file, uniprot_ids, search_col='proteinA'):
+    """
+    Optimized: Calculates scores using vectorized grouping instead of iterative search.
+    """
+    # 1. Convert IDs to a set for instant O(1) lookups
+    target_ids_set = set(uniprot_ids)
+    
+    # Initialize default results
+    # We use a dictionary for fast updates, then convert to list at the end
+    # Default score is 0.0, Default presence is -1 (absent)
+    final_scores = {uid: 0.0 for uid in uniprot_ids}
+    
+    total_score = 0.0
+
+    try:
+        # Read the file
+        # We only need the search column (protein name) and the score
+        # Note: We read the whole file. If files are massive (>1GB), keep the chunking logic.
+        # For standard blast outputs, reading the whole file is usually faster than chunking overhead.
+        df = pd.read_csv(csv_file, header=None, usecols=[0, 1, 4], on_bad_lines='warn')
+        df.columns = ['proteinA', 'proteinB', 'bit_score']
+        
+        # 2. Extract the ID from the column
+        # Assuming format "AF-ID-..." -> Split by '-' and take index 1
+        # This runs in C-speed (very fast)
+        df['extracted_id'] = df[search_col].astype(str).str.split('-').str[1]
+        
+        # 3. Filter: Keep only rows where the ID is in our target list
+        # This drastically reduces the data we need to process
+        relevant_rows = df[df['extracted_id'].isin(target_ids_set)]
+        
+        if not relevant_rows.empty:
+            # 4. Group by ID and find the max bit_score for each protein
+            # This replaces the manual "if score > best_score" check
+            max_scores = relevant_rows.groupby('extracted_id')['bit_score'].max()
+            
+            # 5. Update our results
+            # Convert the pandas series to a dictionary and merge it
+            found_scores = max_scores.to_dict()
+            final_scores.update(found_scores)
+            
+            # Calculate total score sum
+            total_score = max_scores.sum()
+
+    except Exception as e:
+        print(f"Error processing {csv_file}: {e}")
+        # Return empty/default values on error
+        return 0.0, {uid: -1 for uid in uniprot_ids}, [0.0] * len(uniprot_ids)
+        
+    # 6. Formatting for Output
+    # Create the strictly ordered list (Vector) for the tree
+    score_vector = [final_scores[uid] for uid in uniprot_ids]
+    
+    # Create the presence map for iTOL
+    # Logic: 1 if score > 0, else -1
+    presence_map = {uid: (1 if final_scores[uid] > 0 else -1) for uid in uniprot_ids}
+    
+    return total_score, presence_map, score_vector
+
+
 def get_human_self_vector(target_dir, uniprot_ids):
     """
     [NEW FEATURE]
@@ -1348,6 +1409,53 @@ def get_human_self_vector(target_dir, uniprot_ids):
     total_self_score = sum(human_vector)
     
     return total_self_score, human_vector
+
+def get_human_self_vector2(target_dir, uniprot_ids):
+    """
+    Calculates the 'Perfect' vector for the Target Species (e.g. Human) 
+    by finding the max score for each protein across all available files.
+    """
+    #st.info(f"Calculating self-scores for Target...")
+    
+    # 1. Setup
+    target_ids_set = set(uniprot_ids)
+    self_scores_map = {uid: 0.0 for uid in uniprot_ids}
+    
+    # 2. Search all comparison files to find the 'Best Possible Score' (Self Score)
+    # Since Human vs Chimp might yield a score of 1000, and Human vs Human isn't always 
+    # explicitly run, the max score seen anywhere is a good proxy for the self-score
+    # OR we look specifically for a self-hit file if it exists.
+    # This specific implementation scans all files to find the max 'bit_score' for the query.
+    search_pattern = os.path.join(target_dir, '**', f'*vs*_top_hits.csv')
+    all_csv_files = glob.glob(search_pattern, recursive=True)
+
+    for csv_file in all_csv_files:
+        try:
+            df_chunk = pd.read_csv(csv_file, header=None, usecols=[0, 4], on_bad_lines='warn',
+                                 chunksize=100000, dtype={0: 'str', 4: 'float'})
+            
+            for chunk in df_chunk:
+                chunk.columns = ['proteinA', 'bit_score']
+                chunk['extracted_id'] = chunk['proteinA'].str.split('-').str[1]
+                
+                # Filter for our proteins
+                relevant = chunk[chunk['extracted_id'].isin(target_ids_set)]
+                if relevant.empty: continue
+                
+                # Get max scores
+                chunk_maxes = relevant.groupby('extracted_id')['bit_score'].max()
+                
+                for vid, score in chunk_maxes.items():
+                    if score > self_scores_map[vid]:
+                        self_scores_map[vid] = score
+                        
+        except Exception as e:
+            st.warning(f"Error reading {csv_file}: {e}")
+
+    # 3. Create Vector
+    target_vector = [self_scores_map[uid] for uid in uniprot_ids]
+    total_self_score = sum(target_vector)
+    return total_self_score, target_vector
 
 def sum_scores_for_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
     """
@@ -1472,6 +1580,40 @@ def generate_distance_matrix(species_scores_dict, uniprot_ids, out_dir):
     ids_path = os.path.join(out_dir, 'ids_in_dmat.csv')
     ids_df.to_csv(ids_path, index=False)
     # FIX 2: Changed 'outdir' to 'out_dir' and ensured correct path construction
+    ids_out = ids_path
+
+    return dmat_out, ids_out
+
+@st.cache_data
+def generate_distance_matrix2(species_scores_dict, uniprot_ids, out_dir):
+    """
+    Generates dmat.npy and ids_in_dmat.csv for the bootstrap script.
+    """
+    #st.info("Generating distance matrix...")
+    
+    if not species_scores_dict:
+        print("No species data available to generate matrix.")
+        return
+
+    # Convert to DataFrame
+    df = pd.DataFrame.from_dict(species_scores_dict, orient='index', columns=uniprot_ids)
+    
+    # Normalize: log2(x + 1) to handle the wide range of bit scores
+    df_log = np.log2(df + 1)
+    
+    # Calculate Distance (Euclidean distance between score profiles)
+    dists = pdist(df_log.values, metric='euclidean')
+    dmat = squareform(dists)
+    
+    # Save
+    #np.save(os.path.join(out_dir, 'dmat.npy'), dmat)
+    dmat_out = os.path.join(out_dir, 'dmat.npy')
+    np.save(dmat_out, dmat)
+    
+    ids_df = pd.DataFrame({'id': df.index})
+    ids_path = os.path.join(out_dir, 'ids_in_dmat.csv')
+    ids_df.to_csv(ids_path, index=False)
+    #ids_df.to_csv(os.path.join(out_dir, 'ids_in_dmat.csv'), index=False)
     ids_out = ids_path
 
     return dmat_out, ids_out
@@ -1995,201 +2137,281 @@ with st.sidebar.expander("Help: how to build the Structural Tree from a Set of P
     st.write("Input the UniProt ID of the proteins to build the tree from.")
     st.write("A structural phylogenetic tree is going to be build based on your input protein.")
 
+
+# Initialize state for the inner "Start Analysis" button
+if 'tree_submitted' not in st.session_state:
+    st.session_state['tree_submitted'] = False
 #if st.checkbox('Study the Structural Evolution of a Set of Proteins'):
 if st.session_state.get("set"):
+    proteomes_path = 'data/core/merged_evo_rate.csv'
+    proteomes_df = pd.read_csv(proteomes_path)
     proteins = ''
     st.title('Tree built from your protein structures:')
     st.warning('Please note that this function is still under development and might take some time. Contact us for feedback :)')
+
+    #choose input subset proteins ------------------------------------------------------------------------------
     proteins = st.text_input(
     'Which proteins (each UniProt ID separated by a space, i.e: Q9BXW9 Q9NXK8 Q9Y2M0 Q9NVI1 Q13616)?', key="proteins")
     st.write('Selected Proteins: ', proteins)
     if proteins == '':
-            st.warning('Please enter a list of protein UniProt ID split by a space i.e. "P05023 A0A0P8ZLX7"')
-    else:
-        proteins = proteins.replace(',', '').upper()
-        random_num = random.randint(100000, 999999)
-        user = f"user_{random_num}"
-        uniprot_ids=proteins.split()
-        target_species='Homo_sapiens_Human'
-        organisms_list=[]
-        for species in proteomes_df["Organism_formatted"]:
-            organisms_list.append(species)
-        compare_species=organisms_list #all 1542 species
-        root_dir='data/decompressed/' #350 gb
-        # --- 1. Load Mapping ---
-        mapping='data/core/model/extracted_and_renamed.csv'    #Path to CSV file with columns id,proteome_id,species_name
-        species_map = load_mapping(mapping)
-        
-        # Get the directory ID for the target
-        #target_dir_id = species_map[target_species]
-        target_dir_id = species_map.get(target_species)
-        if not target_dir_id:
-            st.error("Target species not found in mapping.")
-            sys.exit(1)
-        target_dir = os.path.join(root_dir, target_dir_id)
-        
-        # Storage
-        ranking_scores = {}
-        itol_data = {}
-        tree_data = {} 
-        
-        # 1. Calculate Human (Target) Data first
-        # This ensures Human is in the tree!
-        human_score, human_vector = get_human_self_vector(target_dir, uniprot_ids)
-        ranking_scores[target_species] = human_score
-        tree_data[target_species] = human_vector
-        itol_data[target_species] = {uid: 1 for uid in uniprot_ids} # Human always has the proteins
+        st.warning('Please enter a list of protein UniProt ID split by a space i.e. "P05023 A0A0P8ZLX7"')
 
-        # 2. Calculate Comparison Species
-        for species in compare_species:
-            if species not in species_map: continue
-            
-            compare_dir_id = species_map[species]
-            #st.info(f"Processing {species}...")
-            
-            csv_file = find_comparison_csv(target_dir, compare_dir_id)
-            search_col = 'proteinA'
-            
-            if not csv_file:
-                reverse_dir = os.path.join(root_dir, compare_dir_id)
-                if os.path.isdir(reverse_dir):
-                    csv_file = find_comparison_csv(reverse_dir, target_dir_id)
-                    search_col = 'proteinB'
+    # choose target -------------------------------------------------------------------------------------
+    options = proteomes_df['Organism_formatted'].tolist()
+    target_search_term = 'homo_sapiens_human'     #target: default human
+    try:
+        # Find the index regardless of how it's capitalized in the CSV
+        default_index = [x.lower() for x in options].index(target_search_term)
+    except ValueError:
+        default_index = 0
+    target = st.selectbox(
+        'Which species are your input proteins from?', 
+        options, 
+        index=default_index, 
+        key="target", 
+        format_func=lambda x: x.replace('_', ' ').capitalize()
+    )
 
-            if csv_file:
-                score, presence, vector = process_orthologs(csv_file, uniprot_ids, search_col)
-                ranking_scores[species] = score
-                itol_data[species] = presence
-                tree_data[species] = vector
-            else:
-                ranking_scores[species] = 0.0
-                itol_data[species] = {uid: -1 for uid in uniprot_ids}
-                tree_data[species] = [0.0] * len(uniprot_ids)
-
-        df_rank = pd.DataFrame.from_dict(ranking_scores, orient='index', columns=['Score'])
-        # Sort by Score in descending order (highest score is Rank 2)
-        df_rank_sorted = df_rank.sort_values(by='Score', ascending=False)
-        # The target species is guaranteed to be the first row (index 0)
-        df_rank = df_rank_sorted.reset_index()
-        df_rank.columns = ['Organism', 'Score']
-        presence_list = []
-        for sp, pres in itol_data.items():
-            # Start the dictionary for this row with the organism name
-            row_data = {'Organism': sp}
-            
-            # Iterate through all UniProt IDs
-            for uid in uniprot_ids:
-                # Get the presence value (default to 0 if not found)
-                # Apply the -1/1 mapping: 1 if present, -1 if absent/missing
-                presence_val = 1 if pres.get(uid, 0) == 1 else 0 #else 0 or -1
-                
-                # Add a new key-value pair to the row_data dict: Key=UniProt ID, Value=Presence (-1 or 1)
-                row_data[uid] = presence_val
-            
-            # Append the complete row data to the list
-            presence_list.append(row_data)
-
-        df_presence = pd.DataFrame(presence_list)
-        # Filter target species out
-        target_species_row = df_rank[df_rank['Organism'] == target_species]
-        df_rank_filtered = df_rank[df_rank['Organism'] != target_species].copy()
-        df_rank_filtered.reset_index(drop=True, inplace=True)
-        df_rank_filtered.insert(0, 'Rank', df_rank_filtered.index + 1)
-        df_final = pd.merge(df_rank_filtered, df_presence, on='Organism', how='left')
-        csv_out = "results/proteins_evolution/" + user + "/"
-        if not os.path.exists(csv_out):
-            os.makedirs(csv_out) #mkdir
-        csv_path = csv_out + "organisms_ranking.csv"
-        df_final.to_csv(csv_path, index=False)
-        
-        # distance matrix---------------------------------------
-        matrix_out=csv_out
-        distance_matrix, ids = generate_distance_matrix(tree_data, uniprot_ids, matrix_out)
-        n_bootstraps=10
-        #make tree----------------------------------
-        distance_matrix = np.load(distance_matrix)
-        ids = pd.read_csv(ids)['id'].values #Read from csv - keep the format consistens
-        # Verify number of IDs matches matrix dimensions
-        if len(ids) != len(distance_matrix):
-            st.error(f"Error: Number of IDs ({len(ids)}) doesn't match matrix dimensions ({len(distance_matrix)})")
-            sys.exit(1)
-        #print(f"Loaded {len(ids)} IDs and {distance_matrix.shape} distance matrix")
-        trees = []
-        bootstrap_matrices = []
-        #print("Creating original tree...")
-        original_tree = neighbor_joining(distance_matrix)
-        trees.append(parse_biotite_tree(original_tree, ids))
-        #print(f"Creating {n_bootstraps-1} bootstrap trees...")
-        for _ in tqdm(range(n_bootstraps-1)):
-            dmat = bootstrap_from_distance_matrix(distance_matrix)
-            bootstrap_matrices.append(dmat)
-            tree = neighbor_joining(dmat)
-            trees.append(parse_biotite_tree(tree, ids))
-
-        #print("Calculating bootstrap support values...")
-        original_tree = trees[0]
-        bootstrap_replicates = trees[1:]
-        supported_tree = analyze_bootstrap_support(original_tree, bootstrap_replicates)
-
-        #print("Calculating support statistics...")
-        stats, support_df = get_support_statistics(supported_tree)
-        outdir=matrix_out
-        support_df.to_csv(outdir+'support_per_clade.csv', index=None)
-        #print('Saved support metrics to', args.outdir+'support_per_clade.csv')
-        #print("Saving results...")
-        # Save bootstrap matrices
-        np.save(os.path.join(outdir, 'bootstrap_distance_matrices.npy'),
-                np.array(bootstrap_matrices))
-        # Save supported tree
-        Phylo.write(supported_tree,
-                    os.path.join(outdir, 'bootstrap_tree.newick'),
-                    'newick')
-        # Save statistics
-        with open(os.path.join(outdir, 'bootstrap_stats.txt'), 'w') as f:
-            f.write("Bootstrap Support Statistics:\n")
-            for stat, value in stats.items():
-                if 'support' in stat:
-                    f.write(f"{stat}: {value:.1f}%\n")
-                else:
-                    f.write(f"{stat}: {value}\n")
-
-            #f.write("\nInterpretation Guide:\n")
-            #f.write("- Support values ≥70%: Strong support\n")
-            #f.write("- Support values 50-69%: Moderate support\n")
-            #f.write("- Support values <50%: Weak support\n")
-        # load tree ----------------------------------------------
-        evo_tree= outdir + "bootstrap_tree.newick"
-        st.info("Displaying evolutionary tree of orthologs...")
-        display_interactive_tree(evo_tree)
-        # download button
-        is_random_user = True
-        user_dir = os.path.join("results", "proteins_evolution", user)
-        os.makedirs(user_dir, exist_ok=True) 
-        target_folder_path=user_dir
-        user_name=user.split('@')[0]
-        zip_file_name = f"results_{user_name}" 
-        output_base_dir = "temp_archives" 
-        os.makedirs(output_base_dir, exist_ok=True) 
-        shutil.make_archive(
-            base_name=os.path.join(output_base_dir, zip_file_name),
-            format='zip',
-            root_dir=os.path.dirname(target_folder_path), # Start zipping from the parent directory
-            base_dir=os.path.basename(target_folder_path)  # Only include the target folder itself
+    # --- ORGANISM SELECTION ---------------------------------------------------------------
+    filtered_model_options = [opt for opt in options if opt != target]
+    # 1. Define Callback Functions
+    def add_organism():
+        st.session_state.model_count += 1 
+    def remove_organism():
+        # Prevent removing the last remaining box
+        if st.session_state.model_count > 1:
+            st.session_state.model_count -= 1
+    # 2. Initialize Session State
+    if 'model_count' not in st.session_state:
+        st.session_state.model_count = 1 
+    organisms = []
+    # 3. Render Selectboxes Loop
+    for i in range(1, st.session_state.model_count + 1):
+        selection = st.selectbox(
+            f'Which organisms #{i} would you like to include in the tree?',
+            #proteomes_df['Organism_formatted'],
+            filtered_model_options,
+            index=None,  # box starts empty
+            placeholder="Select a species...", # Text shown when empty
+            format_func=lambda x: x.replace('_', ' ').capitalize(),
+            key=f"model_{i}"
         )
-        # Get the full path to the newly created ZIP file and make download availabel
-        zip_file_path = os.path.join(output_base_dir, f"{zip_file_name}.zip")
-        with open(zip_file_path, "rb") as file:
-            st.sidebar.download_button(
-                label="Download results now",
-                data=file, # The actual byte content of the zip file
-                file_name=f"{zip_file_name}.zip", # The name the user will see
-                mime="application/zip", # Critical: Set the correct MIME type for zip files
-                icon=":material/download:",
+        # Only add to the list if the user actually selected something
+        if selection:
+            organisms.append(selection)
+    # 4. Add/Remove Buttons (Side by Side)
+    #col_add, col_remove = st.columns([1.5, 1.5])
+    col_l, col_add, col_rem, col_r = st.columns([1, 1, 1, 1])
+    with col_add:
+        st.button(
+            "➕ Add Another Species", 
+            on_click=add_organism,
+            width='stretch'
+        )
+    with col_rem:
+        # Only show remove button if there is more than 1 box
+        if st.session_state.model_count > 1:
+            st.button(
+                "➖ Remove Last Species", 
+                on_click=remove_organism,
+                width='stretch'
             )
-        # Clean up the generated zip file after use
-        os.remove(zip_file_path)
-        if is_random_user:
-            shutil.rmtree(user_dir)
+
+    c_left, c_run, c_right = st.columns([2, 1.5, 2])
+    # We use a callback or direct check to set the submission state
+    if c_run.button("Build your structural tree", type="primary", width='stretch'):
+        st.session_state['tree_submitted'] = True
+    if st.session_state['tree_submitted']:
+        if proteins == '':
+            st.warning('Please enter a list of protein UniProt ID split by a space i.e. "P05023 A0A0P8ZLX7"')
+        else:
+            proteins = proteins.replace(',', '').upper()
+            random_num = random.randint(100000, 999999)
+            user = f"user_{random_num}"
+            uniprot_ids=proteins.split()
+            target_species=target
+            #organisms_list=[]
+            #for species in proteomes_df["Organism_formatted"]:
+                #organisms_list.append(species) #include all species, unpractical
+            #compare_species=organisms_list #all 1542 species
+            compare_species=organisms
+            root_dir='data/decompressed/' #350 gb
+            # --- 1. Load Mapping ---
+            mapping='data/core/model/extracted_and_renamed.csv'    #Path to CSV file with columns id,proteome_id,species_name
+            species_map = load_mapping(mapping)
+            
+            # Get the directory ID for the target
+            #target_dir_id = species_map[target_species]
+            target_dir_id = species_map.get(target_species)
+            if not target_dir_id:
+                st.error("Target species not found in mapping.")
+                sys.exit(1)
+            target_dir = os.path.join(root_dir, target_dir_id)
+            
+            # Storage
+            ranking_scores = {}
+            itol_data = {}
+            tree_data = {} 
+            
+            # 1. Calculate Human (Target) Data first
+            # This ensures Human is in the tree!
+            human_score, human_vector = get_human_self_vector2(target_dir, uniprot_ids)
+            ranking_scores[target_species] = human_score
+            tree_data[target_species] = human_vector
+            itol_data[target_species] = {uid: 1 for uid in uniprot_ids} # Human always has the proteins
+
+            # 2. Calculate Comparison Species
+            for species in compare_species:
+                if species not in species_map: continue
+                
+                compare_dir_id = species_map[species]
+                #st.info(f"Processing {species}...")
+                
+                csv_file = find_comparison_csv(target_dir, compare_dir_id)
+                search_col = 'proteinA'
+                
+                if not csv_file:
+                    reverse_dir = os.path.join(root_dir, compare_dir_id)
+                    if os.path.isdir(reverse_dir):
+                        csv_file = find_comparison_csv(reverse_dir, target_dir_id)
+                        search_col = 'proteinB'
+
+                if csv_file:
+                    score, presence, vector = process_orthologs2(csv_file, uniprot_ids, search_col)
+                    ranking_scores[species] = score
+                    itol_data[species] = presence
+                    tree_data[species] = vector
+                else:
+                    ranking_scores[species] = 0.0
+                    itol_data[species] = {uid: -1 for uid in uniprot_ids}
+                    tree_data[species] = [0.0] * len(uniprot_ids)
+
+            df_rank = pd.DataFrame.from_dict(ranking_scores, orient='index', columns=['Score'])
+            # Sort by Score in descending order (highest score is Rank 2)
+            df_rank_sorted = df_rank.sort_values(by='Score', ascending=False)
+            # The target species is guaranteed to be the first row (index 0)
+            df_rank = df_rank_sorted.reset_index()
+            df_rank.columns = ['Organism', 'Score']
+            presence_list = []
+            for sp, pres in itol_data.items():
+                # Start the dictionary for this row with the organism name
+                row_data = {'Organism': sp}
+                
+                # Iterate through all UniProt IDs
+                for uid in uniprot_ids:
+                    # Get the presence value (default to 0 if not found)
+                    # Apply the -1/1 mapping: 1 if present, -1 if absent/missing
+                    presence_val = 1 if pres.get(uid, 0) == 1 else 0 #else 0 or -1
+                    
+                    # Add a new key-value pair to the row_data dict: Key=UniProt ID, Value=Presence (-1 or 1)
+                    row_data[uid] = presence_val
+                
+                # Append the complete row data to the list
+                presence_list.append(row_data)
+
+            df_presence = pd.DataFrame(presence_list)
+            # Filter target species out
+            target_species_row = df_rank[df_rank['Organism'] == target_species]
+            df_rank_filtered = df_rank[df_rank['Organism'] != target_species].copy()
+            df_rank_filtered.reset_index(drop=True, inplace=True)
+            df_rank_filtered.insert(0, 'Rank', df_rank_filtered.index + 1)
+            df_final = pd.merge(df_rank_filtered, df_presence, on='Organism', how='left')
+            csv_out = "results/proteins_evolution/" + user + "/"
+            if not os.path.exists(csv_out):
+                os.makedirs(csv_out) #mkdir
+            csv_path = csv_out + "bitscore_ranking.csv"
+            df_final.to_csv(csv_path, index=False)
+            
+            # distance matrix---------------------------------------
+            matrix_out=csv_out
+            distance_matrix, ids = generate_distance_matrix2(tree_data, uniprot_ids, matrix_out)
+            n_bootstraps=10
+            #make tree----------------------------------
+            distance_matrix = np.load(distance_matrix)
+            ids = pd.read_csv(ids)['id'].values #Read from csv - keep the format consistens
+            # Verify number of IDs matches matrix dimensions
+            if len(ids) != len(distance_matrix):
+                st.error(f"Error: Number of IDs ({len(ids)}) doesn't match matrix dimensions ({len(distance_matrix)})")
+                sys.exit(1)
+            #print(f"Loaded {len(ids)} IDs and {distance_matrix.shape} distance matrix")
+            trees = []
+            bootstrap_matrices = []
+            #print("Creating original tree...")
+            original_tree = neighbor_joining(distance_matrix)
+            trees.append(parse_biotite_tree(original_tree, ids))
+            #print(f"Creating {n_bootstraps-1} bootstrap trees...")
+            for _ in tqdm(range(n_bootstraps-1)):
+                dmat = bootstrap_from_distance_matrix(distance_matrix)
+                bootstrap_matrices.append(dmat)
+                tree = neighbor_joining(dmat)
+                trees.append(parse_biotite_tree(tree, ids))
+
+            #print("Calculating bootstrap support values...")
+            original_tree = trees[0]
+            bootstrap_replicates = trees[1:]
+            supported_tree = analyze_bootstrap_support(original_tree, bootstrap_replicates)
+
+            #print("Calculating support statistics...")
+            stats, support_df = get_support_statistics(supported_tree)
+            outdir=matrix_out
+            support_df.to_csv(outdir+'support_per_clade.csv', index=None)
+            #print('Saved support metrics to', args.outdir+'support_per_clade.csv')
+            #print("Saving results...")
+            # Save bootstrap matrices
+            np.save(os.path.join(outdir, 'bootstrap_distance_matrices.npy'),
+                    np.array(bootstrap_matrices))
+            # Save supported tree
+            Phylo.write(supported_tree,
+                        os.path.join(outdir, 'bootstrap_tree.newick'),
+                        'newick')
+            # Save statistics
+            with open(os.path.join(outdir, 'bootstrap_stats.txt'), 'w') as f:
+                f.write("Bootstrap Support Statistics:\n")
+                for stat, value in stats.items():
+                    if 'support' in stat:
+                        f.write(f"{stat}: {value:.1f}%\n")
+                    else:
+                        f.write(f"{stat}: {value}\n")
+
+                #f.write("\nInterpretation Guide:\n")
+                #f.write("- Support values ≥70%: Strong support\n")
+                #f.write("- Support values 50-69%: Moderate support\n")
+                #f.write("- Support values <50%: Weak support\n")
+            # load tree ----------------------------------------------
+            evo_tree= outdir + "bootstrap_tree.newick"
+            st.info("Creating protein subset evolutionary tree...")
+            #display_interactive_tree(evo_tree)
+            subset_name = "Subset"
+            display_interactive_tree_c_zoom(evo_tree, subset_name)
+            # download button
+            is_random_user = True
+            user_dir = os.path.join("results", "proteins_evolution", user)
+            os.makedirs(user_dir, exist_ok=True) 
+            target_folder_path=user_dir
+            user_name=user.split('@')[0]
+            zip_file_name = f"results_{user_name}" 
+            output_base_dir = "temp_archives" 
+            os.makedirs(output_base_dir, exist_ok=True) 
+            shutil.make_archive(
+                base_name=os.path.join(output_base_dir, zip_file_name),
+                format='zip',
+                root_dir=os.path.dirname(target_folder_path), # Start zipping from the parent directory
+                base_dir=os.path.basename(target_folder_path)  # Only include the target folder itself
+            )
+            # Get the full path to the newly created ZIP file and make download availabel
+            zip_file_path = os.path.join(output_base_dir, f"{zip_file_name}.zip")
+            with open(zip_file_path, "rb") as file:
+                st.sidebar.download_button(
+                    label="Download results now",
+                    data=file, # The actual byte content of the zip file
+                    file_name=f"{zip_file_name}.zip", # The name the user will see
+                    mime="application/zip", # Critical: Set the correct MIME type for zip files
+                    icon=":material/download:",
+                )
+            # Clean up the generated zip file after use
+            os.remove(zip_file_path)
+            if is_random_user:
+                shutil.rmtree(user_dir)
 
 # --- CITATION
 st.subheader('Cite', divider="rainbow")

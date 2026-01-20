@@ -181,7 +181,7 @@ def find_comparison_csv(target_dir, compare_dir_id):
 
     return csv_files[0] if csv_files else None
 
-@st.cache_data
+#@st.cache_data
 def process_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
     """
     Calculates scores for a comparison species.
@@ -228,6 +228,66 @@ def process_orthologs(csv_file, uniprot_ids, search_col='proteinA'):
     best_hits_df = pd.DataFrame(best_hit_data)
     
     return total_score, presence_map, score_vector, best_hits_df
+
+@st.cache_data
+def process_orthologs2(csv_file, uniprot_ids, search_col='proteinA'):
+    """
+    Optimized: Calculates scores using vectorized grouping instead of iterative search.
+    """
+    # 1. Convert IDs to a set for instant O(1) lookups
+    target_ids_set = set(uniprot_ids)
+    
+    # Initialize default results
+    # We use a dictionary for fast updates, then convert to list at the end
+    # Default score is 0.0, Default presence is -1 (absent)
+    final_scores = {uid: 0.0 for uid in uniprot_ids}
+    
+    total_score = 0.0
+
+    try:
+        # Read the file
+        # We only need the search column (protein name) and the score
+        # Note: We read the whole file. If files are massive (>1GB), keep the chunking logic.
+        # For standard blast outputs, reading the whole file is usually faster than chunking overhead.
+        df = pd.read_csv(csv_file, header=None, usecols=[0, 1, 4], on_bad_lines='warn')
+        df.columns = ['proteinA', 'proteinB', 'bit_score']
+        
+        # 2. Extract the ID from the column
+        # Assuming format "AF-ID-..." -> Split by '-' and take index 1
+        # This runs in C-speed (very fast)
+        df['extracted_id'] = df[search_col].astype(str).str.split('-').str[1]
+        
+        # 3. Filter: Keep only rows where the ID is in our target list
+        # This drastically reduces the data we need to process
+        relevant_rows = df[df['extracted_id'].isin(target_ids_set)]
+        
+        if not relevant_rows.empty:
+            # 4. Group by ID and find the max bit_score for each protein
+            # This replaces the manual "if score > best_score" check
+            max_scores = relevant_rows.groupby('extracted_id')['bit_score'].max()
+            
+            # 5. Update our results
+            # Convert the pandas series to a dictionary and merge it
+            found_scores = max_scores.to_dict()
+            final_scores.update(found_scores)
+            
+            # Calculate total score sum
+            total_score = max_scores.sum()
+
+    except Exception as e:
+        print(f"Error processing {csv_file}: {e}")
+        # Return empty/default values on error
+        return 0.0, {uid: -1 for uid in uniprot_ids}, [0.0] * len(uniprot_ids)
+        
+    # 6. Formatting for Output
+    # Create the strictly ordered list (Vector) for the tree
+    score_vector = [final_scores[uid] for uid in uniprot_ids]
+    
+    # Create the presence map for iTOL
+    # Logic: 1 if score > 0, else -1
+    presence_map = {uid: (1 if final_scores[uid] > 0 else -1) for uid in uniprot_ids}
+    
+    return total_score, presence_map, score_vector
 
 def get_human_self_vector(target_dir, uniprot_ids):
     """
@@ -895,7 +955,7 @@ def prepare_ranking_data(target_species, model_organisms, protein_list_str):
 
         if csv_file:
             try:
-                score, presence, vector, best_hits_df = process_orthologs(csv_file, uniprot_ids, search_col)
+                score, presence, vector, best_hits_df = process_orthologs2(csv_file, uniprot_ids, search_col)
             except Exception:
                 best_hits_df = pd.DataFrame()
                 st.warning(f"The protein ID **{', '.join(uniprot_ids)}** was not found in the reference proteome of **{target_species}**. This can happen if the protein ID is not reviewed in the reference proteome used for AFDB v4 predictions.")
@@ -1573,6 +1633,7 @@ if st.session_state['ranking_active']:
     )
 
     # --- MODEL ORGANISM SELECTION ---
+    filtered_model_options = [opt for opt in options if opt != target]
     # 1. Define Callback Functions
     def add_model_organism():
         st.session_state.model_count += 1 
@@ -1592,7 +1653,8 @@ if st.session_state['ranking_active']:
     for i in range(1, st.session_state.model_count + 1):
         selection = st.selectbox(
             f'Which model organism #{i} would you like to add to the comparison?',
-            proteomes_df['Organism_formatted'],
+            #proteomes_df['Organism_formatted'],
+            filtered_model_options,
             index=None,  # box starts empty
             placeholder="Select an organism...", # Text shown when empty
             format_func=lambda x: x.replace('_', ' ').capitalize(),
