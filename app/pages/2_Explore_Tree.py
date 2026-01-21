@@ -254,7 +254,7 @@ if st.sidebar.toggle('See tree with evolutionary rate'):
 
 st.sidebar.divider()
 st.sidebar.page_link("pages/4_Downloads.py", label="Download trees", icon="📥")
-
+st.caption('Tree dispalyed using ete3 (Jaime Huerta-Cepas, et al. ETE 3: Reconstruction, analysis and visualization of phylogenomic data. Mol Biol Evol 2016; doi: 10.1093/molbev/msw046)')
 # --- FOOTER ---
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.subheader('Cite', divider="rainbow")
