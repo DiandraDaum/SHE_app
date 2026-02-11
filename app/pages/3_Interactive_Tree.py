@@ -356,7 +356,7 @@ def protein_in_family(protein, families_csv_path):
         print(f"Mapped Protein UniProt ID '{protein}' to family: {family}")
         return family, families_df
     else:
-        st.warning(f"No structural ortholog match found for protein '{protein}'...")
+        st.warning(f"No structural ortholog match found for protein '{protein}'... Try using the Wide search option instead! Be aware that this may take longer to compute.")
         st.stop()
         sys.exit(1)
 
@@ -779,6 +779,186 @@ def display_interactive_tree_c_zoom(tree_path, name):
     fig.update_layout(**layout_params)
     st.plotly_chart(fig, use_container_width=True)
 
+@st.cache_data
+def display_interactive_tree_c_zoom_set(tree_path, name):
+    
+    try:
+        tree = Tree(tree_path, format=1)
+        tree = get_tree_coordinates(tree) 
+        num_species = len(tree.get_leaves())
+    except Exception as e:
+        print(f"Error processing tree file: {e}")
+        return
+
+    if num_species < 2:
+        st.warning("Taxon not found or contains less than 2 species.")
+        st.stop()
+    taxon=name
+    # --- 1. Layout Selection ---
+    available_layouts = ['Linear']
+    MIN_SPECIES_FOR_CIRCULAR = 400
+    if num_species >= MIN_SPECIES_FOR_CIRCULAR:
+        available_layouts.append('Circular')
+        
+    col_layout, col_label = st.columns(2)
+    with col_layout:
+        tree_layout = st.radio("Select Tree Layout:", available_layouts, horizontal=True)
+    with col_label:
+        show_labels_option = st.radio("Show Labels:", ('Yes', 'No'), index=0, horizontal=True)
+    
+    layout_key = tree_layout
+    show_labels = (show_labels_option == 'Yes')
+    
+    # --- 2. Coordinate Calculation ---
+    try:
+        if layout_key == 'Circular':
+            tree = polar_coordinates_transform_c(tree) 
+        branch_lines_x, branch_lines_y, node_coords = create_plotly_data_c(tree, layout=layout_key)
+    except Exception as e:
+        print(f"Error generating coordinates: {e}")
+        return
+        
+    # --- 3. Proteomes & Coloring ---
+    try:
+        #proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
+        proteomes_path = 'data/core/merged_evo_rate.csv'
+        proteomes_df = pd.read_csv(proteomes_path)
+        proteomes_df.columns = proteomes_df.columns.str.strip().str.replace(' ', '_')
+        proteomes_df['Kingdom'] = proteomes_df['Taxonomic_lineage'].str.split(', ').str[1]
+        organism_to_kingdom = proteomes_df.set_index('Organism_formatted')['Kingdom'].to_dict()
+        unique_kingdoms = sorted(proteomes_df['Kingdom'].unique())
+        
+        node_colors = []
+        for node_name in node_coords['name']:
+            kingdom = organism_to_kingdom.get(node_name, 'Unknown') 
+            color = kingdom_color(kingdom)
+            node_colors.append(color)
+    except:
+        node_colors = ['#1f77b4'] * len(node_coords['x'])
+        unique_kingdoms = ['Default']
+    
+    # --- 4. NEW: Find Node Feature ---
+    # Get all names
+    raw_node_names = list(node_coords['name'])
+    
+    # FILTER: Keep only names that contain at least one letter (a-z, A-Z)
+    # This removes "9606", "58.56", "100", etc.
+    filtered_node_names = [
+        name for name in raw_node_names 
+        if name and any(c.isalpha() for c in str(name))
+    ]
+    
+    # Use the filtered list for the dropdown
+    search_node = st.selectbox(
+        "🔍 Find a Species:",
+        options=["None"] + sorted(filtered_node_names), 
+        index=0,
+        key="node_finder"
+    )
+
+    # --- 5. Define Traces ---
+    trace_branches = go.Scatter(
+        x=branch_lines_x, y=branch_lines_y,
+        mode='lines',
+        line=dict(color='lightgrey', width=1),
+        hoverinfo='none', 
+        name='Branches'
+    )
+    
+    #node_text = node_coords['name'] if show_labels else [''] * len(node_coords['x'])
+    if show_labels:
+        # Create a list where we ONLY keep the name if it has letters.
+        # Otherwise (if it's a number/bootstrap), we use an empty string.
+        node_text = [
+            name if (name and any(c.isalpha() for c in str(name))) else "" 
+            for name in node_coords['name']
+        ]
+    else:
+        node_text = [''] * len(node_coords['x'])
+
+    trace_nodes = go.Scatter(
+        x=node_coords['x'], y=node_coords['y'],
+        mode='markers+text',
+        marker=dict(size=8, color=node_colors, line=dict(width=1, color='white')),
+        text=node_text, 
+        textposition="middle right",
+        textfont=dict(size=14, color='white'),
+        hovertext=node_coords['text'],
+        hoverinfo='text',
+        name='Nodes'
+    )
+
+    data_traces = [trace_branches, trace_nodes]
+
+    # --- 6. Add Highlight Trace if Search is Active ---
+    if search_node != "None":
+        try:
+            # Find the index of the selected node
+            idx = node_coords['name'].index(search_node)
+            target_x = node_coords['x'][idx]
+            target_y = node_coords['y'][idx]
+            
+            # Create a "Highlight" trace (Big Red Star)
+            trace_highlight = go.Scatter(
+                x=[target_x], y=[target_y],
+                mode='markers+text',
+                marker=dict(
+                    size=14, 
+                    color='#FF0000', # Red
+                    symbol='star',   # Star shape
+                    line=dict(width=1, color='white')
+                ),
+                #text=[search_node],
+                #textposition="top center",
+                #textfont=dict(size=10, color='#FF0000', family="Arial Black"),
+                name='Selected'
+            )
+            data_traces.append(trace_highlight)
+            
+            st.success(f"📍 Found: {search_node}")
+            
+        except ValueError:
+            print("Node not found in coordinates.")
+
+    # --- 7. Legend Traces ---
+    for kingdom in unique_kingdoms:
+        color = kingdom_color(kingdom)
+        data_traces.append(
+            go.Scatter(
+                x=[None], y=[None],
+                mode='markers',
+                marker=dict(size=10, color=color, line=dict(width=1, color='white')),
+                name=kingdom,
+                legendgroup='kingdoms'
+            )
+        )
+
+    # --- 8. Layout ---
+    fig = go.Figure(data=data_traces)
+    
+    layout_params = dict(
+        title=f'{taxon} Tree ({num_species} Species)', # tree title
+        height=800, 
+        showlegend=True,
+        hovermode="closest",
+        template="plotly_dark",     
+        plot_bgcolor='black',      
+        paper_bgcolor='black',      
+        font=dict(color='white'),
+        margin=dict(l=20, r=20, t=40, b=20),
+        autosize=True
+    )
+    
+    # Adjust layout based on type
+    if layout_key == 'Linear':
+        layout_params.update(xaxis=dict(showgrid=False, title='Branch length'), yaxis=dict(showgrid=False, showticklabels=False))
+    else:
+        layout_params.update(xaxis=dict(showgrid=False, showticklabels=False), yaxis=dict(showgrid=False, showticklabels=False))
+
+    fig.update_layout(**layout_params)
+    st.plotly_chart(fig, use_container_width=True)
+
+
 
 ##for homologs
 def display_protein_presence_tree_plotly(protein, families_csv_path, new_proteomes_path, main_tree_path, layout='Linear'):
@@ -945,7 +1125,7 @@ def display_protein_presence_tree_plotly(protein, families_csv_path, new_proteom
     return fig, present_species_names, family
 
 #pruned tree for protein presence/absence
-
+@st.cache_data
 def prune_and_display_tree(input_protein, families_file, newick_tree_file, names_file, family_to_keep, output_file, layout='Linear'):
     """
     Prunes a Newick tree to a specific family AND returns a Plotly figure.
@@ -1683,7 +1863,6 @@ def analyze_bootstrap_support(original_tree, bootstrap_trees):
     """Calculate bootstrap support values"""
     support_tree = Consensus.get_support(original_tree, bootstrap_trees)
 
-
     return support_tree
 
 def get_support_statistics(tree):
@@ -2034,6 +2213,7 @@ st.sidebar.subheader('2. Structural Homologs', divider="red")
 with st.sidebar.expander("Help: How to Find Protein Structural Homologs"):
     st.write("Digit the protein (UniProt ID) you want to find the orthologs of.")
     st.write("The resulting structural phylogenetic tree will show you all the species sharing a protein structural homolog of your input protein.")
+    st.write("No match found? Try expanding your search with the Wide option!")
 
 #if st.checkbox('Find Protein Structural Homologs'):
 if st.session_state.get("homologs"):
@@ -2076,62 +2256,70 @@ if st.session_state.get("homologs"):
             st.warning(f"Structure data for {UNIPROT_ID} was **not found** in the AFDB.")
         st.info("Generating the structural phylogenetic tree...")
         # get tree
-        layout = st.radio(
-            "Select Tree Layout:",
-            ('Linear', 'Circular'),
-            index=1,
-            horizontal=True
-        )
-        #protein_svg = pathlib.Path('results/protein_trees/' + protein +'_presence_tree_' + layout +'.svg')
-        for protein in [protein]:
-            families_csv_path = 'data/core/protein_families_238.csv' #i.e. ./data/core/protein_families_238.csv
-            fig, present_species, family = display_protein_presence_tree_plotly(
-                protein=protein, 
-                families_csv_path=families_csv_path, 
-                new_proteomes_path=new_proteomes_path, 
-                main_tree_path=main_tree_path, 
-                layout=layout
+        # get tree
+        col1, col2 = st.columns(2)
+        with col1:
+            layout = st.radio(
+                "Tree Layout:",
+                ('Linear', 'Circular'),
+                index=1,
+                horizontal=True,
+                key="layout_select"
             )
+        with col2:
+            search_mode = st.radio(
+                "Search Sensitivity:",
+                ('Rapid (Bitscore>238; e-value<0.0)', 'Wide (Bitscore>173; e-value<0.00005)'),
+                index=0, # Defaults to Rapid
+                horizontal=True,
+                help="Rapid uses higher bitscore cutoff (faster). Wide uses MCL clustering with lower cutoff (slower but finds more remote homologs)."
+            )
+        # Map selection to file path
+        if 'Rapid' in search_mode:
+            families_csv_path = 'data/core/protein_families_238.csv' #bitscore > 238 eval < 0.0
+        else:
+            families_csv_path = 'data/core/mcl_families_I20_protein_families.csv' #bitscore > 173 , eval< 0.00005, INFLATION="2.0"
+            st.info("Wide search option selected: please be patient as this may take longer to compute")
             # Render the returned figure
-            if fig:
-                st.plotly_chart(fig, use_container_width=True)
+        if fig:
+            st.plotly_chart(fig, use_container_width=True)
                 
                 # 3. Handle the Species List and Download Button
-                if present_species:
-                    # Display a success message with the count
-                    st.markdown(f"**Found {len(present_species)} species with structural orthologs.**")
-                    
-                    # Convert list to a string (one species per line)
-                    list_data = "\n".join(present_species)
-                    
-                    # Create the download button
-                    st.download_button(
-                        label=f"📥 Download list of species with structural orthologs for {protein}",
-                        data=list_data,
-                        file_name=f"{protein}_structural_orthologs_species.txt",
-                        mime="text/plain",
-                        help="Download a text file containing the names of all species colored green in the tree."
-                    )
+            if present_species:
+                # Display a success message with the count
+                st.markdown(f"**Found {len(present_species)} species with structural orthologs.**")
                 
-                    if st.toggle(':red[Show Pruned tree]'):
-                        # 4. Prune the tree and provide download
-                        pruned_path = f'results/protein_trees/{protein}_prunedtree.newick'
-                        os.makedirs(os.path.dirname(pruned_path), exist_ok=True)
-                        st.info("Generating pruned tree...")
-                        pruned_fig = prune_and_display_tree(protein, families_csv_path, main_tree_path, new_proteomes_path, family, pruned_path, layout='Linear')
-                        if pruned_fig:
-                            st.plotly_chart(pruned_fig, use_container_width=True)
-                            file_content = get_file_content(pruned_path)
-                            st.download_button(
-                                label=f"📥 Download prune tree for {protein} structural orthologs",
-                                data=file_content,
-                                file_name=f"{protein}_orthologs.newick",
-                                mime="text/plain",
-                                help="Download the pruned tree.newcik file."
-                            )
-                else:
-                    st.info("No structural orthologs found in the tree.")
-            st.caption('Tree dispalyed using Plotly (Kruchten N., et al. "An interactive, open-source, and browser-based graphing library for Python" doi: 10.5281/zenodo.14503524, 2025-11-17)')
+                # Convert list to a string (one species per line)
+                list_data = "\n".join(present_species)
+                
+                # Create the download button
+                st.download_button(
+                    label=f"📥 Download list of species with structural orthologs for {protein}",
+                    data=list_data,
+                    file_name=f"{protein}_structural_orthologs_species.txt",
+                    mime="text/plain",
+                    help="Download a text file containing the names of all species colored green in the tree."
+                )
+            
+                if st.toggle(':red[Show Pruned tree]'):
+                    # 4. Prune the tree and provide download
+                    pruned_path = f'results/protein_trees/{protein}_prunedtree.newick'
+                    os.makedirs(os.path.dirname(pruned_path), exist_ok=True)
+                    st.info("Generating pruned tree...")
+                    pruned_fig = prune_and_display_tree(protein, families_csv_path, main_tree_path, new_proteomes_path, family, pruned_path, layout='Linear')
+                    if pruned_fig:
+                        st.plotly_chart(pruned_fig, use_container_width=True)
+                        file_content = get_file_content(pruned_path)
+                        st.download_button(
+                            label=f"📥 Download prune tree for {protein} structural orthologs",
+                            data=file_content,
+                            file_name=f"{protein}_orthologs.newick",
+                            mime="text/plain",
+                            help="Download the pruned tree.newcik file."
+                        )
+            else:
+                st.info("No structural orthologs found in the tree.")
+        st.caption('Tree dispalyed using Plotly (Kruchten N., et al. "An interactive, open-source, and browser-based graphing library for Python" doi: 10.5281/zenodo.14503524, 2025-11-17)')
 
 
 st.sidebar.subheader('3. Protein Set Structural Evolution', divider="red")
@@ -2401,7 +2589,7 @@ if st.session_state.get("set"):
                 st.info("Creating protein subset evolutionary tree...")
                 #display_interactive_tree(evo_tree)
                 subset_name = "Subset"
-                display_interactive_tree_c_zoom(evo_tree, subset_name)
+                display_interactive_tree_c_zoom_set(evo_tree, subset_name)
                 st.caption('Tree dispalyed using Plotly (Kruchten N., et al. "An interactive, open-source, and browser-based graphing library for Python" doi: 10.5281/zenodo.14503524, 2025-11-17)')
                 # download button
                 is_random_user = True
@@ -2435,4 +2623,4 @@ if st.session_state.get("set"):
 
 # --- CITATION
 st.subheader('Cite', divider="rainbow")
-st.write('Preprint:  Qiuzhen Li, Diandra Daumiller, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
+st.write('Qiuzhen Li, Diandra Daumiller, Patrick Bryant: The structural History of Eukarya. bioRxiv 2026.02.04.703859; doi: https://doi.org/10.64898/2026.02.04.703859>')

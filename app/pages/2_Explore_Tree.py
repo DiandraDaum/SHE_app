@@ -258,4 +258,5 @@ st.caption('Tree dispalyed using ete3 (Jaime Huerta-Cepas, et al. ETE 3: Reconst
 # --- FOOTER ---
 st.markdown("<br><hr>", unsafe_allow_html=True)
 st.subheader('Cite', divider="rainbow")
-st.write('Preprint:  Qiuzhen Li, Diandra Daumiller, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
+#st.write('Preprint:  Qiuzhen Li, Diandra Daumiller, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
+st.write('Qiuzhen Li, Diandra Daumiller, Patrick Bryant: The structural History of Eukarya. bioRxiv 2026.02.04.703859; doi: https://doi.org/10.64898/2026.02.04.703859')

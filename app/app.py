@@ -708,7 +708,7 @@ st.markdown("""
     </h3>
 """, unsafe_allow_html=True)
 st.subheader('', divider="rainbow")
-st.write('Preprint:  Qiuzhen Li, Diandra Daumiller, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
+st.write('Qiuzhen Li, Diandra Daumiller, Patrick Bryant: The structural History of Eukarya. bioRxiv 2026.02.04.703859; doi: https://doi.org/10.64898/2026.02.04.703859')
 #align figs
 st.markdown("""
     <style>
