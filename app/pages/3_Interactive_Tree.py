@@ -2269,7 +2269,7 @@ if st.session_state.get("homologs"):
         with col2:
             search_mode = st.radio(
                 "Search Sensitivity:",
-                ('Rapid (Bitscore>238; e-value<0.0)', 'Wide (Bitscore>173; e-value<0.00005)'),
+                ('Rapid (Bitscore>238; e-value = 0.0)', 'Wide (Bitscore>173; e-value<0.00005)'),
                 index=0, # Defaults to Rapid
                 horizontal=True,
                 help="Rapid uses higher bitscore cutoff (faster). Wide uses MCL clustering with lower cutoff (slower but finds more remote homologs)."
@@ -2280,11 +2280,20 @@ if st.session_state.get("homologs"):
         else:
             families_csv_path = 'data/core/mcl_families_I20_protein_families.csv' #bitscore > 173 , eval< 0.00005, INFLATION="2.0"
             st.info("Wide search option selected: please be patient as this may take longer to compute")
-            # Render the returned figure
+        
+        # Render the returned figure
+        fig, present_species, family = display_protein_presence_tree_plotly(
+            protein=protein, 
+            families_csv_path=families_csv_path, 
+            new_proteomes_path=new_proteomes_path, 
+            main_tree_path=main_tree_path, 
+            layout=layout
+        )
+        
         if fig:
             st.plotly_chart(fig, use_container_width=True)
                 
-                # 3. Handle the Species List and Download Button
+            # 3. Handle the Species List and Download Button
             if present_species:
                 # Display a success message with the count
                 st.markdown(f"**Found {len(present_species)} species with structural orthologs.**")
