@@ -391,7 +391,7 @@ st.markdown(
                 '>
                 Structural History of Eukarya
             </h1>
-            <h3>(Beta)</h3>
+            <h3>(SHE)</h3>
             <h2>Beyond traditional phylogenetics</h2>
             <h3>Leverage proteome-wide structural comparisons for groundbreaking insights</h3>
         </div>
@@ -512,7 +512,7 @@ with st.container():
 
     row1 = st.columns(4)
     titles = ["Organisms", "Proteins", "Structure Alignments", "Powered By"]
-    values = ["1,541", "24.3M", "296,000B", "Foldseek"]
+    values = ["1,541", "24.3M", "296T", "Foldseek"]
 
     for i, (col, value, title) in enumerate(zip(row1, values, titles)):
         with col:
@@ -708,6 +708,7 @@ st.markdown("""
     </h3>
 """, unsafe_allow_html=True)
 st.subheader('', divider="rainbow")
+#st.write('Preprint:  Qiuzhen Li, Diandra Daumiller, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
 st.write('Qiuzhen Li, Diandra Daumiller, Patrick Bryant: The structural History of Eukarya. bioRxiv 2026.02.04.703859; doi: https://doi.org/10.64898/2026.02.04.703859')
 #align figs
 st.markdown("""

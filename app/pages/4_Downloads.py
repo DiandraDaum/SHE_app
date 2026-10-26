@@ -410,7 +410,7 @@ with st.expander('Tree by Clade'):
     st.subheader('Tree (newick file) by Clade')
     st.caption('Upload these files to iTOL (https://itol.embl.de/) for visualization.')
     
-    kingdoms = ["All", "Opisthokonta", "Amoebozoa", "Sar", "Viridiplantae", "Discoba", "Rhodophyta"]
+    kingdoms = ["Eukarya", "Opisthokonta", "Amoebozoa", "Sar", "Viridiplantae", "Discoba", "Rhodophyta"]
     
     # Create columns for a grid layout of buttons
     t_cols = st.columns(3)
@@ -424,7 +424,7 @@ with st.expander('Tree by Clade'):
         
         if file_content:
             with t_cols[i % 3]:
-                label = "Download Eukarya" if k == "All" else f"Download {k}"
+                label = "Download Eukarya" if k == "Eukarya" else f"Download {k}"
                 st.download_button(
                     label=label,
                     data=file_content,

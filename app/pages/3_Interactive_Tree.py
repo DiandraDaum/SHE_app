@@ -32,6 +32,7 @@ from collections import defaultdict
 from tqdm import tqdm
 import math
 
+
 # Define navigation items for the custom header
 NAV_ITEMS = [
     {"label": "SHE", "icon": "🏠", "path": "app.py"},
@@ -67,7 +68,7 @@ def kingdom_color(kingdom):
     
 #for find species
 #@st.cache_data
-def extract_closest_species(newick_file, input_species, num_neighbors): #species
+def extract_closest_species(newick_file, input_species, num_neighbors, suffix="default"): #species
     """
     Extracts a subtree containing a target species and its N closest relatives
     based on phylogenetic distance.
@@ -80,7 +81,6 @@ def extract_closest_species(newick_file, input_species, num_neighbors): #species
         output_file (str): Path to save the resulting subtree in Newick format.
     """
     # Step 1: Load the main tree.
-    newick_file = 'data/tree/Eukarya/kingdoms_Eukarya_tree.newick'
     print(f"Loading tree from '{newick_file}'...")
     try:
         main_tree = Tree(newick_file, format=1)
@@ -147,7 +147,8 @@ def extract_closest_species(newick_file, input_species, num_neighbors): #species
     main_tree.prune(leaves_to_keep, preserve_branch_length=True)
         # Step 3: Save the new, smaller subtree.
     if len(main_tree) > 0:
-        output_path = 'results/species_trees/'+ target_species +'_subtree.newick'
+        output_path = f'results/species_trees/{target_species}_{suffix}_subtree.newick'
+        #output_path = 'results/species_trees/'+ target_species +'_subtree.newick'
         main_tree.write(outfile=output_path, format=1)
         print(f"\nSuccess! Extracted subtree with {len(leaves_to_keep)} species saved to '{output_path}'")
     else:
@@ -197,7 +198,7 @@ def load_species_tree(species, layout, species_out):
     return svg_path
 
 #for find taxon
-@st.cache_data
+#@st.cache_data
 def extract_subtree(csv_file, newick_file, taxonomic_group): #taxon
     """
     Extracts a subtree from a larger phylogenetic tree based on a taxonomic group.
@@ -601,6 +602,185 @@ def create_plotly_data_c(tree, layout):
 
 
 # dark mode for species and taxa trees
+def display_interactive_tree_c_zoom_old(tree_path, name):
+    
+    try:
+        tree = Tree(tree_path, format=1)
+        tree = get_tree_coordinates(tree) 
+        num_species = len(tree.get_leaves())
+    except Exception as e:
+        print(f"Error processing tree file: {e}")
+        return
+
+    if num_species < 2:
+        st.warning("Taxon not found or contains less than 2 species.")
+        st.stop()
+    taxon=name
+    # --- 1. Layout Selection ---
+    available_layouts = ['Linear']
+    MIN_SPECIES_FOR_CIRCULAR = 400
+    if num_species >= MIN_SPECIES_FOR_CIRCULAR:
+        available_layouts.append('Circular')
+        
+    col_layout, col_label = st.columns(2)
+    with col_layout:
+        tree_layout = st.radio("Select Tree Layout:", available_layouts, horizontal=True, key=f"layout_radio_{name}")
+    with col_label:
+        show_labels_option = st.radio("Show Labels:", ('Yes', 'No'), index=0, horizontal=True, key=f"labels_radio_{name}")
+    
+    layout_key = tree_layout
+    show_labels = (show_labels_option == 'Yes')
+    
+    # --- 2. Coordinate Calculation ---
+    try:
+        if layout_key == 'Circular':
+            tree = polar_coordinates_transform_c(tree) 
+        branch_lines_x, branch_lines_y, node_coords = create_plotly_data_c(tree, layout=layout_key)
+    except Exception as e:
+        print(f"Error generating coordinates: {e}")
+        return
+        
+    # --- 3. Proteomes & Coloring ---
+    try:
+        #proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
+        proteomes_path = 'data/core/merged_evo_rate.csv'
+        proteomes_df = pd.read_csv(proteomes_path)
+        proteomes_df.columns = proteomes_df.columns.str.strip().str.replace(' ', '_')
+        proteomes_df['Kingdom'] = proteomes_df['Taxonomic_lineage'].str.split(', ').str[1]
+        organism_to_kingdom = proteomes_df.set_index('Organism_formatted')['Kingdom'].to_dict()
+        unique_kingdoms = sorted(proteomes_df['Kingdom'].unique())
+        
+        node_colors = []
+        for node_name in node_coords['name']:
+            kingdom = organism_to_kingdom.get(node_name, 'Unknown') 
+            color = kingdom_color(kingdom)
+            node_colors.append(color)
+    except:
+        node_colors = ['#1f77b4'] * len(node_coords['x'])
+        unique_kingdoms = ['Default']
+    
+    # --- 4. NEW: Find Node Feature ---
+    # Get all names
+    raw_node_names = list(node_coords['name'])
+    
+    # FILTER: Keep only names that contain at least one letter (a-z, A-Z)
+    # This removes "9606", "58.56", "100", etc.
+    filtered_node_names = [
+        name for name in raw_node_names 
+        if name and any(c.isalpha() for c in str(name))
+    ]
+    
+    # Use the filtered list for the dropdown
+    search_node = st.selectbox(
+        "🔍 Find a Species:",
+        options=["None"] + sorted(filtered_node_names), 
+        index=0,
+        key="node_finder"
+    )
+
+    # --- 5. Define Traces ---
+    trace_branches = go.Scatter(
+        x=branch_lines_x, y=branch_lines_y,
+        mode='lines',
+        line=dict(color='lightgrey', width=1),
+        hoverinfo='none', 
+        name='Branches'
+    )
+    
+    #node_text = node_coords['name'] if show_labels else [''] * len(node_coords['x'])
+    if show_labels:
+        # Create a list where we ONLY keep the name if it has letters.
+        # Otherwise (if it's a number/bootstrap), we use an empty string.
+        node_text = [
+            name if (name and any(c.isalpha() for c in str(name))) else "" 
+            for name in node_coords['name']
+        ]
+    else:
+        node_text = [''] * len(node_coords['x'])
+
+    trace_nodes = go.Scatter(
+        x=node_coords['x'], y=node_coords['y'],
+        mode='markers+text',
+        marker=dict(size=8, color=node_colors, line=dict(width=1, color='white')),
+        text=node_text, 
+        textposition="middle right",
+        textfont=dict(size=14, color='white'),
+        hovertext=node_coords['text'],
+        hoverinfo='text',
+        name='Nodes'
+    )
+
+    data_traces = [trace_branches, trace_nodes]
+
+    # --- 6. Add Highlight Trace if Search is Active ---
+    if search_node != "None":
+        try:
+            # Find the index of the selected node
+            idx = node_coords['name'].index(search_node)
+            target_x = node_coords['x'][idx]
+            target_y = node_coords['y'][idx]
+            
+            # Create a "Highlight" trace (Big Red Star)
+            trace_highlight = go.Scatter(
+                x=[target_x], y=[target_y],
+                mode='markers+text',
+                marker=dict(
+                    size=14, 
+                    color='#FF0000', # Red
+                    symbol='star',   # Star shape
+                    line=dict(width=1, color='white')
+                ),
+                #text=[search_node],
+                #textposition="top center",
+                #textfont=dict(size=10, color='#FF0000', family="Arial Black"),
+                name='Selected'
+            )
+            data_traces.append(trace_highlight)
+            
+            st.success(f"📍 Found: {search_node}")
+            
+        except ValueError:
+            print("Node not found in coordinates.")
+
+    # --- 7. Legend Traces ---
+    for kingdom in unique_kingdoms:
+        color = kingdom_color(kingdom)
+        data_traces.append(
+            go.Scatter(
+                x=[None], y=[None],
+                mode='markers',
+                marker=dict(size=10, color=color, line=dict(width=1, color='white')),
+                name=kingdom,
+                legendgroup='kingdoms'
+            )
+        )
+
+    # --- 8. Layout ---
+    fig = go.Figure(data=data_traces)
+    
+    layout_params = dict(
+        title=f'{taxon} Tree ({num_species} Species)', # tree title
+        height=800, 
+        showlegend=True,
+        hovermode="closest",
+        template="plotly_dark",     
+        plot_bgcolor='black',      
+        paper_bgcolor='black',      
+        font=dict(color='white'),
+        margin=dict(l=20, r=20, t=40, b=20),
+        autosize=True
+    )
+    
+    # Adjust layout based on type
+    if layout_key == 'Linear':
+        layout_params.update(xaxis=dict(showgrid=False, title='Branch length'), yaxis=dict(showgrid=False, showticklabels=False))
+    else:
+        layout_params.update(xaxis=dict(showgrid=False, showticklabels=False), yaxis=dict(showgrid=False, showticklabels=False))
+
+    fig.update_layout(**layout_params)
+    st.plotly_chart(fig, use_container_width=True)
+
+# dark mode for species and taxa trees
 def display_interactive_tree_c_zoom(tree_path, name):
     
     try:
@@ -623,9 +803,9 @@ def display_interactive_tree_c_zoom(tree_path, name):
         
     col_layout, col_label = st.columns(2)
     with col_layout:
-        tree_layout = st.radio("Select Tree Layout:", available_layouts, horizontal=True)
+        tree_layout = st.radio("Select Tree Layout:", available_layouts, horizontal=True, key=f"layout_radio_{name}")
     with col_label:
-        show_labels_option = st.radio("Show Labels:", ('Yes', 'No'), index=0, horizontal=True)
+        show_labels_option = st.radio("Show Labels:", ('Yes', 'No'), index=0, horizontal=True, key=f"labels_radio_{name}")
     
     layout_key = tree_layout
     show_labels = (show_labels_option == 'Yes')
@@ -641,7 +821,6 @@ def display_interactive_tree_c_zoom(tree_path, name):
         
     # --- 3. Proteomes & Coloring ---
     try:
-        #proteomes_path = 'data/tree/selected_proteomes_above_25_formatted_organisms.csv'
         proteomes_path = 'data/core/merged_evo_rate.csv'
         proteomes_df = pd.read_csv(proteomes_path)
         proteomes_df.columns = proteomes_df.columns.str.strip().str.replace(' ', '_')
@@ -658,23 +837,20 @@ def display_interactive_tree_c_zoom(tree_path, name):
         node_colors = ['#1f77b4'] * len(node_coords['x'])
         unique_kingdoms = ['Default']
     
-    # --- 4. NEW: Find Node Feature ---
-    # Get all names
+    # --- 4. Find Node Feature ---
     raw_node_names = list(node_coords['name'])
     
-    # FILTER: Keep only names that contain at least one letter (a-z, A-Z)
-    # This removes "9606", "58.56", "100", etc.
     filtered_node_names = [
         name for name in raw_node_names 
         if name and any(c.isalpha() for c in str(name))
     ]
     
-    # Use the filtered list for the dropdown
+    # --- FIX APPLIED HERE: Added dynamic key based on name variable ---
     search_node = st.selectbox(
         "🔍 Find a Species:",
         options=["None"] + sorted(filtered_node_names), 
         index=0,
-        key="node_finder"
+        key=f"node_finder_{name}"
     )
 
     # --- 5. Define Traces ---
@@ -686,10 +862,7 @@ def display_interactive_tree_c_zoom(tree_path, name):
         name='Branches'
     )
     
-    #node_text = node_coords['name'] if show_labels else [''] * len(node_coords['x'])
     if show_labels:
-        # Create a list where we ONLY keep the name if it has letters.
-        # Otherwise (if it's a number/bootstrap), we use an empty string.
         node_text = [
             name if (name and any(c.isalpha() for c in str(name))) else "" 
             for name in node_coords['name']
@@ -714,24 +887,19 @@ def display_interactive_tree_c_zoom(tree_path, name):
     # --- 6. Add Highlight Trace if Search is Active ---
     if search_node != "None":
         try:
-            # Find the index of the selected node
             idx = node_coords['name'].index(search_node)
             target_x = node_coords['x'][idx]
             target_y = node_coords['y'][idx]
             
-            # Create a "Highlight" trace (Big Red Star)
             trace_highlight = go.Scatter(
                 x=[target_x], y=[target_y],
                 mode='markers+text',
                 marker=dict(
                     size=14, 
-                    color='#FF0000', # Red
-                    symbol='star',   # Star shape
+                    color='#FF0000', 
+                    symbol='star',   
                     line=dict(width=1, color='white')
                 ),
-                #text=[search_node],
-                #textposition="top center",
-                #textfont=dict(size=10, color='#FF0000', family="Arial Black"),
                 name='Selected'
             )
             data_traces.append(trace_highlight)
@@ -758,7 +926,7 @@ def display_interactive_tree_c_zoom(tree_path, name):
     fig = go.Figure(data=data_traces)
     
     layout_params = dict(
-        title=f'{taxon} Tree ({num_species} Species)', # tree title
+        title=f'{taxon} Tree ({num_species} Species)', 
         height=800, 
         showlegend=True,
         hovermode="closest",
@@ -770,7 +938,6 @@ def display_interactive_tree_c_zoom(tree_path, name):
         autosize=True
     )
     
-    # Adjust layout based on type
     if layout_key == 'Linear':
         layout_params.update(xaxis=dict(showgrid=False, title='Branch length'), yaxis=dict(showgrid=False, showticklabels=False))
     else:
@@ -779,8 +946,8 @@ def display_interactive_tree_c_zoom(tree_path, name):
     fig.update_layout(**layout_params)
     st.plotly_chart(fig, use_container_width=True)
 
-@st.cache_data
-def display_interactive_tree_c_zoom_set(tree_path, name):
+#@st.cache_data
+def display_interactive_tree_c_zoom_set_old(tree_path, name):
     
     try:
         tree = Tree(tree_path, format=1)
@@ -957,6 +1124,178 @@ def display_interactive_tree_c_zoom_set(tree_path, name):
 
     fig.update_layout(**layout_params)
     st.plotly_chart(fig, use_container_width=True)
+
+#new part for protein set build with no widgets inside cache_data
+@st.cache_data
+def get_tree_size(tree_path):
+    """Quickly check species count to determine UI layout options."""
+    try:
+        tree = Tree(tree_path, format=1)
+        return len(tree.get_leaves())
+    except Exception:
+        return 0
+
+@st.cache_data
+def calculate_tree_coordinates(tree_path, layout_key):
+    """Handles only the heavy math and data extraction. No Streamlit widgets here!"""
+    try:
+        tree = Tree(tree_path, format=1)
+        tree = get_tree_coordinates(tree) 
+        
+        if layout_key == 'Circular':
+            tree = polar_coordinates_transform_c(tree) 
+            
+        branch_lines_x, branch_lines_y, node_coords = create_plotly_data_c(tree, layout=layout_key)
+        
+        # Extract kingdom colors
+        try:
+            proteomes_path = 'data/core/merged_evo_rate.csv'
+            proteomes_df = pd.read_csv(proteomes_path)
+            proteomes_df.columns = proteomes_df.columns.str.strip().str.replace(' ', '_')
+            proteomes_df['Kingdom'] = proteomes_df['Taxonomic_lineage'].str.split(', ').str[1]
+            organism_to_kingdom = proteomes_df.set_index('Organism_formatted')['Kingdom'].to_dict()
+            unique_kingdoms = sorted(proteomes_df['Kingdom'].unique())
+            
+            node_colors = []
+            for node_name in node_coords['name']:
+                kingdom = organism_to_kingdom.get(node_name, 'Unknown') 
+                color = kingdom_color(kingdom)
+                node_colors.append(color)
+        except Exception:
+            node_colors = ['#1f77b4'] * len(node_coords['x'])
+            unique_kingdoms = ['Default']
+            
+        return branch_lines_x, branch_lines_y, node_coords, node_colors, unique_kingdoms
+        
+    except Exception as e:
+        print(f"Error generating coordinates: {e}")
+        return None, None, None, [], []
+
+
+def display_interactive_tree_c_zoom_set(tree_path, name):
+    """The main rendering function. Not cached, so UI updates instantly."""
+    
+    # 1. Quick check for species count
+    num_species = get_tree_size(tree_path)
+    if num_species < 2:
+        st.warning("Taxon not found or contains less than 2 species.")
+        return # Changed from st.stop() to safely exit the function instead of killing the app
+        
+    # 2. UI Elements for Layout
+    available_layouts = ['Linear']
+    if num_species >= 400:
+        available_layouts.append('Circular')
+        
+    col_layout, col_label = st.columns(2)
+    with col_layout:
+        tree_layout = st.radio("Select Tree Layout:", available_layouts, horizontal=True)
+    with col_label:
+        show_labels_option = st.radio("Show Labels:", ('Yes', 'No'), index=0, horizontal=True)
+        
+    show_labels = (show_labels_option == 'Yes')
+    
+    # 3. Call the cached math function
+    branch_lines_x, branch_lines_y, node_coords, node_colors, unique_kingdoms = calculate_tree_coordinates(tree_path, tree_layout)
+    
+    if not branch_lines_x:
+        st.error("Failed to calculate tree coordinates.")
+        return
+
+    # 4. Find Node Feature UI
+    raw_node_names = list(node_coords['name'])
+    filtered_node_names = [
+        n for n in raw_node_names 
+        if n and any(c.isalpha() for c in str(n))
+    ]
+    
+    search_node = st.selectbox(
+        "🔍 Find a Species:",
+        options=["None"] + sorted(filtered_node_names), 
+        index=0,
+        key="node_finder"
+    )
+
+    # 5. Define Traces
+    trace_branches = go.Scatter(
+        x=branch_lines_x, y=branch_lines_y,
+        mode='lines',
+        line=dict(color='lightgrey', width=1),
+        hoverinfo='none', 
+        name='Branches'
+    )
+    
+    if show_labels:
+        node_text = [
+            n if (n and any(c.isalpha() for c in str(n))) else "" 
+            for n in node_coords['name']
+        ]
+    else:
+        node_text = [''] * len(node_coords['x'])
+
+    trace_nodes = go.Scatter(
+        x=node_coords['x'], y=node_coords['y'],
+        mode='markers+text',
+        marker=dict(size=8, color=node_colors, line=dict(width=1, color='white')),
+        text=node_text, 
+        textposition="middle right",
+        textfont=dict(size=14, color='white'),
+        hovertext=node_coords['text'],
+        hoverinfo='text',
+        name='Nodes'
+    )
+
+    data_traces = [trace_branches, trace_nodes]
+
+    # 6. Add Highlight Trace
+    if search_node != "None":
+        try:
+            idx = node_coords['name'].index(search_node)
+            trace_highlight = go.Scatter(
+                x=[node_coords['x'][idx]], y=[node_coords['y'][idx]],
+                mode='markers+text',
+                marker=dict(size=14, color='#FF0000', symbol='star', line=dict(width=1, color='white')),
+                name='Selected'
+            )
+            data_traces.append(trace_highlight)
+            st.success(f"📍 Found: {search_node}")
+        except ValueError:
+            pass
+
+    # 7. Legend Traces
+    for kingdom in unique_kingdoms:
+        color = kingdom_color(kingdom)
+        data_traces.append(
+            go.Scatter(
+                x=[None], y=[None], mode='markers',
+                marker=dict(size=10, color=color, line=dict(width=1, color='white')),
+                name=kingdom, legendgroup='kingdoms'
+            )
+        )
+
+    # 8. Layout
+    fig = go.Figure(data=data_traces)
+    
+    layout_params = dict(
+        title=f'{name} Tree ({num_species} Species)', 
+        height=800, 
+        showlegend=True,
+        hovermode="closest",
+        template="plotly_dark",     
+        plot_bgcolor='black',      
+        paper_bgcolor='black',      
+        font=dict(color='white'),
+        margin=dict(l=20, r=20, t=40, b=20),
+        autosize=True
+    )
+    
+    if tree_layout == 'Linear':
+        layout_params.update(xaxis=dict(showgrid=False, title='Branch length'), yaxis=dict(showgrid=False, showticklabels=False))
+    else:
+        layout_params.update(xaxis=dict(showgrid=False, showticklabels=False), yaxis=dict(showgrid=False, showticklabels=False))
+
+    fig.update_layout(**layout_params)
+    st.plotly_chart(fig, use_container_width=True)
+
 
 
 
@@ -1121,6 +1460,9 @@ def display_protein_presence_tree_plotly(protein, families_csv_path, new_proteom
     fig.update_layout(**layout_params)
 
     present_species_names = present_species_info
+    
+    if not fig:
+        print("cannot generate fig")
     
     return fig, present_species_names, family
 
@@ -2149,7 +2491,7 @@ if st.session_state.get("find_species_box"):
         st.page_link("https://en.wikipedia.org/wiki/" + what, label="Wiki", icon="🌎")
         num_neighbors = st.slider("How many close species?", 2, 1541, 10)
         #num_neighbors = 10
-        species_out, renamed_species = extract_closest_species(main_tree_path, species, num_neighbors)
+        species_out, renamed_species = extract_closest_species(main_tree_path, species, num_neighbors, suffix="default")
         #handle different input types
         if renamed_species != species:
             st.write('Selected Species: ',renamed_species)
@@ -2161,7 +2503,24 @@ if st.session_state.get("find_species_box"):
         #species = renamed_species
         st.write('Close species in the tree share similar protein structures at the proteome level.')
         display_interactive_tree_c_zoom(species_out, renamed_species)
-        st.caption('Tree dispalyed using Plotly (Kruchten N., et al. "An interactive, open-source, and browser-based graphing library for Python" doi: 10.5281/zenodo.14503524, 2025-11-17)')
+        st.write("---")
+        # 2. Add the toggle option for the weighted tree with a unique key
+        if st.toggle("Weight tree based on proteome completeness", key="weighted_species_tree_toggle"):
+            weighted_main_tree_path = "data/tree/Eukarya/she_tree_weighted.newick" 
+            try:
+                # Extract the neighbors using the weighted main tree path
+                weighted_species_out, _ = extract_closest_species(
+                    weighted_main_tree_path, 
+                    species, 
+                    num_neighbors,
+                    suffix="weighted"
+                )
+                # Display the weighted neighborhood tree
+                weighted_label = f"{renamed_species} (Weighted Neighbors)"
+                display_interactive_tree_c_zoom(weighted_species_out, weighted_label)
+            except Exception as e:
+                    print(f"Could not extract the weighted subtree: {e}")
+        st.caption('Tree displayed using Plotly (Kruchten N., et al. "An interactive, open-source, and browser-based graphing library for Python" doi: 10.5281/zenodo.14503524, 2025-11-17)')
 
 
 # find taxon --------------------------------------------------------------------------------------------------
@@ -2205,13 +2564,28 @@ if st.session_state.get("find_taxon_box"):
         else:
             taxon_tree = extract_subtree(new_proteomes_path, main_tree_path, taxon)
             display_interactive_tree_c_zoom(taxon_tree, taxon)
-        st.caption('Tree dispalyed using Plotly (Kruchten N., et al. "An interactive, open-source, and browser-based graphing library for Python" doi: 10.5281/zenodo.14503524, 2025-11-17)')  
+            st.write("---") # Visual separator
+            
+            # 2. Add the toggle for the weighted tree
+            if st.toggle("Weight tree based on proteome completeness"):
+                weighted_main_tree_path = "data/tree/Eukarya/she_tree_weighted.newick" 
+                try:
+                    # Extract the subtree using the weighted main tree instead of the standard one
+                    weighted_taxon_tree = extract_subtree(new_proteomes_path, weighted_main_tree_path, taxon)
+                    
+                    # Display the weighted tree
+                    weighted_name = f"{taxon} (Weighted by proteome completeness)"
+                    display_interactive_tree_c_zoom(weighted_taxon_tree, weighted_name)
+                    
+                except Exception as e:
+                    st.warning(f"Could not extract the weighted subtree: {e}")
+        st.caption('Tree displayed using Plotly (Kruchten N., et al. "An interactive, open-source, and browser-based graphing library for Python" doi: 10.5281/zenodo.14503524, 2025-11-17)')  
 
 
 ############### Protein tree extraction -----------------------------------------------------------------------------------------
-st.sidebar.subheader('2. Structural Homologs', divider="red")
-with st.sidebar.expander("Help: How to Find Protein Structural Homologs"):
-    st.write("Digit the protein (UniProt ID) you want to find the orthologs of.")
+st.sidebar.subheader('2. Structural Families', divider="red")
+with st.sidebar.expander("Help: How to Find Protein Structural Families"):
+    st.write("Digit the protein (UniProt ID) you want to find the structural orthologs of.")
     st.write("The resulting structural phylogenetic tree will show you all the species sharing a protein structural homolog of your input protein.")
     st.write("No match found? Try expanding your search with the Wide option!")
 
@@ -2269,7 +2643,7 @@ if st.session_state.get("homologs"):
         with col2:
             search_mode = st.radio(
                 "Search Sensitivity:",
-                ('Rapid (Bitscore>238; e-value = 0.0)', 'Wide (Bitscore>173; e-value<0.00005)'),
+                ('Rapid (Bitscore>238; e-value=0.0)', 'Wide (Bitscore>173; e-value<0.00005)'),
                 index=0, # Defaults to Rapid
                 horizontal=True,
                 help="Rapid uses higher bitscore cutoff (faster). Wide uses MCL clustering with lower cutoff (slower but finds more remote homologs)."
@@ -2287,8 +2661,7 @@ if st.session_state.get("homologs"):
             families_csv_path=families_csv_path, 
             new_proteomes_path=new_proteomes_path, 
             main_tree_path=main_tree_path, 
-            layout=layout
-        )
+            layout=layout)
         
         if fig:
             st.plotly_chart(fig, use_container_width=True)
@@ -2328,7 +2701,9 @@ if st.session_state.get("homologs"):
                         )
             else:
                 st.info("No structural orthologs found in the tree.")
-        st.caption('Tree dispalyed using Plotly (Kruchten N., et al. "An interactive, open-source, and browser-based graphing library for Python" doi: 10.5281/zenodo.14503524, 2025-11-17)')
+        else:
+            st.warning("sorry, looks like there has been a problem... please contact us to fix it :)")
+        st.caption('Tree displayed using Plotly (Kruchten N., et al. "An interactive, open-source, and browser-based graphing library for Python" doi: 10.5281/zenodo.14503524, 2025-11-17)')
 
 
 st.sidebar.subheader('3. Protein Set Structural Evolution', divider="red")
@@ -2599,7 +2974,7 @@ if st.session_state.get("set"):
                 #display_interactive_tree(evo_tree)
                 subset_name = "Subset"
                 display_interactive_tree_c_zoom_set(evo_tree, subset_name)
-                st.caption('Tree dispalyed using Plotly (Kruchten N., et al. "An interactive, open-source, and browser-based graphing library for Python" doi: 10.5281/zenodo.14503524, 2025-11-17)')
+                st.caption('Tree displayed using Plotly (Kruchten N., et al. "An interactive, open-source, and browser-based graphing library for Python" doi: 10.5281/zenodo.14503524, 2025-11-17)')
                 # download button
                 is_random_user = True
                 user_dir = os.path.join("results", "proteins_evolution", user)
