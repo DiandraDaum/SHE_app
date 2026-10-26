@@ -632,7 +632,7 @@ if st.sidebar.button('Subscribe'):
         if save_email(user_email):
             st.balloons()
             st.sidebar.success(f"Thank you! **{user_email}** is where you will receive updates regarding SHE!")
-
+st.sidebar.link_button("📧 Contact Support", "mailto:she_help@scilifelab.se", use_container_width=True)
 
 # --- C. METHODOLOGY SECTION ---
 # Add text-shadow: 0 2px 4px rgba(0,0,0,0.6);

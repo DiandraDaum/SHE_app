@@ -154,6 +154,26 @@ def get_uniprot_suggestion(invalid_id, target_species_proteome):
         return None, f"Could not connect to UniProt: {e}"
     
 # --- HELPER FUNCTIONS ---
+FEEDBACK_FILE = "data/feedback_counts.csv"
+
+def load_feedback_counts():
+    """Load current feedback counts from CSV file."""
+    if os.path.exists(FEEDBACK_FILE):
+        try:
+            df = pd.read_csv(FEEDBACK_FILE)
+            return {
+                "thumbs_up": int(df["thumbs_up"].iloc[0]),
+                "thumbs_down": int(df["thumbs_down"].iloc[0])
+            }
+        except Exception:
+            pass
+    return {"thumbs_up": 0, "thumbs_down": 0}
+
+def save_feedback_counts(counts):
+    """Save updated counts to CSV file."""
+    os.makedirs(os.path.dirname(FEEDBACK_FILE), exist_ok=True)
+    df = pd.DataFrame([counts])
+    df.to_csv(FEEDBACK_FILE, index=False)
 
 def zip_directory(source_path, output_name):
     """Zips a directory and returns the path to the zip file."""
@@ -235,11 +255,35 @@ with st.sidebar:
     st.divider()
     
     st.subheader('Feedback', divider="yellow")
-    st.write("Do you like it?")
+    st.write("Do you like SHE?")
     sentiment_mapping = [":material/thumb_down:", ":material/thumb_up:"]
-    selected = st.feedback("thumbs")
-    if selected is not None:
-        st.markdown(f"You selected: {sentiment_mapping[selected]}")
+    
+    # Initialize voting states
+    if "has_voted" not in st.session_state:
+        st.session_state.has_voted = False
+
+    # Check if we need to show balloons after rerun
+    if st.session_state.get("show_balloons", False):
+        st.balloons()
+        st.session_state.show_balloons = False # Reset flag so it only shows once
+
+    selected = st.feedback("thumbs", key="app_user_feedback")
+
+    if selected is not None and not st.session_state.has_voted:
+        # Load, increment, and save silently
+        feedback_counts = load_feedback_counts()
+        if selected == 1:
+            feedback_counts["thumbs_up"] += 1
+        elif selected == 0:
+            feedback_counts["thumbs_down"] += 1
+
+        save_feedback_counts(feedback_counts)
+        st.session_state.has_voted = True
+        
+        # Set flag to trigger balloons on the rerun cycle
+        st.session_state.show_balloons = True
+        st.rerun()
+st.sidebar.markdown('Issues? Contact us at: [she_help@scilifelab.se](mailto:she_help@scilifelab.se)')
 
 # --- MAIN HEADER ---
 st.markdown("""
