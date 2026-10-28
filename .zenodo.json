@@ -1,0 +1,29 @@
+{
+    "title": "Structural History of Eukarya",
+    "description" : "The Structural History of Eukarya allows to visualise and explore the evolutionary relationships resulting from the proteome-wide structural comparisons of all predicted protein structures in eukaryotic organisms..",
+    "creators": [
+        {
+           "name": "Daumiller, Diandra",
+            "orcid": "0009-0009-5387-1292",
+            "affiliation": "Stockholm University",
+            "type": "Author"
+        },
+        {
+            "name": "Bryant, Patrick",
+            "orcid": "0000-0003-3439-1866",
+            "affiliation": "Stockholm University",
+            "type": "Author"
+        }  
+    ],
+    "related_identifiers": [
+        {    "scheme": "doi",         
+            "identifier": "10.64898/2026.02.04.703859",
+            "relation": "isDocumentedBy",
+            "resource_type": "preprint"   
+        }
+    ],
+    "keywords": [
+        "Computational Biology",
+        "DDLS"
+    ]
+}
