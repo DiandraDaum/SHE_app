@@ -708,8 +708,8 @@ st.markdown("""
     </h3>
 """, unsafe_allow_html=True)
 st.subheader('', divider="rainbow")
-#st.write('Preprint:  Qiuzhen Li, Diandra Daumiller, Patrick Bryant: <The structural History of Eukarya. bioRxiv ; doi: >')
-st.write('Qiuzhen Li, Diandra Daumiller, Patrick Bryant: The structural History of Eukarya. bioRxiv 2026.02.04.703859; doi: https://doi.org/10.64898/2026.02.04.703859')
+#st.write('Qiuzhen Li, Diandra Daumiller, Patrick Bryant: The structural History of Eukarya. bioRxiv 2026.02.04.703859; doi: https://doi.org/10.64898/2026.02.04.703859')
+st.write('Diandra Daumiller et al. ,The structural history of Eukarya.Sci. Adv.12,eaeh2524(2026).DOI:10.1126/sciadv.aeh2524')
 #align figs
 st.markdown("""
     <style>
